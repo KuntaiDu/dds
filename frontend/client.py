@@ -41,7 +41,7 @@ class Client:
 
             r2 = self.server.simulate_high_query(req_regions,
                                                  high_results_dict,
-                                                 self.high_threshold)
+                                                 config_to_use)
             r2_results.combine_results(r2)
 
         # Combine results and sort on fid
