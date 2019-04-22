@@ -6,7 +6,7 @@ class ServerConfig:
         self.tracker_length = tracker_length
 
 
-class SingleResult:
+class Region:
     def __init__(self, fid, x, y, w, h, conf, label, resolution):
         self.fid = fid
         self.x = x
@@ -19,7 +19,7 @@ class SingleResult:
 
 class Results:
     def __init__(self):
-        self.single_obj_results = []
+        self.regions = []
 
     def is_dup(self, result_to_add, threshold=0.7):
         for existing_result in self.single_obj_results:
@@ -57,7 +57,7 @@ def read_results_txt_dict(fname):
         label = int(line[5])
         conf = float(line[6])
         resolution = float(line[7])
-        single_result = SingleResult(fid, x, y, w, h, conf, label, resolution)
+        single_result = Region(fid, x, y, w, h, conf, label, resolution)
 
         if fid not in results_dict:
             results_dict[fid] = []
