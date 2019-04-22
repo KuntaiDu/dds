@@ -23,6 +23,14 @@ class Results:
 
     def is_dup(self, result_to_add, threshold=0.7):
         for existing_result in self.single_obj_results:
+            # If the results are from a different frame
+            # No need to check intersection area
+            if result_to_add.fid != existing_result.fid:
+                continue
+
+            # Check if there is significant intersection
+            # between a the result we want to add and a
+            # region in the same frame
             if calc_iou(result_to_add, existing_result) > threshold:
                 return True
         return False
