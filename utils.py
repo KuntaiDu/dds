@@ -21,20 +21,29 @@ class Results:
     def __init__(self):
         self.single_obj_results = []
 
-    def add_results(self, additional_results, intersection_threshold=0.7):
+    def is_dup(self, result_to_add, threshold=0.7):
+        for existing_result in self.single_obj_results:
+            if calc_iou(result_to_add, existing_result) > threshold:
+                return True
+        return False
+
+    def combine_results(self, additional_results, intersection_threshold=0.7):
         for result in additional_results:
-            is_dup = False
-            for existing_result in self.single_obj_results:
-                if calc_iou(result, existing_result) > intersection_threshold:
-                    is_dup = True
-                    break
-            if not is_dup:
+            if not self.is_dup(result, intersection_threshold):
                 self.single_obj_results.append(result)
         # Sort final results
         self.single_obj_results.sort(key=lambda x: x.fid)
 
+    def add_single_result(self, result_to_add):
+        temp_results = Results()
+        temp_results.single_obj_results = [result_to_add]
+        self.combine_results(temp_results)
+
 
 def read_results_txt_dict(fname):
+    """Return a dictionary with fid mapped to
+       and array that contains all SingleResult objects
+       from that particular frame"""
     results_dict = {}
 
     with open(fname, "r") as f:
