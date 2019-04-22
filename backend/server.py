@@ -65,15 +65,20 @@ class Server:
         for fid in range(start_fid, end_fid):
             fid_results = results_dict[fid]
             for single_result in fid_results:
-                confidence = single_result.conf
-                if confidence > curr_conf.low_threshold:
-                    results.add_single_result(single_result)
+                results.add_single_result(single_result)
 
         # Tracking phase
-        for single_result in results.single_obj_results:
-            # Accept result as accepted if confidence greater than a threshold
+        for single_result in results.regions:
+            # Do not inspect if the result confidence is
+            # less than low threshold
+            if single_result.conf < curr_conf.low_threshold:
+                continue
+
+            # Accept result if confidence greater than a threshold
             if single_result.conf > curr_conf.high_threshold:
                 accepted_results.add_single_result(single_result)
+            else:
+                regions_to_query.add_single_result(single_result)
 
             start_frame = single_result.fid
 
@@ -91,9 +96,36 @@ class Server:
 
         # Remove regions that are in the accepted results
         final_regions_to_query = Results()
-        for region in regions_to_query.single_obj_results:
+        for region in regions_to_query.regions:
             if not accepted_results.is_dup(region):
                 final_regions_to_query.add_single_result(region)
 
         # Return results and regions
         return results, final_regions_to_query
+
+    def simulate_high_query(self, req_regions, high_results_dict, config=None):
+        curr_conf = self.conf
+        if config is not None:
+            curr_conf = config
+
+        high_res_results = Results()
+
+        accepted_results = Results()
+
+        # Get all results that have confidence above the threshold and
+        # is in one of the frames in the queried regions
+        fids_in_queried_regions = [e.fid for e in req_regions.regions]
+        for fid in fids_in_queried_regions:
+            if fid not in high_results_dict:
+                continue
+            fid_results = high_results_dict[fid]
+            for single_result in fid_results:
+                confidence = single_result.conf
+                if confidence > curr_conf.low_threshold:
+                    high_res_results.add_single_result(single_result)
+
+        for region in req_regions.regions:
+            if high_res_results.is_dup(region):
+                accepted_results.add_single_result(region)
+
+        return accepted_results

@@ -48,5 +48,8 @@ class Client:
         results.combine_results(r1)
         results.combine_results(r2)
 
+        # Fill gaps in results
+        results.fill_gaps(number_of_frames)
+
         # Write results
         write_results(results, video_name, fmat="txt")

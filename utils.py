@@ -58,6 +58,7 @@ class Results:
                                                         max_resolution))
         self.combine_results(results_to_add)
 
+
 def read_results_txt_dict(fname):
     """Return a dictionary with fid mapped to
        and array that contains all SingleResult objects
