@@ -62,7 +62,7 @@ def read_results_txt_dict(fname):
         line = line.split(",")
         fid = int(line[0])
         x, y, w, h = [float(e) for e in line[1:5]]
-        label = int(line[5])
+        label = line[5]
         conf = float(line[6])
         resolution = float(line[7])
         single_result = Region(fid, x, y, w, h, conf, label, resolution)
