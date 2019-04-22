@@ -22,7 +22,7 @@ class Results:
         self.regions = []
 
     def is_dup(self, result_to_add, threshold=0.7):
-        for existing_result in self.single_obj_results:
+        for existing_result in self.regions:
             # If the results are from a different frame
             # No need to check intersection area
             if result_to_add.fid != existing_result.fid:
@@ -38,13 +38,13 @@ class Results:
     def combine_results(self, additional_results, intersection_threshold=0.7):
         for result in additional_results:
             if not self.is_dup(result, intersection_threshold):
-                self.single_obj_results.append(result)
+                self.regions.append(result)
         # Sort final results
         self.single_obj_results.sort(key=lambda x: x.fid)
 
     def add_single_result(self, result_to_add):
         temp_results = Results()
-        temp_results.single_obj_results = [result_to_add]
+        temp_results.regions = [result_to_add]
         self.combine_results(temp_results)
 
 
