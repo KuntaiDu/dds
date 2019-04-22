@@ -47,6 +47,16 @@ class Results:
         temp_results.regions = [result_to_add]
         self.combine_results(temp_results)
 
+    def fill_gaps(self, number_of_frames):
+        results_to_add = Results()
+        max_resolution = max([e.resolution for e in self.regions])
+        fids_in_results = [e.fid for e in self.regions]
+        for i in range(number_of_frames):
+            if i not in fids_in_results:
+                results_to_add.add_single_result(Region(i, 0, 0, 0, 0,
+                                                        "no obj", 0.1,
+                                                        max_resolution))
+        self.combine_results(results_to_add)
 
 def read_results_txt_dict(fname):
     """Return a dictionary with fid mapped to
