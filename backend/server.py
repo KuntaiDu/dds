@@ -1,9 +1,13 @@
 import os
 import cv2 as cv
-from ..utils import ServerConfig, Results, Region
+from utils import ServerConfig, Results, Region
 
 
 class Server:
+    """The server component of DDS protocol. Responsible for running DNN
+       on low resolution images, tracking to find regions of interest and
+       running DNN on the high resolution regions of interest"""
+
     def __init__(self, high_threshold, low_threshold,
                  max_object_size, tracker_length):
         self.conf = ServerConfig(high_threshold, low_threshold,
