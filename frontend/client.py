@@ -15,7 +15,7 @@ class Client:
                                         max_object_size, tracker_length)
 
     def analyze_video_simulate(self, video_name, images_direc,
-                               high_resutls_path,
+                               high_results_path,
                                low_results_path, new_config=None):
         config_to_use = self.server_conf
         if new_config is not None:
@@ -26,7 +26,7 @@ class Client:
         r2_results = Results()
 
         low_results_dict = read_results_dict(low_results_path, fmat="txt")
-        high_results_dict = read_results_dict(high_resutls_path, fmat="txt")
+        high_results_dict = read_results_dict(high_results_path, fmat="txt")
 
         number_of_frames = os.listdir(images_direc)
         for i in range(0, number_of_frames, self.batch_size):
