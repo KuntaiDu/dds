@@ -53,3 +53,5 @@ class Client:
 
         # Write results
         write_results(results, video_name, fmat="txt")
+
+        return results
