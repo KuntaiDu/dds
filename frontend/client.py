@@ -1,5 +1,5 @@
 import os
-from utils import Results, read_results_dict, write_results, ServerConfig
+from dds_utils import Results, read_results_dict, write_results, ServerConfig
 
 
 class Client:

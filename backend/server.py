@@ -1,6 +1,6 @@
 import os
 import cv2 as cv
-from utils import ServerConfig, Results, Region
+from dds_utils import ServerConfig, Results, Region
 
 
 class Server:
