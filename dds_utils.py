@@ -16,6 +16,20 @@ class Region:
         self.label = label
         self.resolution = resolution
 
+    def is_same(self, region_to_check, threshold=0.7):
+        # If the fids are different return
+        # then not the same
+        if self.fid != region_to_check.fid:
+            return False
+
+        # If the intersection to union area
+        # ratio is greater than the threshold
+        # then the regions are the same
+        if calc_iou(self, region_to_check) > threshold:
+            return True
+        else:
+            return False
+
 
 class Results:
     def __init__(self):
@@ -23,20 +37,12 @@ class Results:
 
     def is_dup(self, result_to_add, threshold=0.7):
         for existing_result in self.regions:
-            # If the results are from a different frame
-            # No need to check intersection area
-            if result_to_add.fid != existing_result.fid:
-                continue
-
-            # Check if there is significant intersection
-            # between a the result we want to add and a
-            # region in the same frame
-            if calc_iou(result_to_add, existing_result) > threshold:
+            if existing_result.is_same(result_to_add):
                 return True
         return False
 
     def combine_results(self, additional_results, intersection_threshold=0.7):
-        for result in additional_results:
+        for result in additional_results.regions:
             if not self.is_dup(result, intersection_threshold):
                 self.regions.append(result)
         # Sort final results
