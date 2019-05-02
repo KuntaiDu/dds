@@ -40,7 +40,7 @@ class Server:
         frame_range = range(start_fid, end_fid)[1:]
         for fid in frame_range:
             curr_frame_fname = "{}.png".format(str(fid).zfill(10))
-            curr_frame_path = os.paht.join(images_direc, curr_frame_fname)
+            curr_frame_path = os.path.join(images_direc, curr_frame_fname)
             curr_frame = cv.imread(curr_frame_path)
 
             status, bbox = tracker.update(curr_frame)
