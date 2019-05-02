@@ -99,14 +99,16 @@ def read_results_dict(fname, fmat="csv"):
 
 
 def write_results_txt(results, fname):
-    results_file = open(fname, "r")
-    for result in results.single_obj_results:
-        results_file.write("{},{},{},{},{},{},{},{}".format(result.fid,
-                                                            result.x, result.y,
-                                                            result.w, result.h,
-                                                            result.label,
-                                                            result.conf,
-                                                            result.resolution))
+    results_file = open(fname, "w")
+    for result in results.regions:
+        # prepare the string to write
+        str_to_write = "{},{},{},{},{},{},{},{}\n".format(result.fid, result.x,
+                                                          result.y, result.w,
+                                                          result.h,
+                                                          result.label,
+                                                          result.conf,
+                                                          result.resolution)
+        results_file.write(str_to_write)
     results_file.close()
 
 
