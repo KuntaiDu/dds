@@ -122,8 +122,8 @@ def write_results(results, fname, fmat="csv"):
 def calc_intersection_area(a, b):
     to = max(a.y, b.y)
     le = max(a.x, b.x)
-    bo = min(a.y + a.w, b.y + b.w)
-    ri = min(a.x + a.w, b.y + b.w)
+    bo = min(a.y + a.h, b.y + b.h)
+    ri = min(a.x + a.w, b.x + b.w)
 
     w = max(0, ri - le)
     h = max(0, bo - to)
