@@ -160,7 +160,7 @@ class Server:
             fid_results = high_results_dict[fid]
             for single_result in fid_results:
                 confidence = single_result.conf
-                if confidence > curr_conf.low_threshold:
+                if confidence > curr_conf.high_threshold:
                     high_res_results.add_single_result(single_result)
 
         return high_res_results
