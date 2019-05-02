@@ -8,13 +8,13 @@ def main(args):
         # Make simulation objects
         server = Server(args.high_threshold, args.low_threshold,
                         args.max_object_size, args.tracker_length)
-        client = Client(server, args.hname, args.bsize,
-                        args.high_threshold, args.low_threshold,
-                        args.max_object_size, args.tracker_length)
+        client = Client(server, args.hname, args.high_threshold,
+                        args.low_threshold, args.max_object_size,
+                        args.tracker_length)
 
         # Run simulation
         client.analyze_video_simulate(args.video_name, args.images_loc,
-                                      args.high_results_path,
+                                      args.bsize, args.high_results_path,
                                       args.low_results_path)
 
 

@@ -7,14 +7,14 @@ class Client:
        sends images in low resolution and waits for
        further instructions from the server. And finally receives results"""
 
-    def __init__(self, server_handle, hname=None, bsize=15, high_threshold=0.8,
+    def __init__(self, server_handle, hname=None, high_threshold=0.8,
                  low_threshold=0.3, max_object_size=0.3, tracker_length=4):
         self.hname = hname
-        self.server_handle = server_handle
+        self.server = server_handle
         self.server_conf = ServerConfig(high_threshold, low_threshold,
                                         max_object_size, tracker_length)
 
-    def analyze_video_simulate(self, video_name, images_direc,
+    def analyze_video_simulate(self, video_name, images_direc, batch_size,
                                high_results_path,
                                low_results_path, new_config=None):
         config_to_use = self.server_conf
@@ -28,10 +28,10 @@ class Client:
         low_results_dict = read_results_dict(low_results_path, fmat="txt")
         high_results_dict = read_results_dict(high_results_path, fmat="txt")
 
-        number_of_frames = os.listdir(images_direc)
-        for i in range(0, number_of_frames, self.batch_size):
+        number_of_frames = len(os.listdir(images_direc))
+        for i in range(0, number_of_frames, batch_size):
             start_frame_id = i
-            end_frame_id = min(number_of_frames, i + self.batch_size)
+            end_frame_id = min(number_of_frames, i + batch_size)
             r1, req_regions = self.server.simulate_low_query(start_frame_id,
                                                              end_frame_id,
                                                              images_direc,
