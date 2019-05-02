@@ -45,8 +45,8 @@ class Client:
             r2_results.combine_results(r2)
 
         # Combine results and sort on fid
-        results.combine_results(r1)
-        results.combine_results(r2)
+        results.combine_results(r1_results)
+        results.combine_results(r2_results)
 
         # Fill gaps in results
         results.fill_gaps(number_of_frames)
