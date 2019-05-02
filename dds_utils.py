@@ -17,6 +17,11 @@ class Region:
         self.label = label
         self.resolution = resolution
 
+    def print_details(self):
+        print("{}, {:0.3f}, {:0.3f}, {:0.3f}, {:0.3f}, {}".format(self.x, self.y,
+                                                                  self.w, self.h,
+                                                                  self.resolution))
+
     def is_same(self, region_to_check, threshold=0.7):
         # If the fids are different return
         # then not the same
