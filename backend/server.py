@@ -98,14 +98,8 @@ class Server:
                                                end_frame, images_direc)
             regions_to_query.combine_results(regions_from_tracking)
 
-        # Remove regions that are in the accepted results
-        final_regions_to_query = Results()
-        for region in regions_to_query.regions:
-            if not accepted_results.is_dup(region):
-                final_regions_to_query.add_single_result(region)
-
         # Return results and regions
-        return results, final_regions_to_query
+        return results, regions_to_query
 
     def simulate_high_query(self, req_regions, high_results_dict, config=None):
         curr_conf = self.conf
@@ -113,8 +107,6 @@ class Server:
             curr_conf = config
 
         high_res_results = Results()
-
-        accepted_results = Results()
 
         # Get all results that have confidence above the threshold and
         # is in one of the frames in the queried regions
@@ -128,8 +120,4 @@ class Server:
                 if confidence > curr_conf.low_threshold:
                     high_res_results.add_single_result(single_result)
 
-        for region in req_regions.regions:
-            if high_res_results.is_dup(region):
-                accepted_results.add_single_result(region)
-
-        return accepted_results
+        return high_res_results
