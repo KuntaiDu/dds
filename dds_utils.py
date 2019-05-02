@@ -12,6 +12,7 @@ class Region:
         self.x = x
         self.y = y
         self.w = w
+        self.h = h
         self.conf = conf
         self.label = label
         self.resolution = resolution
@@ -46,7 +47,7 @@ class Results:
             if not self.is_dup(result, intersection_threshold):
                 self.regions.append(result)
         # Sort final results
-        self.single_obj_results.sort(key=lambda x: x.fid)
+        self.regions.sort(key=lambda x: x.fid)
 
     def add_single_result(self, result_to_add):
         temp_results = Results()
@@ -59,9 +60,9 @@ class Results:
         fids_in_results = [e.fid for e in self.regions]
         for i in range(number_of_frames):
             if i not in fids_in_results:
-                results_to_add.add_single_result(Region(i, 0, 0, 0, 0,
-                                                        "no obj", 0.1,
-                                                        max_resolution))
+                results_to_add.regions(Region(i, 0, 0, 0, 0,
+                                              "no obj", 0.1,
+                                              max_resolution))
         self.combine_results(results_to_add)
 
 
