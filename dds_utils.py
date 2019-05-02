@@ -80,14 +80,16 @@ def read_results_txt_dict(fname):
         line = line.split(",")
         fid = int(line[0])
         x, y, w, h = [float(e) for e in line[1:5]]
-        label = line[5]
         conf = float(line[6])
+        label = line[5]
         resolution = float(line[7])
         single_result = Region(fid, x, y, w, h, conf, label, resolution)
 
         if fid not in results_dict:
             results_dict[fid] = []
-        results_dict[fid].append(single_result)
+
+        if label != "no obj":
+            results_dict[fid].append(single_result)
 
     return results_dict
 
