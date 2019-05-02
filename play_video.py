@@ -42,10 +42,10 @@ if __name__ == "__main__":
                         type=int, default=15,
                         help="Segment size to use for DDS")
     # Server config arguments
-    parser.add_argument("-ht", dest="high_threshold",
+    parser.add_argument("-lt", dest="low_threshold",
                         type=float, default=0.1,
                         help="High threshold for ROI selection")
-    parser.add_argument("-lt", dest="low_threshold",
+    parser.add_argument("-ht", dest="high_threshold",
                         type=float, default=0.8,
                         help="Low threshold for ROI selection")
     parser.add_argument("-ms", dest="max_object_size",
