@@ -9,9 +9,9 @@ class Server:
        running DNN on the high resolution regions of interest"""
 
     def __init__(self, high_threshold, low_threshold,
-                 max_object_size, tracker_length):
+                 max_object_size, tracker_length, boundary):
         self.conf = ServerConfig(high_threshold, low_threshold,
-                                 max_object_size, tracker_length)
+                                 max_object_size, tracker_length, boundary)
 
     def track(self, obj_to_track, start_fid, end_fid, images_direc):
         regions = Results()
@@ -55,6 +55,62 @@ class Server:
 
         return regions
 
+    def get_regions_to_query(self, start_fid, end_fid, images_direc, results,
+                             config):
+        non_tracking_regions = Results()
+        tracking_regions = Results()
+
+        for single_result in results.regions:
+            non_tracking_regions.add_single_result(single_result)
+
+            start_frame = single_result.fid
+
+            # Forward tracking
+            end_frame = min(start_frame + config.tracker_length, end_fid)
+            regions_from_tracking = self.track(single_result, start_frame,
+                                               end_frame, images_direc)
+            tracking_regions.combine_results(regions_from_tracking)
+
+            # Backward tracking
+            end_frame = max(0, start_frame - config.tracker_length)
+            regions_from_tracking = self.track(single_result, start_frame,
+                                               end_frame, images_direc)
+            tracking_regions.combine_results(regions_from_tracking)
+
+        # Enlarge non-tracking boxes
+        for result in non_tracking_regions.regions:
+            new_x = max(result.x - config.boundary * result.w, 0)
+            new_y = max(result.y - config.boundary * result.h, 0)
+            new_w = min(result.w + config.boundary * result.w * 2,
+                        1 - result.x + config.boundary * result.w)
+            new_h = min(result.h + config.boundary * result.h * 2,
+                        1 - result.y + config.boundary * result.h)
+
+            result.x = new_x
+            result.y = new_y
+            result.w = new_w
+            result.h = new_h
+
+        # Enlarge tracking boxes
+        for result in tracking_regions.regions:
+            new_x = max(result.x - 2 * config.boundary * result.w, 0)
+            new_y = max(result.y - 2 * config.boundary * result.h, 0)
+            new_w = min(result.w + 2 * config.boundary * result.w * 2,
+                        1 - result.w + 2 * config.boundary * result.w)
+            new_h = min(result.h + 2 * config.boundary * result.h * 2,
+                        1 - result.h + 2 * config.boundary * result.h)
+
+            result.x = new_x
+            result.y = new_y
+            result.w = new_w
+            result.h = new_h
+
+        final_regions = Results()
+        final_regions.combine_results(non_tracking_regions)
+        final_regions.combine_results(tracking_regions)
+
+        return final_regions
+
     def simulate_low_query(self, start_fid, end_fid, images_direc,
                            results_dict, config=None):
         curr_conf = self.conf
@@ -63,7 +119,7 @@ class Server:
 
         results = Results()
         accepted_results = Results()
-        regions_to_query = Results()
+        results_for_regions = Results()  # Results used for regions detection
 
         # Extract relevant results
         for fid in range(start_fid, end_fid):
@@ -71,35 +127,22 @@ class Server:
             for single_result in fid_results:
                 results.add_single_result(single_result)
 
-        # Tracking phase
         for single_result in results.regions:
-            # Do not inspect if the result confidence is
-            # less than low threshold
             if single_result.conf < curr_conf.low_threshold:
                 continue
 
-            # Accept result if confidence greater than a threshold
-            if single_result.conf > curr_conf.high_threshold:
+            if single_result.conf > config.high_threshold:
                 accepted_results.add_single_result(single_result)
             else:
-                regions_to_query.add_single_result(single_result)
+                results_for_regions.add_single_result(single_result)
 
-            start_frame = single_result.fid
-
-            # Forward tracking
-            end_frame = min(start_frame + curr_conf.tracker_length, end_fid)
-            regions_from_tracking = self.track(single_result, start_frame,
-                                               end_frame, images_direc)
-            regions_to_query.combine_results(regions_to_query)
-
-            # Backward tracking
-            end_frame = max(0, start_frame - curr_conf.tracker_length)
-            regions_from_tracking = self.track(single_result, start_frame,
-                                               end_frame, images_direc)
-            regions_to_query.combine_results(regions_from_tracking)
+        regions_to_query = self.get_regions_to_query(start_fid, end_fid,
+                                                     images_direc,
+                                                     results_for_regions,
+                                                     curr_conf)
 
         # Return results and regions
-        return results, regions_to_query
+        return accepted_results, regions_to_query
 
     def simulate_high_query(self, req_regions, high_results_dict, config=None):
         curr_conf = self.conf

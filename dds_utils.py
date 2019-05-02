@@ -1,9 +1,11 @@
 class ServerConfig:
-    def __init__(self, h_thres, l_thres, max_obj_size, tracker_length):
+    def __init__(self, h_thres, l_thres, max_obj_size, tracker_length,
+                 boundary):
         self.high_threshold = h_thres
         self.low_threshold = l_thres
         self.max_object_size = max_obj_size
         self.tracker_length = tracker_length
+        self.boundary = boundary
 
 
 class Region:
@@ -18,9 +20,12 @@ class Region:
         self.resolution = resolution
 
     def print_details(self):
-        print("{}, {:0.3f}, {:0.3f}, {:0.3f}, {:0.3f}, {}".format(self.x, self.y,
-                                                                  self.w, self.h,
-                                                                  self.resolution))
+        print("{}, "
+              "{:0.3f}, {:0.3f}, "
+              "{:0.3f}, {:0.3f}, {}".format(self.fid,
+                                            self.x, self.y,
+                                            self.w, self.h,
+                                            self.resolution))
 
     def is_same(self, region_to_check, threshold=0.7):
         # If the fids are different return

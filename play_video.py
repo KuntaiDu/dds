@@ -7,10 +7,11 @@ def main(args):
     if args.hname is None:
         # Make simulation objects
         server = Server(args.high_threshold, args.low_threshold,
-                        args.max_object_size, args.tracker_length)
+                        args.max_object_size, args.tracker_length,
+                        args.boundary)
         client = Client(server, args.hname, args.high_threshold,
                         args.low_threshold, args.max_object_size,
-                        args.tracker_length)
+                        args.tracker_length, args.boundary)
 
         # Run simulation
         client.analyze_video_simulate(args.video_name, args.images_loc,
@@ -54,6 +55,10 @@ if __name__ == "__main__":
     parser.add_argument("-tl", dest="tracker_length",
                         type=int, default=4,
                         help="Number of frame for tracking in ROI selection")
+    parser.add_argument("--boundary",
+                        type=float, default=0.2,
+                        help="Size by which to enlarge boundary while "
+                        "calculating regions to query")
 
     args = parser.parse_args()
 

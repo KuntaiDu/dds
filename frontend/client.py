@@ -8,11 +8,13 @@ class Client:
        further instructions from the server. And finally receives results"""
 
     def __init__(self, server_handle, hname=None, high_threshold=0.8,
-                 low_threshold=0.3, max_object_size=0.3, tracker_length=4):
+                 low_threshold=0.3, max_object_size=0.3,
+                 tracker_length=4, boundary=0.2):
         self.hname = hname
         self.server = server_handle
         self.server_conf = ServerConfig(high_threshold, low_threshold,
-                                        max_object_size, tracker_length)
+                                        max_object_size,
+                                        tracker_length, boundary)
 
     def analyze_video_simulate(self, video_name, images_direc, batch_size,
                                high_results_path,
