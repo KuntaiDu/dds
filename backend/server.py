@@ -36,8 +36,15 @@ class Server:
         tracker = cv.TrackerKCF_create()
         tracker.init(init_frame, bbox)
 
-        # Remove first frame, used for initializing the tracker
-        frame_range = range(start_fid, end_fid)[1:]
+        # Make the frame range
+        frame_range = None
+        if start_fid < end_fid:
+            frame_range = range(start_fid, end_fid)
+        else:
+            frame_range = range(start_fid, end_fid, -1)
+        print(frame_range)
+        # Remove the first frame which was used to initialize the tracker
+        frame_range = frame_range[1:]
         for fid in frame_range:
             curr_frame_fname = "{}.png".format(str(fid).zfill(10))
             curr_frame_path = os.path.join(images_direc, curr_frame_fname)
