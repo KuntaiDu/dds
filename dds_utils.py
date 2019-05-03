@@ -59,10 +59,10 @@ class Results:
         # Sort final results
         self.regions.sort(key=lambda x: x.fid)
 
-    def add_single_result(self, result_to_add):
+    def add_single_result(self, result_to_add, threshold=0.7):
         temp_results = Results()
         temp_results.regions = [result_to_add]
-        self.combine_results(temp_results)
+        self.combine_results(temp_results, threshold)
 
     def fill_gaps(self, number_of_frames):
         results_to_add = Results()
