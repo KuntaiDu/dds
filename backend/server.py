@@ -138,10 +138,10 @@ class Server:
             if single_result.conf < curr_conf.low_threshold:
                 continue
 
+            results_for_regions.add_single_result(single_result)
+
             if single_result.conf > config.high_threshold:
                 accepted_results.add_single_result(single_result)
-            else:
-                results_for_regions.add_single_result(single_result)
 
         regions_to_query = self.get_regions_to_query(start_fid, end_fid,
                                                      images_direc,
