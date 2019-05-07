@@ -3,28 +3,41 @@ import logging
 import argparse
 from backend.server import Server
 from frontend.client import Client
+from dds_utils import read_results_dict, evaluate
 
 
 def main(args):
     logging.basicConfig(format="%(name)s -- %(levelname)s -- %(message)s",
                         level=args.verbosity.upper())
 
+    logger = logging.getLogger("dds")
+    logger.addHandler(logging.NullHandler())
+
     if args.hname is None:
         # Make simulation objects
+        logging.info("Starting server")
         server = Server(args.high_threshold, args.low_threshold,
                         args.max_object_size, args.tracker_length,
                         args.boundary)
+        logging.info("Starting client")
         client = Client(server, args.hname, args.high_threshold,
                         args.low_threshold, args.max_object_size,
                         args.tracker_length, args.boundary)
 
         # Run simulation
-        _, (low, high) = client.analyze_video_simulate(args.video_name,
-                                                       args.images_loc,
-                                                       args.bsize,
-                                                       args.high_results_path,
-                                                       args.low_results_path)
-        # TODO: Evaluation and writing results
+        logging.info("Analyzing video {}".format(args.video_name))
+        results, bw = client.analyze_video_simulate(args.video_name,
+                                                    args.images_loc,
+                                                    args.bsize,
+                                                    args.high_results_path,
+                                                    args.low_results_path)
+        low, high = bw
+
+        # Evaluation and writing results
+        # Read Groundtruth results
+        ground_truth_dict = read_results_dict(args.ground_truth, fmat="txt")
+        logging.info("Reading ground truth results complete")
+        evaluate(results, ground_truth_dict)
 
 
 if __name__ == "__main__":
@@ -47,6 +60,9 @@ if __name__ == "__main__":
     parser.add_argument("--high-results", dest="high_results_path",
                         type=str, default=None,
                         help="Path to file containing high resolution results")
+    parser.add_argument("--ground-truth", dest="ground_truth",
+                        type=str, default=None,
+                        help="File containing the ground_truth")
     parser.add_argument("--batch-size", dest="bsize",
                         type=int, default=15,
                         help="Segment size to use for DDS")
