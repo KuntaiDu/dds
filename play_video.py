@@ -15,7 +15,10 @@ def main(args):
 
     if args.hname is None:
         # Make simulation objects
-        logging.info("Starting server")
+        logging.info("Starting server with high threshold of "
+                     "{} low threshold of {} tracker length of {}"
+                     .format(args.high_threshold, args.low_threshold,
+                             args.tracker_length))
         server = Server(args.high_threshold, args.low_threshold,
                         args.max_object_size, args.tracker_length,
                         args.boundary)

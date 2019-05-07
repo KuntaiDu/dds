@@ -77,15 +77,15 @@ class Server:
             non_tracking_regions.add_single_result(single_result)
 
             start_frame = single_result.fid
-            self.logger.info("Finding regions to query for frame {}".format(
-                start_frame))
+            self.logger.debug("Finding regions to query for {}".format(
+                single_result.to_str()))
 
             # Forward tracking
             end_frame = min(start_frame + config.tracker_length, end_fid)
             regions_from_tracking = self.track(single_result, start_frame,
                                                end_frame, images_direc)
-            self.logger.info("Found {} regions using forward tracking from"
-                             " {} to {}".format(
+            self.logger.debug("Found {} regions using forward tracking from"
+                              " {} to {}".format(
                                  regions_from_tracking.results_len(),
                                  start_frame, end_frame))
             tracking_regions.combine_results(regions_from_tracking)
@@ -94,8 +94,8 @@ class Server:
             end_frame = max(0, start_frame - config.tracker_length)
             regions_from_tracking = self.track(single_result, start_frame,
                                                end_frame, images_direc)
-            self.logger.info("Found {} regions using backward tracking from"
-                             " {} to {}".format(
+            self.logger.debug("Found {} regions using backward tracking from"
+                              " {} to {}".format(
                                  regions_from_tracking.results_len(),
                                  start_frame, end_frame))
             tracking_regions.combine_results(regions_from_tracking)
@@ -193,6 +193,7 @@ class Server:
             for single_result in fid_results:
                 confidence = single_result.conf
                 if confidence > curr_conf.high_threshold:
+                    self.logger.info("Found match in high resolution")
                     high_res_results.add_single_result(single_result)
 
         return high_res_results
