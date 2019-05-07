@@ -1,3 +1,6 @@
+import math
+
+
 class ServerConfig:
     def __init__(self, h_thres, l_thres, max_obj_size, tracker_length,
                  boundary):
@@ -179,7 +182,44 @@ def compute_area_of_regions(results):
         area_dict[single_result.fid] = area_dict_entry
 
     total_area = 0
-    for _, (total_frame_area, intersection_area) in area_dict:
+    for _, (total_frame_area, intersection_area) in area_dict.items():
         total_area += (total_frame_area - intersection_area)
 
     return total_area
+
+
+def evaluate(results, gt_dict, ht, iou_threshold=0.5):
+    gt_results = Results()
+    total = 0
+    for k, v in gt_dict.items():
+        total += len(v)
+        for single_result in v:
+            if single_result.conf < ht:
+                continue
+            gt_results.add_single_result(single_result)
+
+    fp = 0.0
+    tp = 0.0
+    fn = 0.0
+    for a in results.regions:
+        # Find match in gt_results
+        found_match = False
+        for b in gt_results.regions:
+            if a.is_same(b, iou_threshold):
+                tp += 1.0
+                found_match = True
+                break
+
+        if not found_match:
+            fp += 1.0
+
+    fn = gt_results.results_len() - tp
+
+    precision = tp / (fp + tp)
+    recall = tp / (fn + tp)
+    f1 = 2.0 * precision * recall / (precision + recall)
+
+    if math.isnan(f1):
+        f1 = 0.0
+
+    return f1, (tp, fp, fn)

@@ -37,7 +37,11 @@ def main(args):
         # Read Groundtruth results
         ground_truth_dict = read_results_dict(args.ground_truth, fmat="txt")
         logging.info("Reading ground truth results complete")
-        evaluate(results, ground_truth_dict)
+        f1, stats = evaluate(results, ground_truth_dict, args.high_threshold)
+        logging.info("Got an f1 score of {} "
+                     "for this experiment using simulation with "
+                     "tp {} fp {} fn {} ".format(f1,
+                                                 stats[0], stats[1], stats[2]))
 
 
 if __name__ == "__main__":
