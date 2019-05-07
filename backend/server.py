@@ -42,7 +42,6 @@ class Server:
             frame_range = range(start_fid, end_fid)
         else:
             frame_range = range(start_fid, end_fid, -1)
-        print(frame_range)
         # Remove the first frame which was used to initialize the tracker
         frame_range = frame_range[1:]
         for fid in frame_range:
