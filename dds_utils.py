@@ -52,20 +52,20 @@ class Results:
     def results_len(self):
         return len(self.regions)
 
-    def is_dup(self, result_to_add, threshold=0.7):
+    def is_dup(self, result_to_add, threshold=0.5):
         for existing_result in self.regions:
-            if existing_result.is_same(result_to_add):
+            if existing_result.is_same(result_to_add, threshold):
                 return True
         return False
 
-    def combine_results(self, additional_results, intersection_threshold=0.7):
+    def combine_results(self, additional_results, threshold=0.5):
         for result in additional_results.regions:
-            if not self.is_dup(result, intersection_threshold):
+            if not self.is_dup(result, threshold):
                 self.regions.append(result)
         # Sort final results
         self.regions.sort(key=lambda x: x.fid)
 
-    def add_single_result(self, result_to_add, threshold=0.7):
+    def add_single_result(self, result_to_add, threshold=0.5):
         temp_results = Results()
         temp_results.regions = [result_to_add]
         self.combine_results(temp_results, threshold)
