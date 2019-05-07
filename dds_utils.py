@@ -155,3 +155,31 @@ def calc_iou(a, b):
     intersection_area = calc_intersection_area(a, b)
     union_area = calc_area(a) + calc_area(b) - intersection_area
     return intersection_area / union_area
+
+
+def compute_area_of_regions(results):
+    # Dict will have fid -> (total area, intersection)
+    area_dict = {}
+
+    for idx, single_result in enumerate(results.regions):
+        region_area = calc_area(single_result)
+
+        intersection_area = 0
+        for obj in results.regions[idx + 1:]:
+            if obj.fid != single_result.fid:
+                continue
+
+            intersection_area += calc_intersection_area(obj, single_result)
+
+        if single_result.fid not in area_dict:
+            area_dict[single_result.fid] = [0, 0]
+        area_dict_entry = area_dict[single_result.fid]
+        area_dict_entry[0] += region_area
+        area_dict_entry[1] += intersection_area
+        area_dict[single_result.fid] = area_dict_entry
+
+    total_area = 0
+    for _, (total_frame_area, intersection_area) in area_dict:
+        total_area += (total_frame_area - intersection_area)
+
+    return total_area

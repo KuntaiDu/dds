@@ -1,6 +1,7 @@
 import logging
 import os
-from dds_utils import Results, read_results_dict, write_results, ServerConfig
+from dds_utils import (Results, read_results_dict, write_results,
+                       ServerConfig, compute_area_of_regions)
 
 
 class Client:
@@ -43,12 +44,15 @@ class Client:
         high_results_dict = read_results_dict(high_results_path, fmat="txt")
         self.logger.info("Reading high resolution results complete")
 
+        total_area_req_regions = 0
         number_of_frames = len(os.listdir(images_direc))
         for i in range(0, number_of_frames, batch_size):
             start_frame_id = i
             end_frame_id = min(number_of_frames, i + batch_size)
             self.logger.info("Processing batch from {} to {}".format(
                 start_frame_id, end_frame_id))
+
+            # Base (low resolution) phase
             r1, req_regions = self.server.simulate_low_query(start_frame_id,
                                                              end_frame_id,
                                                              images_direc,
@@ -59,15 +63,21 @@ class Client:
                                  r1.results_len(), req_regions.results_len()))
             r1_results.combine_results(r1)
 
+            # Calculate area of regions required by the server
+            area_req_regions = compute_area_of_regions(req_regions)
+            total_area_req_regions += area_req_regions
+            self.logger.info("{} regions have {} units total area".format(
+                req_regions.results_len(), area_req_regions))
+
+            # Second (high resolution) phase
             r2 = self.server.simulate_high_query(req_regions,
                                                  high_results_dict,
                                                  config_to_use)
             self.logger.info("Got {} results in second phase of batch".format(
                 r2.results_len()))
-
             r2_results.combine_results(r2)
 
-        # Combine results and sort on fid
+        # Combine results
         results.combine_results(r1_results)
         results.combine_results(r2_results)
 
@@ -76,6 +86,11 @@ class Client:
 
         # Write results
         write_results(results, video_name, fmat="txt")
-        self.logger.info("Writing results for %s", video_name)
 
-        return results
+        self.logger.info("Writing results for %s", video_name)
+        self.logger.info("{} objects detected and {} total area "
+                         "of regions sent in high resolution".format(
+                             results.results_len(),
+                             total_area_req_regions))
+
+        return results, (0, total_area_req_regions)

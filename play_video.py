@@ -19,9 +19,12 @@ def main(args):
                         args.tracker_length, args.boundary)
 
         # Run simulation
-        client.analyze_video_simulate(args.video_name, args.images_loc,
-                                      args.bsize, args.high_results_path,
-                                      args.low_results_path)
+        _, (low, high) = client.analyze_video_simulate(args.video_name,
+                                                       args.images_loc,
+                                                       args.bsize,
+                                                       args.high_results_path,
+                                                       args.low_results_path)
+        # TODO: Evaluation and writing results
 
 
 if __name__ == "__main__":
