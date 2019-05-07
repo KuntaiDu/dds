@@ -1,9 +1,14 @@
+import re
+import logging
 import argparse
 from backend.server import Server
 from frontend.client import Client
 
 
 def main(args):
+    logging.basicConfig(format="%(name)s -- %(levelname)s -- %(message)s",
+                        level=args.verbosity.upper())
+
     if args.hname is None:
         # Make simulation objects
         server = Server(args.high_threshold, args.low_threshold,
@@ -59,6 +64,9 @@ if __name__ == "__main__":
                         type=float, default=0.2,
                         help="Size by which to enlarge boundary while "
                         "calculating regions to query")
+    parser.add_argument("--verbosity",
+                        default="warning", type=str,
+                        help="The verbosity of logging")
 
     args = parser.parse_args()
 
@@ -68,6 +76,12 @@ if __name__ == "__main__":
         print("Low and high results files not given.\n"
               "Low and high results files "
               "are needed when running in simulation mode")
+        exit()
+
+    if not re.match("DEBUG|INFO|WARNING|CRITICAL", args.verbosity.upper()):
+        print("Incorrect argument for verbosity."
+              "Verbosity can only be one of the following:\n"
+              "\tdebug\n\tinfo\n\twarning\n\terror")
         exit()
 
     main(args)

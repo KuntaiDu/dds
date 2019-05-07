@@ -1,4 +1,5 @@
 import os
+import logging
 import cv2 as cv
 from dds_utils import ServerConfig, Results, Region
 
@@ -12,6 +13,12 @@ class Server:
                  max_object_size, tracker_length, boundary):
         self.conf = ServerConfig(high_threshold, low_threshold,
                                  max_object_size, tracker_length, boundary)
+
+        self.logger = logging.getLogger("server")
+        handler = logging.NullHandler()
+        self.logger.addHandler(handler)
+
+        self.logger.info("Server started")
 
     def track(self, obj_to_track, start_fid, end_fid, images_direc):
         regions = Results()
@@ -70,20 +77,33 @@ class Server:
             non_tracking_regions.add_single_result(single_result)
 
             start_frame = single_result.fid
+            self.logger.info("Finding regions to query for frame {}".format(
+                start_frame))
 
             # Forward tracking
             end_frame = min(start_frame + config.tracker_length, end_fid)
             regions_from_tracking = self.track(single_result, start_frame,
                                                end_frame, images_direc)
+            self.logger.info("Found {} regions using forward tracking from"
+                             " {} to {}".format(
+                                 regions_from_tracking.results_len(),
+                                 start_frame, end_frame))
             tracking_regions.combine_results(regions_from_tracking)
 
             # Backward tracking
             end_frame = max(0, start_frame - config.tracker_length)
             regions_from_tracking = self.track(single_result, start_frame,
                                                end_frame, images_direc)
+            self.logger.info("Found {} regions using backward tracking from"
+                             " {} to {}".format(
+                                 regions_from_tracking.results_len(),
+                                 start_frame, end_frame))
             tracking_regions.combine_results(regions_from_tracking)
 
         # Enlarge non-tracking boxes
+        self.logger.info("Found {} regions between {} and {} without tracking"
+                         .format(non_tracking_regions.results_len(), start_fid,
+                                 end_fid))
         for result in non_tracking_regions.regions:
             new_x = max(result.x - config.boundary * result.w, 0)
             new_y = max(result.y - config.boundary * result.h, 0)
@@ -133,6 +153,9 @@ class Server:
             for single_result in fid_results:
                 results.add_single_result(single_result)
 
+        self.logger.info("Getting results with threshold {} and {}".format(
+            curr_conf.low_threshold, curr_conf.high_threshold))
+
         for single_result in results.regions:
             if single_result.conf < curr_conf.low_threshold:
                 continue
@@ -146,6 +169,9 @@ class Server:
                                                      images_direc,
                                                      results_for_regions,
                                                      curr_conf)
+        self.logger.info("Returning {} confirmed results and "
+                         "{} regions".format(accepted_results.results_len(),
+                                             regions_to_query.results_len()))
 
         # Return results and regions
         return accepted_results, regions_to_query
