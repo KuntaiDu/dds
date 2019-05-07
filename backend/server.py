@@ -74,8 +74,13 @@ class Server:
         tracking_regions = Results()
 
         for single_result in results.regions:
-            non_tracking_regions.add_single_result(single_result)
+            if (single_result.conf > config.low_threshold and
+                    single_result.conf < config.high_threshold):
+                # These are only those regions which are between thresholds
+                non_tracking_regions.add_single_result(single_result)
 
+            # Even if the results is not between thresholds we still need to
+            # Track it across frames
             start_frame = single_result.fid
             self.logger.debug("Finding regions to query for {}".format(
                 single_result.to_str()))
@@ -193,7 +198,8 @@ class Server:
             for single_result in fid_results:
                 confidence = single_result.conf
                 if confidence > curr_conf.high_threshold:
-                    self.logger.info("Found match in high resolution")
+                    self.logger.debug("Found match in high resolution for {}"
+                                      .format(single_result.to_str()))
                     high_res_results.add_single_result(single_result)
 
         return high_res_results
