@@ -104,11 +104,11 @@ class Server:
                                  regions_from_tracking.results_len(),
                                  start_frame, end_frame))
             tracking_regions.combine_results(regions_from_tracking)
-
-        # Enlarge non-tracking boxes
         self.logger.info("Found {} regions between {} and {} without tracking"
                          .format(non_tracking_regions.results_len(), start_fid,
                                  end_fid))
+
+        # Enlarge non-tracking boxes
         for result in non_tracking_regions.regions:
             new_x = max(result.x - config.boundary * result.w, 0)
             new_y = max(result.y - config.boundary * result.h, 0)
