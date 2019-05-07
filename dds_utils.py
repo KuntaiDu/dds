@@ -46,6 +46,9 @@ class Results:
     def __init__(self):
         self.regions = []
 
+    def results_len(self):
+        return len(self.regions)
+
     def is_dup(self, result_to_add, threshold=0.7):
         for existing_result in self.regions:
             if existing_result.is_same(result_to_add):
