@@ -78,7 +78,11 @@ class Client:
             r2_results.combine_results(r2)
 
         # Combine results
+        self.logger.info("Got {} unique results in base phase"
+                         .format(r1_results.results_len()))
         results.combine_results(r1_results)
+        self.logger.info("Got {} unique results in second phase"
+                         .format(r2_results.results_len()))
         results.combine_results(r2_results)
 
         # Fill gaps in results
