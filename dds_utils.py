@@ -78,7 +78,7 @@ class Results:
         for i in range(number_of_frames):
             if i not in fids_in_results:
                 results_to_add.regions.append(Region(i, 0, 0, 0, 0,
-                                                     "no obj", 0.1,
+                                                     0.1, "no obj",
                                                      max_resolution))
         self.combine_results(results_to_add)
 
