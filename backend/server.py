@@ -107,6 +107,9 @@ class Server:
         self.logger.info("Found {} regions between {} and {} without tracking"
                          .format(non_tracking_regions.results_len(), start_fid,
                                  end_fid))
+        self.logger.info("Found {} regions between {} and {} with tracking"
+                         .format(tracking_regions.results_len(), start_fid,
+                                 end_fid))
 
         # Enlarge non-tracking boxes
         for result in non_tracking_regions.regions:
