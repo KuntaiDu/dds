@@ -111,33 +111,33 @@ class Server:
                          .format(tracking_regions.results_len(), start_fid,
                                  end_fid))
 
-        # # Enlarge non-tracking boxes
-        # for result in non_tracking_regions.regions:
-        #     new_x = max(result.x - config.boundary * result.w, 0)
-        #     new_y = max(result.y - config.boundary * result.h, 0)
-        #     new_w = min(result.w + config.boundary * result.w * 2,
-        #                 1 - result.x + config.boundary * result.w)
-        #     new_h = min(result.h + config.boundary * result.h * 2,
-        #                 1 - result.y + config.boundary * result.h)
+        # Enlarge non-tracking boxes
+        for result in non_tracking_regions.regions:
+            new_x = max(result.x - config.boundary * result.w, 0)
+            new_y = max(result.y - config.boundary * result.h, 0)
+            new_w = min(result.w + config.boundary * result.w * 2,
+                        1 - result.x + config.boundary * result.w)
+            new_h = min(result.h + config.boundary * result.h * 2,
+                        1 - result.y + config.boundary * result.h)
 
-        #     result.x = new_x
-        #     result.y = new_y
-        #     result.w = new_w
-        #     result.h = new_h
+            result.x = new_x
+            result.y = new_y
+            result.w = new_w
+            result.h = new_h
 
-        # # Enlarge tracking boxes
-        # for result in tracking_regions.regions:
-        #     new_x = max(result.x - 2 * config.boundary * result.w, 0)
-        #     new_y = max(result.y - 2 * config.boundary * result.h, 0)
-        #     new_w = min(result.w + 2 * config.boundary * result.w * 2,
-        #                 1 - result.w + 2 * config.boundary * result.w)
-        #     new_h = min(result.h + 2 * config.boundary * result.h * 2,
-        #                 1 - result.h + 2 * config.boundary * result.h)
+        # Enlarge tracking boxes
+        for result in tracking_regions.regions:
+            new_x = max(result.x - 2 * config.boundary * result.w, 0)
+            new_y = max(result.y - 2 * config.boundary * result.h, 0)
+            new_w = min(result.w + 2 * config.boundary * result.w * 2,
+                        1 - result.w + 2 * config.boundary * result.w)
+            new_h = min(result.h + 2 * config.boundary * result.h * 2,
+                        1 - result.h + 2 * config.boundary * result.h)
 
-        #     result.x = new_x
-        #     result.y = new_y
-        #     result.w = new_w
-        #     result.h = new_h
+            result.x = new_x
+            result.y = new_y
+            result.w = new_w
+            result.h = new_h
 
         final_regions = Results()
         final_regions.combine_results(non_tracking_regions)
@@ -195,14 +195,17 @@ class Server:
         # is in one of the frames in the queried regions
         fids_in_queried_regions = [e.fid for e in req_regions.regions]
         for fid in fids_in_queried_regions:
-            if fid not in high_results_dict:
-                continue
             fid_results = high_results_dict[fid]
             for single_result in fid_results:
                 confidence = single_result.conf
                 if confidence > curr_conf.high_threshold:
-                    self.logger.debug("Found match in high resolution for {}"
-                                      .format(single_result.to_str()))
                     high_res_results.add_single_result(single_result)
 
-        return high_res_results
+        selected_results = Results()
+        for single_result in high_res_results.regions:
+            if req_regions.is_dup(single_result):
+                self.logger.debug("Matched {} in requested regions"
+                                  .format(single_result.to_str()))
+                selected_results.add_single_result(single_result)
+
+        return selected_results

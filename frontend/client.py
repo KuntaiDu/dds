@@ -44,6 +44,7 @@ class Client:
         high_results_dict = read_results_dict(high_results_path, fmat="txt")
         self.logger.info("Reading high resolution results complete")
 
+        total_regions_count = 0
         total_area_req_regions = 0
         number_of_frames = len(os.listdir(images_direc))
         for i in range(0, number_of_frames, batch_size):
@@ -63,6 +64,9 @@ class Client:
                                  r1.results_len(), req_regions.results_len()))
             r1_results.combine_results(r1)
 
+            # Add the number of regions requested by the server
+            total_regions_count += req_regions.results_len()
+
             # Calculate area of regions required by the server
             area_req_regions = compute_area_of_regions(req_regions)
             total_area_req_regions += area_req_regions
@@ -81,8 +85,10 @@ class Client:
         self.logger.info("Got {} unique results in base phase"
                          .format(r1_results.results_len()))
         results.combine_results(r1_results)
-        self.logger.info("Got {} unique results in second phase"
-                         .format(r2_results.results_len()))
+        self.logger.info("Got {} positive identifications "
+                         "out of {} requests in second phase"
+                         .format(r2_results.results_len(),
+                                 total_regions_count))
         results.combine_results(r2_results)
 
         # Fill gaps in results
