@@ -242,7 +242,7 @@ def write_stats_txt(fname, vid_name, bsize, config, f1, stats, bw):
     if not os.path.isfile(fname):
         str_to_write = "{}\n{}\n".format(header_str, results_str)
     else:
-        str_to_write = "{}".format(results_str)
+        str_to_write = "{}\n".format(results_str)
 
     with open(fname, "a") as f:
         f.write(str_to_write)
