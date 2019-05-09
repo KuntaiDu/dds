@@ -224,3 +224,26 @@ def evaluate(results, gt_dict, ht, iou_threshold=0.5):
         f1 = 0.0
 
     return f1, (tp, fp, fn)
+
+
+def write_stats_txt(fname, vid_name, bsize, config, f1, stats, bw):
+    header_str = ("video-name,batch-size,low-threshold,high-threshold,"
+                  "tracker-length,TP,FP,FN,F1,"
+                  "low-bandwidth,high-bandwidth,total-bandwidth")
+    results_str = ("{},{},{},{},"
+                   "{},{},{},{},{},"
+                   "{},{},{}".format(vid_name,
+                                     bsize, config.low_threshold,
+                                     config.high_threshold,
+                                     config.tracker_length,
+                                     stats[0], stats[1], stats[2],
+                                     f1, bw[0], bw[1], bw[0] + bw[1]))
+    str_to_write = "{}\n{}\n".format(header_str, results_str)
+
+    with open(fname, "a") as f:
+        f.write(str_to_write)
+
+
+def write_stats(fname, vid_name, bsize, config, f1, stats, bw, fmat="csv"):
+    if fmat == "txt":
+        write_stats_txt(fname, vid_name, bsize, config, f1, stats, bw)

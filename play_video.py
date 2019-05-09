@@ -3,7 +3,8 @@ import logging
 import argparse
 from backend.server import Server
 from frontend.client import Client
-from dds_utils import read_results_dict, evaluate
+from dds_utils import (ServerConfig, read_results_dict,
+                       evaluate, write_stats)
 
 
 def main(args):
@@ -14,6 +15,11 @@ def main(args):
     logger.addHandler(logging.NullHandler())
 
     if args.hname is None:
+        # Make backup ServerConfig
+        config = ServerConfig(args.high_threshold, args.low_threshold,
+                              args.max_object_size, args.tracker_length,
+                              args.boundary)
+
         # Make simulation objects
         logging.info("Starting server with high threshold of "
                      "{} low threshold of {} tracker length of {}"
@@ -43,8 +49,14 @@ def main(args):
         f1, stats = evaluate(results, ground_truth_dict, args.high_threshold)
         logging.info("Got an f1 score of {} "
                      "for this experiment using simulation with "
-                     "tp {} fp {} fn {} ".format(f1,
-                                                 stats[0], stats[1], stats[2]))
+                     "tp {} fp {} fn {} "
+                     "with total bandwidth {}".format(f1,
+                                                      stats[0], stats[1],
+                                                      stats[2], sum(bw)))
+
+        # Write evaluation results to file
+        write_stats(args.outfile, args.video_name, args.bsize,
+                    config, f1, stats, bw, fmat="txt")
 
 
 if __name__ == "__main__":
@@ -73,6 +85,10 @@ if __name__ == "__main__":
     parser.add_argument("--batch-size", dest="bsize",
                         type=int, default=15,
                         help="Segment size to use for DDS")
+    parser.add_argument("--output-file",
+                        dest="outfile", type=str, default="stats",
+                        help="The name of the file to which to append "
+                        "statistics about the experiment after evaluation")
     # Server config arguments
     parser.add_argument("-lt", dest="low_threshold",
                         type=float, default=0.1,
