@@ -1,4 +1,5 @@
 import math
+import os
 
 
 class ServerConfig:
@@ -238,7 +239,10 @@ def write_stats_txt(fname, vid_name, bsize, config, f1, stats, bw):
                                      config.tracker_length,
                                      stats[0], stats[1], stats[2],
                                      f1, bw[0], bw[1], bw[0] + bw[1]))
-    str_to_write = "{}\n{}\n".format(header_str, results_str)
+    if not os.path.isfile(fname):
+        str_to_write = "{}\n{}\n".format(header_str, results_str)
+    else:
+        str_to_write = "{}".format(results_str)
 
     with open(fname, "a") as f:
         f.write(str_to_write)
