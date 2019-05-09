@@ -204,6 +204,10 @@ def evaluate(results, gt_dict, ht, iou_threshold=0.5):
     tp = 0.0
     fn = 0.0
     for a in results.regions:
+        # Check if the detection is a no obj
+        if a.conf == 0.1:
+            continue
+
         # Find match in gt_results
         found_match = False
         for b in gt_results.regions:
