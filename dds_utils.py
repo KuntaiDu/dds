@@ -24,12 +24,8 @@ class Region:
         self.resolution = resolution
 
     def to_str(self):
-        string_rep = ("{}, "
-                      "{:0.3f}, {:0.3f}, "
-                      "{:0.3f}, {:0.3f}, {}".format(self.fid,
-                                                    self.x, self.y,
-                                                    self.w, self.h,
-                                                    self.resolution))
+        string_rep = (f"{self.fid}, {self.x:0.3f}, {self.y:0.3f}, "
+                      f"{self.w:0.3f}, {self.h:0.3f}, {self.resolution:0.3f}")
         return string_rep
 
     def is_same(self, region_to_check, threshold=0.7):
@@ -122,12 +118,9 @@ def write_results_txt(results, fname):
     results_file = open(fname, "w")
     for result in results.regions:
         # prepare the string to write
-        str_to_write = "{},{},{},{},{},{},{},{}\n".format(result.fid, result.x,
-                                                          result.y, result.w,
-                                                          result.h,
-                                                          result.label,
-                                                          result.conf,
-                                                          result.resolution)
+        str_to_write = (f"{result.fid},{result.x},{result.y},"
+                        f"{result.w},{result.h},"
+                        f"{result.label},{result.conf},{result.resolution}")
         results_file.write(str_to_write)
     results_file.close()
 
@@ -235,18 +228,15 @@ def write_stats_txt(fname, vid_name, bsize, config, f1, stats, bw):
     header_str = ("video-name,batch-size,low-threshold,high-threshold,"
                   "tracker-length,TP,FP,FN,F1,"
                   "low-bandwidth,high-bandwidth,total-bandwidth")
-    results_str = ("{},{},{},{},"
-                   "{},{},{},{},{},"
-                   "{},{},{}".format(vid_name,
-                                     bsize, config.low_threshold,
-                                     config.high_threshold,
-                                     config.tracker_length,
-                                     stats[0], stats[1], stats[2],
-                                     f1, bw[0], bw[1], bw[0] + bw[1]))
+    results_str = (f"{vid_name},{bsize},{config.low_threshold},"
+                   f"{config.high_threshold},{config.tracker_length},"
+                   f"{stats[0]},{stats[1]},{stats[2]},"
+                   f"{f1},{bw[0]},{bw[1]},{bw[0] + bw[1]}")
+
     if not os.path.isfile(fname):
-        str_to_write = "{}\n{}\n".format(header_str, results_str)
+        str_to_write = f"{header_str}\n{results_str}\n"
     else:
-        str_to_write = "{}\n".format(results_str)
+        str_to_write = f"{results_str}\n"
 
     with open(fname, "a") as f:
         f.write(str_to_write)

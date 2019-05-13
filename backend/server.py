@@ -29,7 +29,7 @@ class Server:
         resolution = obj_to_track.resolution
 
         init_fname = os.path.join(images_direc,
-                                  "{}.png".format(str(start_fid).zfill(10)))
+                                  f"{str(start_fid).zfill(10)}.png")
         init_frame = cv.imread(init_fname)
         im_width = init_frame.shape[1]
         im_height = init_frame.shape[0]
@@ -52,7 +52,7 @@ class Server:
         # Remove the first frame which was used to initialize the tracker
         frame_range = frame_range[1:]
         for fid in frame_range:
-            curr_frame_fname = "{}.png".format(str(fid).zfill(10))
+            curr_frame_fname = f"{str(fid).zfill(10)}.png"
             curr_frame_path = os.path.join(images_direc, curr_frame_fname)
             curr_frame = cv.imread(curr_frame_path)
 
@@ -82,34 +82,32 @@ class Server:
             # Even if the results is not between thresholds we still need to
             # Track it across frames
             start_frame = single_result.fid
-            self.logger.debug("Finding regions to query for {}".format(
-                single_result.to_str()))
+            self.logger.debug(f"Finding regions to query for "
+                              f"{single_result.to_str()}")
 
             # Forward tracking
             end_frame = min(start_frame + config.tracker_length, end_fid)
             regions_from_tracking = self.track(single_result, start_frame,
                                                end_frame, images_direc)
-            self.logger.debug("Found {} regions using forward tracking from"
-                              " {} to {}".format(
-                                 regions_from_tracking.results_len(),
-                                 start_frame, end_frame))
+            self.logger.debug(f"Found {regions_from_tracking.results_len()} "
+                              f"regions using forward tracking from"
+                              f" {start_frame} to {end_frame}")
             tracking_regions.combine_results(regions_from_tracking)
 
             # Backward tracking
             end_frame = max(0, start_frame - config.tracker_length)
             regions_from_tracking = self.track(single_result, start_frame,
                                                end_frame, images_direc)
-            self.logger.debug("Found {} regions using backward tracking from"
-                              " {} to {}".format(
-                                 regions_from_tracking.results_len(),
-                                 start_frame, end_frame))
+            self.logger.debug(f"Found {regions_from_tracking.results_len()} "
+                              f"regions using backward tracking from"
+                              f" {start_frame} to {end_frame}")
             tracking_regions.combine_results(regions_from_tracking)
-        self.logger.info("Found {} regions between {} and {} without tracking"
-                         .format(non_tracking_regions.results_len(), start_fid,
-                                 end_fid))
-        self.logger.info("Found {} regions between {} and {} with tracking"
-                         .format(tracking_regions.results_len(), start_fid,
-                                 end_fid))
+
+        self.logger.info(f"Found {non_tracking_regions.results_len()} "
+                         f"regions between {start_fid} and {end_fid} without "
+                         f"tracking")
+        self.logger.info(f"Found {tracking_regions.results_len()} regions "
+                         f"between {start_fid} and {end_fid} with tracking")
 
         # Enlarge regions iff we are running a simulation
         if not simulation:
@@ -163,8 +161,9 @@ class Server:
             for single_result in fid_results:
                 results.add_single_result(single_result)
 
-        self.logger.info("Getting results with threshold {} and {}".format(
-            curr_conf.low_threshold, curr_conf.high_threshold))
+        self.logger.info(f"Getting results with threshold "
+                         f"{curr_conf.low_threshold} and "
+                         f"{curr_conf.high_threshold}")
 
         for single_result in results.regions:
             if single_result.conf < curr_conf.low_threshold:
@@ -180,9 +179,9 @@ class Server:
                                                      results_for_regions,
                                                      curr_conf,
                                                      simulation=True)
-        self.logger.info("Returning {} confirmed results and "
-                         "{} regions".format(accepted_results.results_len(),
-                                             regions_to_query.results_len()))
+        self.logger.info(f"Returning {accepted_results.results_len()} "
+                         f"confirmed results and "
+                         f"{regions_to_query.results_len()} regions")
 
         # Return results and regions
         return accepted_results, regions_to_query
@@ -207,8 +206,8 @@ class Server:
         selected_results = Results()
         for single_result in high_res_results.regions:
             if req_regions.is_dup(single_result):
-                self.logger.debug("Matched {} in requested regions"
-                                  .format(single_result.to_str()))
+                self.logger.debug(f"Matched {single_result.to_str()} in "
+                                  f"requested regions")
                 selected_results.add_single_result(single_result)
 
         return selected_results

@@ -21,10 +21,10 @@ def main(args):
                               args.boundary)
 
         # Make simulation objects
-        logging.info("Starting server with high threshold of "
-                     "{} low threshold of {} tracker length of {}"
-                     .format(args.high_threshold, args.low_threshold,
-                             args.tracker_length))
+        logging.info(f"Starting server with high threshold of "
+                     f"{args.high_threshold} low threshold of "
+                     f"{args.low_threshold} tracker length of "
+                     f"{args.tracker_length}")
         server = Server(args.high_threshold, args.low_threshold,
                         args.max_object_size, args.tracker_length,
                         args.boundary)
@@ -34,7 +34,7 @@ def main(args):
                         args.tracker_length, args.boundary)
 
         # Run simulation
-        logging.info("Analyzing video {}".format(args.video_name))
+        logging.info(f"Analyzing video {args.video_name}")
         results, bw = client.analyze_video_simulate(args.video_name,
                                                     args.images_loc,
                                                     args.bsize,
@@ -47,12 +47,10 @@ def main(args):
         ground_truth_dict = read_results_dict(args.ground_truth, fmat="txt")
         logging.info("Reading ground truth results complete")
         f1, stats = evaluate(results, ground_truth_dict, args.high_threshold)
-        logging.info("Got an f1 score of {} "
-                     "for this experiment using simulation with "
-                     "tp {} fp {} fn {} "
-                     "with total bandwidth {}".format(f1,
-                                                      stats[0], stats[1],
-                                                      stats[2], sum(bw)))
+        logging.info(f"Got an f1 score of {f1} "
+                     f"for this experiment using simulation with "
+                     f"tp {stats[0]} fp {stats[1]} fn {stats[2]} "
+                     f"with total bandwidth {sum(bw)}")
 
         # Write evaluation results to file
         write_stats(args.outfile, args.video_name, args.bsize,
