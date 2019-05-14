@@ -169,13 +169,12 @@ class Server:
                          f"{curr_conf.high_threshold}")
 
         for single_result in results.regions:
+            accepted_results.add_single_result(single_result)
+
             if single_result.conf < curr_conf.low_threshold:
                 continue
 
             results_for_regions.add_single_result(single_result)
-
-            if single_result.conf > config.high_threshold:
-                accepted_results.add_single_result(single_result)
 
         regions_to_query = self.get_regions_to_query(start_fid, end_fid,
                                                      images_direc,
@@ -190,10 +189,6 @@ class Server:
         return accepted_results, regions_to_query
 
     def simulate_high_query(self, req_regions, high_results_dict, config=None):
-        curr_conf = self.conf
-        if config is not None:
-            curr_conf = config
-
         high_res_results = Results()
 
         # Get all results that have confidence above the threshold and
@@ -202,10 +197,8 @@ class Server:
         for fid in fids_in_queried_regions:
             fid_results = high_results_dict[fid]
             for single_result in fid_results:
-                confidence = single_result.conf
-                if confidence > curr_conf.high_threshold:
-                    single_result.origin = "high-res"
-                    high_res_results.add_single_result(single_result)
+                single_result.origin = "high-res"
+                high_res_results.add_single_result(single_result)
 
         selected_results = Results()
         for single_result in high_res_results.regions:

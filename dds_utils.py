@@ -61,10 +61,12 @@ class Results:
 
     def combine_results(self, additional_results, threshold=0.5):
         for result in additional_results.regions:
-            if not self.is_dup(result, threshold):
+            dup_region = self.is_dup(result, threshold)
+            if not dup_region:
                 self.regions.append(result)
-        # Sort final results
-        self.regions.sort(key=lambda x: x.fid)
+                self.regions.sort(key=lambda x: x.fid)
+            else:
+                dup_region.conf = max(result.conf, dup_region.conf)
 
     def add_single_result(self, result_to_add, threshold=0.5):
         temp_results = Results()
