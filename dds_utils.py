@@ -120,7 +120,7 @@ def write_results_txt(results, fname):
         # prepare the string to write
         str_to_write = (f"{result.fid},{result.x},{result.y},"
                         f"{result.w},{result.h},"
-                        f"{result.label},{result.conf},{result.resolution}")
+                        f"{result.label},{result.conf},{result.resolution}\n")
         results_file.write(str_to_write)
     results_file.close()
 
