@@ -63,7 +63,8 @@ class Server:
                 y = bbox[1] / im_height
                 w = bbox[2] / im_width
                 h = bbox[3] / im_height
-                region = Region(fid, x, y, w, h, conf, label, resolution)
+                region = Region(fid, x, y, w, h, conf, label, resolution,
+                                f"tracking-extension[{start_fid}-{end_fid}]")
                 regions.add_single_result(region)
 
         return regions
@@ -77,6 +78,7 @@ class Server:
             if (single_result.conf > config.low_threshold and
                     single_result.conf < config.high_threshold):
                 # These are only those regions which are between thresholds
+                single_result.origin = f"tracking-origin[{single_result.fid}]"
                 non_tracking_regions.add_single_result(single_result)
 
             # Even if the results is not between thresholds we still need to
@@ -159,6 +161,7 @@ class Server:
         for fid in range(start_fid, end_fid):
             fid_results = results_dict[fid]
             for single_result in fid_results:
+                single_result.origin = "low-res"
                 results.add_single_result(single_result)
 
         self.logger.info(f"Getting results with threshold "
@@ -201,6 +204,7 @@ class Server:
             for single_result in fid_results:
                 confidence = single_result.conf
                 if confidence > curr_conf.high_threshold:
+                    single_result.origin = "high-res"
                     high_res_results.add_single_result(single_result)
 
         selected_results = Results()

@@ -13,7 +13,8 @@ class ServerConfig:
 
 
 class Region:
-    def __init__(self, fid, x, y, w, h, conf, label, resolution):
+    def __init__(self, fid, x, y, w, h, conf, label, resolution,
+                 origin="generic"):
         self.fid = fid
         self.x = x
         self.y = y
@@ -22,10 +23,12 @@ class Region:
         self.conf = conf
         self.label = label
         self.resolution = resolution
+        self.origin = "generic"
 
     def to_str(self):
         string_rep = (f"{self.fid}, {self.x:0.3f}, {self.y:0.3f}, "
-                      f"{self.w:0.3f}, {self.h:0.3f}, {self.resolution:0.3f}")
+                      f"{self.w:0.3f}, {self.h:0.3f}, "
+                      f"{self.resolution:0.3f}, {self.origin}")
         return string_rep
 
     def is_same(self, region_to_check, threshold=0.7):
@@ -120,7 +123,8 @@ def write_results_txt(results, fname):
         # prepare the string to write
         str_to_write = (f"{result.fid},{result.x},{result.y},"
                         f"{result.w},{result.h},"
-                        f"{result.label},{result.conf},{result.resolution}\n")
+                        f"{result.label},{result.conf},"
+                        f"{result.resolution},{result.origin}\n")
         results_file.write(str_to_write)
     results_file.close()
 
