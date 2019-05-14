@@ -45,6 +45,10 @@ class Region:
         else:
             return False
 
+    def copy(self):
+        return Region(self.fid, self.x, self.y, self.w, self.h, self.conf,
+                      self.label, self.resolution, self.origin)
+
 
 class Results:
     def __init__(self):

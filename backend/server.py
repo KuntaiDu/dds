@@ -75,6 +75,7 @@ class Server:
         tracking_regions = Results()
 
         for single_result in results.regions:
+            single_result = single_result.copy()
             if (single_result.conf > config.low_threshold and
                     single_result.conf < config.high_threshold):
                 # These are only those regions which are between thresholds
