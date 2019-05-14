@@ -106,7 +106,11 @@ def read_results_txt_dict(fname):
         conf = float(line[6])
         label = line[5]
         resolution = float(line[7])
-        single_result = Region(fid, x, y, w, h, conf, label, resolution)
+        origin = "generic"
+        if len(line) > 8:
+            origin = line[8]
+        single_result = Region(fid, x, y, w, h, conf, label,
+                               resolution, origin)
 
         if fid not in results_dict:
             results_dict[fid] = []
