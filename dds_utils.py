@@ -56,8 +56,8 @@ class Results:
     def is_dup(self, result_to_add, threshold=0.5):
         for existing_result in self.regions:
             if existing_result.is_same(result_to_add, threshold):
-                return True
-        return False
+                return existing_result
+        return None
 
     def combine_results(self, additional_results, threshold=0.5):
         for result in additional_results.regions:
