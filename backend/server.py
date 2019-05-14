@@ -209,9 +209,13 @@ class Server:
 
         selected_results = Results()
         for single_result in high_res_results.regions:
-            if req_regions.is_dup(single_result):
-                self.logger.debug(f"Matched {single_result.to_str()} in "
-                                  f"requested regions")
+            dup_region = req_regions.is_dup(single_result)
+            if dup_region:
+                self.logger.debug(f"Matched {single_result.to_str()} with "
+                                  f"{dup_region.to_str()} "
+                                  f"in requested regions")
+                single_result.origin = (f"{single_result.origin}"
+                                        f"[{dup_region.origin}]")
                 selected_results.add_single_result(single_result)
 
         return selected_results
