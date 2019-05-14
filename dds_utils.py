@@ -23,7 +23,7 @@ class Region:
         self.conf = conf
         self.label = label
         self.resolution = resolution
-        self.origin = "generic"
+        self.origin = origin
 
     def to_str(self):
         string_rep = (f"{self.fid}, {self.x:0.3f}, {self.y:0.3f}, "
@@ -31,7 +31,7 @@ class Region:
                       f"{self.resolution:0.3f}, {self.origin}")
         return string_rep
 
-    def is_same(self, region_to_check, threshold=0.7):
+    def is_same(self, region_to_check, threshold=0.5):
         # If the fids are different return
         # then not the same
         if self.fid != region_to_check.fid:
