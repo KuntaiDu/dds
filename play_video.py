@@ -88,16 +88,16 @@ if __name__ == "__main__":
                         help="The name of the file to which to append "
                         "statistics about the experiment after evaluation")
     # Server config arguments
-    parser.add_argument("-lt", dest="low_threshold",
+    parser.add_argument("--low-threshold", dest="low_threshold",
                         type=float, default=0.1,
                         help="High threshold for ROI selection")
-    parser.add_argument("-ht", dest="high_threshold",
+    parser.add_argument("--high-threshold", dest="high_threshold",
                         type=float, default=0.8,
                         help="Low threshold for ROI selection")
-    parser.add_argument("-ms", dest="max_object_size",
+    parser.add_argument("--max-size", dest="max_object_size",
                         type=float, default=0.3,
                         help="Maximum size of object as fraction frame")
-    parser.add_argument("-tl", dest="tracker_length",
+    parser.add_argument("--tracker-length", dest="tracker_length",
                         type=int, default=4,
                         help="Number of frame for tracking in ROI selection")
     parser.add_argument("--boundary",
