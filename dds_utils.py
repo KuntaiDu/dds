@@ -64,13 +64,19 @@ class Results:
         return None
 
     def combine_results(self, additional_results, threshold=0.5):
-        for result in additional_results.regions:
-            dup_region = self.is_dup(result, threshold)
+        for result_to_add in additional_results.regions:
+            dup_region = self.is_dup(result_to_add, threshold)
             if not dup_region:
-                self.regions.append(result)
+                self.regions.append(result_to_add)
                 self.regions.sort(key=lambda x: x.fid)
             else:
-                dup_region.conf = max(result.conf, dup_region.conf)
+                # Update confidence to the max confidence that we see
+                dup_region.conf = max(result_to_add.conf, dup_region.conf)
+                # Replace the origin iff a high resolution result is
+                # being added and the dup_region was a low resolution result
+                if ("high" not in dup_region.origin and
+                        "high" in result_to_add.origin):
+                    dup_region.origin = result_to_add.origin
 
     def add_single_result(self, result_to_add, threshold=0.5):
         temp_results = Results()
