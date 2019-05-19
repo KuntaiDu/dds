@@ -84,6 +84,9 @@ class Results:
         temp_results.regions = [result_to_add]
         self.combine_results(temp_results, threshold)
 
+    def remove(self, region_to_remove):
+        self.regions.remove(region_to_remove)
+
     def fill_gaps(self, number_of_frames):
         results_to_add = Results()
         max_resolution = max([e.resolution for e in self.regions])
@@ -204,36 +207,45 @@ def compute_area_of_regions(results):
     return total_area
 
 
-def evaluate(results, gt_dict, ht, iou_threshold=0.5):
+def evaluate(results, gt_dict, high_threshold, iou_threshold=0.5):
     gt_results = Results()
     total = 0
     for k, v in gt_dict.items():
         total += len(v)
         for single_result in v:
-            if single_result.conf < ht:
+            if single_result.conf < high_threshold:
                 continue
             gt_results.add_single_result(single_result)
+
+    # Save regions count because the regions that match
+    # will be removed from the gt_regions to ensure better
+    # search speed
+    gt_regions_count = gt_results.results_len()
 
     fp = 0.0
     tp = 0.0
     fn = 0.0
     for a in results.regions:
-        # Check if the detection is a no obj
-        if a.conf < ht:
+        # Make sure that the region has a high confidence
+        if a.conf < high_threshold:
             continue
 
         # Find match in gt_results
-        found_match = False
+        matching_region = None
         for b in gt_results.regions:
             if a.is_same(b, iou_threshold):
                 tp += 1.0
-                found_match = True
+                matching_region = b
                 break
 
-        if not found_match:
+        if matching_region:
+            # Remove region from ground truth if
+            # it has already matched with a region in results
+            gt_results.remove(matching_region)
+        else:
             fp += 1.0
 
-    fn = gt_results.results_len() - tp
+    fn = gt_regions_count - tp
 
     precision = tp / (fp + tp)
     recall = tp / (fn + tp)
