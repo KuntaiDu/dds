@@ -4,12 +4,13 @@ import os
 
 class ServerConfig:
     def __init__(self, h_thres, l_thres, max_obj_size, tracker_length,
-                 boundary):
+                 boundary, intersection_threshold):
         self.high_threshold = h_thres
         self.low_threshold = l_thres
         self.max_object_size = max_obj_size
         self.tracker_length = tracker_length
         self.boundary = boundary
+        self.intersection_threshold = intersection_threshold
 
 
 class Region:
@@ -209,9 +210,7 @@ def compute_area_of_regions(results):
 
 def evaluate(results, gt_dict, high_threshold, iou_threshold=0.5):
     gt_results = Results()
-    total = 0
     for k, v in gt_dict.items():
-        total += len(v)
         for single_result in v:
             if single_result.conf < high_threshold:
                 continue
