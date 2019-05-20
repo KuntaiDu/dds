@@ -28,7 +28,7 @@ class Region:
 
     def to_str(self):
         string_rep = (f"{self.fid}, {self.x:0.3f}, {self.y:0.3f}, "
-                      f"{self.w:0.3f}, {self.h:0.3f}, "
+                      f"{self.w:0.3f}, {self.h:0.3f}, {self.conf:0.3f}, "
                       f"{self.resolution:0.3f}, {self.origin}")
         return string_rep
 
