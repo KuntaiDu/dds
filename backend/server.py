@@ -9,10 +9,8 @@ class Server:
        on low resolution images, tracking to find regions of interest and
        running DNN on the high resolution regions of interest"""
 
-    def __init__(self, high_threshold, low_threshold,
-                 max_object_size, tracker_length, boundary):
-        self.conf = ServerConfig(high_threshold, low_threshold,
-                                 max_object_size, tracker_length, boundary)
+    def __init__(self, config):
+        self.config = config
 
         self.logger = logging.getLogger("server")
         handler = logging.NullHandler()
@@ -70,14 +68,14 @@ class Server:
         return regions
 
     def get_regions_to_query(self, start_fid, end_fid, images_direc, results,
-                             config, simulation=False):
+                             simulation=False):
         non_tracking_regions = Results()
         tracking_regions = Results()
 
         for single_result in results.regions:
             single_result = single_result.copy()
-            if (single_result.conf > config.low_threshold and
-                    single_result.conf < config.high_threshold):
+            if (single_result.conf > self.config.low_threshold and
+                    single_result.conf < self.config.high_threshold):
                 # These are only those regions which are between thresholds
                 single_result.origin = f"tracking-origin[{single_result.fid}]"
                 non_tracking_regions.add_single_result(single_result)
@@ -89,7 +87,7 @@ class Server:
                               f"{single_result.to_str()}")
 
             # Forward tracking
-            end_frame = min(start_frame + config.tracker_length, end_fid)
+            end_frame = min(start_frame + self.config.tracker_length, end_fid)
             regions_from_tracking = self.track(single_result, start_frame,
                                                end_frame, images_direc)
             self.logger.debug(f"Found {regions_from_tracking.results_len()} "
@@ -98,7 +96,7 @@ class Server:
             tracking_regions.combine_results(regions_from_tracking)
 
             # Backward tracking
-            end_frame = max(0, start_frame - config.tracker_length)
+            end_frame = max(0, start_frame - self.config.tracker_length)
             regions_from_tracking = self.track(single_result, start_frame,
                                                end_frame, images_direc)
             self.logger.debug(f"Found {regions_from_tracking.results_len()} "
@@ -116,12 +114,12 @@ class Server:
         if not simulation:
             # Enlarge non-tracking boxes
             for result in non_tracking_regions.regions:
-                new_x = max(result.x - config.boundary * result.w, 0)
-                new_y = max(result.y - config.boundary * result.h, 0)
-                new_w = min(result.w + config.boundary * result.w * 2,
-                            1 - result.x + config.boundary * result.w)
-                new_h = min(result.h + config.boundary * result.h * 2,
-                            1 - result.y + config.boundary * result.h)
+                new_x = max(result.x - self.config.boundary * result.w, 0)
+                new_y = max(result.y - self.config.boundary * result.h, 0)
+                new_w = min(result.w + self.config.boundary * result.w * 2,
+                            1 - result.x + self.config.boundary * result.w)
+                new_h = min(result.h + self.config.boundary * result.h * 2,
+                            1 - result.y + self.config.boundary * result.h)
 
                 result.x = new_x
                 result.y = new_y
@@ -130,12 +128,12 @@ class Server:
 
             # Enlarge tracking boxes
             for result in tracking_regions.regions:
-                new_x = max(result.x - 2 * config.boundary * result.w, 0)
-                new_y = max(result.y - 2 * config.boundary * result.h, 0)
-                new_w = min(result.w + 2 * config.boundary * result.w * 2,
-                            1 - result.w + 2 * config.boundary * result.w)
-                new_h = min(result.h + 2 * config.boundary * result.h * 2,
-                            1 - result.h + 2 * config.boundary * result.h)
+                new_x = max(result.x - 2 * self.config.boundary * result.w, 0)
+                new_y = max(result.y - 2 * self.config.boundary * result.h, 0)
+                new_w = min(result.w + 2 * self.config.boundary * result.w * 2,
+                            1 - result.w + 2 * self.config.boundary * result.w)
+                new_h = min(result.h + 2 * self.config.boundary * result.h * 2,
+                            1 - result.h + 2 * self.config.boundary * result.h)
 
                 result.x = new_x
                 result.y = new_y
@@ -149,11 +147,7 @@ class Server:
         return final_regions
 
     def simulate_low_query(self, start_fid, end_fid, images_direc,
-                           results_dict, config=None):
-        curr_conf = self.conf
-        if config is not None:
-            curr_conf = config
-
+                           results_dict):
         results = Results()
         accepted_results = Results()
         results_for_regions = Results()  # Results used for regions detection
@@ -166,13 +160,13 @@ class Server:
                 results.add_single_result(single_result)
 
         self.logger.info(f"Getting results with threshold "
-                         f"{curr_conf.low_threshold} and "
-                         f"{curr_conf.high_threshold}")
+                         f"{self.config.low_threshold} and "
+                         f"{self.config.high_threshold}")
 
         for single_result in results.regions:
             accepted_results.add_single_result(single_result)
 
-            if single_result.conf < curr_conf.low_threshold:
+            if single_result.conf < self.config.low_threshold:
                 continue
 
             results_for_regions.add_single_result(single_result)
@@ -180,7 +174,6 @@ class Server:
         regions_to_query = self.get_regions_to_query(start_fid, end_fid,
                                                      images_direc,
                                                      results_for_regions,
-                                                     curr_conf,
                                                      simulation=True)
         self.logger.info(f"Returning {accepted_results.results_len()} "
                          f"confirmed results and "
@@ -189,7 +182,7 @@ class Server:
         # Return results and regions
         return accepted_results, regions_to_query
 
-    def simulate_high_query(self, req_regions, high_results_dict, config=None):
+    def simulate_high_query(self, req_regions, high_results_dict):
         high_res_results = Results()
 
         # Get all results that have confidence above the threshold and

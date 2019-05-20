@@ -18,20 +18,16 @@ def main(args):
         # Make backup ServerConfig
         config = ServerConfig(args.high_threshold, args.low_threshold,
                               args.max_object_size, args.tracker_length,
-                              args.boundary)
+                              args.boundary, args.intersection_threshold)
 
         # Make simulation objects
         logging.info(f"Starting server with high threshold of "
                      f"{args.high_threshold} low threshold of "
                      f"{args.low_threshold} tracker length of "
                      f"{args.tracker_length}")
-        server = Server(args.high_threshold, args.low_threshold,
-                        args.max_object_size, args.tracker_length,
-                        args.boundary)
+        server = Server(config)
         logging.info("Starting client")
-        client = Client(server, args.hname, args.high_threshold,
-                        args.low_threshold, args.max_object_size,
-                        args.tracker_length, args.boundary)
+        client = Client(server, args.hname, config)
 
         # Run simulation
         logging.info(f"Analyzing video {args.video_name}")
@@ -104,9 +100,16 @@ if __name__ == "__main__":
                         type=float, default=0.2,
                         help="Size by which to enlarge boundary while "
                         "calculating regions to query")
+
+    # Simulation settings
     parser.add_argument("--verbosity",
                         default="warning", type=str,
                         help="The verbosity of logging")
+    parser.add_argument("--intersection-threshold",
+                        dest="intersection_threshold",
+                        default=0.5, type=float,
+                        help="The intersection threshold to use"
+                        " when combining results objects")
 
     args = parser.parse_args()
 

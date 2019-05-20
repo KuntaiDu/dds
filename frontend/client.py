@@ -9,14 +9,10 @@ class Client:
        sends images in low resolution and waits for
        further instructions from the server. And finally receives results"""
 
-    def __init__(self, server_handle, hname=None, high_threshold=0.8,
-                 low_threshold=0.3, max_object_size=0.3,
-                 tracker_length=4, boundary=0.2):
+    def __init__(self, server_handle, hname, config):
         self.hname = hname
         self.server = server_handle
-        self.server_conf = ServerConfig(high_threshold, low_threshold,
-                                        max_object_size,
-                                        tracker_length, boundary)
+        self.server_conf = config
 
         self.logger = logging.getLogger("client")
         handler = logging.NullHandler()
@@ -28,12 +24,7 @@ class Client:
             self.logger.info(f"Client started with server {self.hname}")
 
     def analyze_video_simulate(self, video_name, images_direc, batch_size,
-                               high_results_path,
-                               low_results_path, new_config=None):
-        config_to_use = self.server_conf
-        if new_config is not None:
-            config_to_use = new_config
-
+                               high_results_path, low_results_path):
         results = Results()
         r1_results = Results()
         r2_results = Results()
@@ -56,8 +47,7 @@ class Client:
             r1, req_regions = self.server.simulate_low_query(start_frame_id,
                                                              end_frame_id,
                                                              images_direc,
-                                                             low_results_dict,
-                                                             config_to_use)
+                                                             low_results_dict)
             self.logger.info(f"Got {r1.results_len()} confirmed "
                              f"results with {req_regions.results_len()} "
                              f"regions to query in first phase of batch")
@@ -74,8 +64,7 @@ class Client:
 
             # Second (high resolution) phase
             r2 = self.server.simulate_high_query(req_regions,
-                                                 high_results_dict,
-                                                 config_to_use)
+                                                 high_results_dict)
             self.logger.info(f"Got {r2.results_len()} results in "
                              f"second phase of batch")
             r2_results.combine_results(r2)
