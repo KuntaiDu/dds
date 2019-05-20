@@ -1,104 +1,154 @@
-import matplotlib.pyplot as plt
-import numpy as np
 import os
-from dds_utils import Results, Region, read_results_txt_dict
+from dds_utils import read_results_dict, Results
+import matplotlib.pyplot as plt
 
-vidnames = [name for name in os.listdir("results")]
 
-fn = [[], [], []]
-fp = [[], []]
+emulation_direc = "../emulation-results"
+results_dir = "experiment-data/results"
+graphs_dir = "graphs"
+vidnames = os.listdir(results_dir)
 
-count = 0
-for name in vidnames:
-    fn0, fn1, fn2 = 0, 0, 0
-    fp0, fp1, fp2 = 0, 0, 0
-    print(os.path.join("results", name))
 
-    results_dict = read_results_txt_dict(os.path.join("results", name))
-    simulation_results = Results()
-    for _, value in results_dict.items():
-        for v in value:
-            simulation_results.add_single_result(v)
+def count_dds(video):
+    # read results
+    results_dict = read_results_dict(os.path.join(results_dir, video),
+                                     fmat="txt")
+    sim_results = Results()
+    for _, regions in results_dict.items():
+        for region in regions:
+            sim_results.add_single_result(region)
 
-    gt_dict = read_results_txt_dict(os.path.join("..", "emulation-results", name, "GroundTruth", "Results"))
+    # read ground truth results
+    gt_dict = read_results_dict(os.path.join(emulation_direc,
+                                             video, "GroundTruth", "Results"),
+                                fmat="txt")
     gt_results = Results()
-    for _, value in gt_dict.items():
-        for v in value:
-            if v.conf < 0.8:
+    for _, regions in gt_dict.items():
+        for region in regions:
+            if region.conf < 0.8:
                 continue
-            gt_results.add_single_result(v)
+            gt_results.add_single_result(region)
 
-    for r in gt_results.regions:
-        dup_region = simulation_results.is_dup(r)
-        if not dup_region:
+    # Count false negatives
+    fn0, fn1, fn2 = 0, 0, 0
+    for gt_region in gt_results.regions:
+        matching_region = sim_results.is_dup(gt_region)
+
+        if not matching_region:
+            # No detection at all
             fn0 += 1
-        elif dup_region.resolution == 0.375 and dup_region.conf < 0.5:
+            continue
+
+        if matching_region.conf > 0.8:
+            # Not false negative
+            continue
+
+        if (matching_region.conf < 0.5 and
+                "low-res" in matching_region.origin):
+            # not high enough confidence to be checked
             fn1 += 1
-        elif dup_region.resolution == 0.75 and dup_region.conf < 0.8:
+        elif "high-res" in matching_region.origin:
+            # server confirms mistake
             fn2 += 1
 
-    fn[0].append(fn0)
-    fn[1].append(fn1)
-    fn[2].append(fn2)
+    # Count false positives
+    fp0, fp1 = 0, 0
+    for region in sim_results.regions:
+        if region.conf < 0.8:
+            # If not strong detection
+            continue
 
-    high_res_dict = read_results_txt_dict(os.path.join("..", "emulation-results", name, "MPEG", "23_0.75", "Results"))
-    high_res_results = Results()
-    for _, value in high_res_dict.items():
-        for v in value:
-            if v.conf < 0.8:
+        gt_results.is_dup(region)
+
+        if gt_results.is_dup(region):
+            # This is a true positive
+            continue
+
+        if "low-res" in region.origin:
+            fp0 += 1
+        elif "high-res" in region.origin:
+            fp1 += 1
+
+    return fn0, fn1, fn2, fp0, fp1
+
+
+def count_low_high(video, resolution):
+    # read results
+    results_dict = read_results_dict(os.path.join(
+        emulation_direc, video,
+        "MPEG", resolution, "Results"),
+                                     fmat="txt")
+    results = Results()
+    for _, regions in results_dict.items():
+        for region in regions:
+            results.add_single_result(region, 1.0)
+
+    # read ground truth results
+    gt_dict = read_results_dict(os.path.join(emulation_direc,
+                                             video, "GroundTruth", "Results"),
+                                fmat="txt")
+    gt_results = Results()
+    for _, regions in gt_dict.items():
+        for region in regions:
+            if region.conf < 0.8:
                 continue
-            high_res_results.add_single_result(v)
+            gt_results.add_single_result(region, 1.0)
 
-    total_fp = 0
-    for r in simulation_results.regions:
-        if r.conf < 0.8:
+    # count false negatives
+    fn0, fn1, fn2 = 0, 0, 0
+    for region in gt_results.regions:
+        matching_region = results.is_dup(region)
+
+        if not matching_region:
+            fn0 += 1
             continue
-        dup_region = gt_results.is_dup(r)
-        if dup_region:
-            # continue if tp
+
+        if matching_region.conf > 0.8:
             continue
 
-        total_fp += 1
-        if r.resolution == 0.375:
-            if r.conf > 0.8:
-                fp2 += 1
+        if matching_region.conf < 0.5:
+            fn1 += 1
+        elif matching_region.conf > 0.5 and matching_region.conf < 0.8:
+            fn2 += 1
 
-        if r.resolution == 0.75:
-            if r.conf > 0.8:
-                fp1 += 1
+    # count false positives
+    fp = 0
+    for region in results.regions:
+        if region.conf < 0.8:
+            # Skip weak detection
+            continue
 
-    fp0 = total_fp - (fp1 + fp2)
+        if not gt_results.is_dup(region):
+            fp += 1
 
-    fp[0].append(fp1)
-    fp[1].append(fp2)
+    return fn0, fn1, fn2, fp
 
-fig, axs = plt.subplots(1, 2)
 
-print(fp)
+for video in vidnames:
+    if "0113" not in video:
+        continue
 
-fn[0] = sum(fn[0])
-fn[1] = sum(fn[1])
-fn[2] = sum(fn[2])
+    fig, axs = plt.subplots(3, 3)
 
-fp[0] = sum(fp[0])
-fp[1] = sum(fp[1])
+    fn0, fn1, fn2, fp0, fp1 = count_dds(video)
+    # DDS
+    axs[0, 0].pie([fn0, fn1, fn2], autopct="%1.1f%%",
+                  radius=((fn0 + fn1 + fn2) / (fn0 + fn1 + fn2 + fp0 + fp1)))
+    axs[0, 1].pie([fp0, fp1], autopct="%1.1f%%",
+                  radius=((fp0 + fp1) / (fn0 + fn1 + fn2 + fp0 + fp1)))
 
-wedges, texts, autotexts = axs[0].pie(fn,
-                                      autopct="%1.1f", shadow=True, textprops={'size': 'smaller'},
-                                      radius=sum(fn) / (sum(fn) + sum(fp)) + 0.15)
-plt.setp(autotexts, size="x-small")
-axs[0].legend(wedges,
-              ["No Detection", "Conf < 0.5", "Server confirms mistake"],
-              loc="best")
-axs[0].set_title("False Negatives")
+    # Low resolution
+    fn0, fn1, fn2, fp = count_low_high(video, "23_0.375")
+    axs[1, 0].pie([fn0, fn1, fn2], autopct="%1.1f%%",
+                  radius=((fn0 + fn1 + fn2) / (fn0 + fn1 + fn2 + fp)))
+    axs[1, 1].pie([fp], autopct="%1.1f%%",
+                  radius=((fp0 + fp1) / (fn0 + fn1 + fn2 + fp)))
 
-wedges, texts, autotexts = axs[1].pie(fp,
-                                      autopct="%1.1f",
-                                      shadow=True,
-                                      radius=sum(fp) / (sum(fn) + sum(fp)) - 0.1)
-axs[1].legend(wedges,
-              ["Server confirms mistake", "Conf > 0.8"],
-              loc="best")
-axs[1].set_title("False Positives")
+    # High resolution
+    fn0, fn1, fn2, fp = count_low_high(video, "23_0.75")
+    axs[2, 0].pie([fn0, fn1, fn2], autopct="%1.1f%%",
+                  radius=((fn0 + fn1 + fn2) / (fn0 + fn1 + fn2 + fp)))
+    axs[2, 1].pie([fp], autopct="%1.1f%%",
+                  radius=((fp0 + fp1) / (fn0 + fn1 + fn2 + fp)))
 
-plt.savefig("all-videos.svg")
+    # plt.show()
