@@ -1,7 +1,7 @@
 import logging
 import os
 from dds_utils import (Results, read_results_dict, write_results,
-                       ServerConfig, compute_area_of_regions)
+                       compute_area_of_regions)
 
 
 class Client:
@@ -12,7 +12,7 @@ class Client:
     def __init__(self, server_handle, hname, config):
         self.hname = hname
         self.server = server_handle
-        self.server_conf = config
+        self.config = config
 
         self.logger = logging.getLogger("client")
         handler = logging.NullHandler()
@@ -51,7 +51,7 @@ class Client:
             self.logger.info(f"Got {r1.results_len()} confirmed "
                              f"results with {req_regions.results_len()} "
                              f"regions to query in first phase of batch")
-            r1_results.combine_results(r1)
+            r1_results.combine_results(r1, self.config.intersection_threshold)
 
             # Add the number of regions requested by the server
             total_regions_count += req_regions.results_len()
@@ -67,16 +67,16 @@ class Client:
                                                  high_results_dict)
             self.logger.info(f"Got {r2.results_len()} results in "
                              f"second phase of batch")
-            r2_results.combine_results(r2)
+            r2_results.combine_results(r2, self.config.intersection_threshold)
 
         # Combine results
         self.logger.info(f"Got {r1_results.results_len()} unique results "
                          f"in base phase")
-        results.combine_results(r1_results)
+        results.combine_results(r1_results, self.config.intersection_threshold)
         self.logger.info(f"Got {r2_results.results_len()} positive "
                          f"identifications out of {total_regions_count} "
                          f"requests in second phase")
-        results.combine_results(r2_results)
+        results.combine_results(r2_results, self.config.intersection_threshold)
 
         # Fill gaps in results
         results.fill_gaps(number_of_frames)

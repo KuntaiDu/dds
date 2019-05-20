@@ -1,7 +1,7 @@
 import os
 import logging
 import cv2 as cv
-from dds_utils import ServerConfig, Results, Region
+from dds_utils import Results, Region
 
 
 class Server:
@@ -63,7 +63,8 @@ class Server:
                 h = bbox[3] / im_height
                 region = Region(fid, x, y, w, h, conf, label, resolution,
                                 f"tracking-extension[{start_fid}-{end_fid}]")
-                regions.add_single_result(region)
+                regions.add_single_result(region,
+                                          self.config.intersection_threshold)
 
         return regions
 
@@ -78,7 +79,8 @@ class Server:
                     single_result.conf < self.config.high_threshold):
                 # These are only those regions which are between thresholds
                 single_result.origin = f"tracking-origin[{single_result.fid}]"
-                non_tracking_regions.add_single_result(single_result)
+                non_tracking_regions.add_single_result(
+                    single_result, self.config.intersection_threshold)
 
             # Even if the results is not between thresholds we still need to
             # Track it across frames
@@ -93,7 +95,8 @@ class Server:
             self.logger.debug(f"Found {regions_from_tracking.results_len()} "
                               f"regions using forward tracking from"
                               f" {start_frame} to {end_frame}")
-            tracking_regions.combine_results(regions_from_tracking)
+            tracking_regions.combine_results(
+                regions_from_tracking, self.config.intersection_threshold)
 
             # Backward tracking
             end_frame = max(0, start_frame - self.config.tracker_length)
@@ -102,7 +105,8 @@ class Server:
             self.logger.debug(f"Found {regions_from_tracking.results_len()} "
                               f"regions using backward tracking from"
                               f" {start_frame} to {end_frame}")
-            tracking_regions.combine_results(regions_from_tracking)
+            tracking_regions.combine_results(
+                regions_from_tracking, self.config.intersection_threshold)
 
         self.logger.info(f"Found {non_tracking_regions.results_len()} "
                          f"regions between {start_fid} and {end_fid} without "
@@ -141,8 +145,10 @@ class Server:
                 result.h = new_h
 
         final_regions = Results()
-        final_regions.combine_results(non_tracking_regions)
-        final_regions.combine_results(tracking_regions)
+        final_regions.combine_results(
+            non_tracking_regions, self.config.intersection_threshold)
+        final_regions.combine_results(
+            tracking_regions, self.config.intersection_threshold)
 
         return final_regions
 
@@ -157,19 +163,22 @@ class Server:
             fid_results = results_dict[fid]
             for single_result in fid_results:
                 single_result.origin = "low-res"
-                results.add_single_result(single_result)
+                results.add_single_result(single_result,
+                                          self.config.intersection_threshold)
 
         self.logger.info(f"Getting results with threshold "
                          f"{self.config.low_threshold} and "
                          f"{self.config.high_threshold}")
 
         for single_result in results.regions:
-            accepted_results.add_single_result(single_result)
+            accepted_results.add_single_result(
+                single_result, self.config.intersection_threshold)
 
             if single_result.conf < self.config.low_threshold:
                 continue
 
-            results_for_regions.add_single_result(single_result)
+            results_for_regions.add_single_result(
+                single_result, self.config.intersection_threshold)
 
         regions_to_query = self.get_regions_to_query(start_fid, end_fid,
                                                      images_direc,
@@ -192,17 +201,20 @@ class Server:
             fid_results = high_results_dict[fid]
             for single_result in fid_results:
                 single_result.origin = "high-res"
-                high_res_results.add_single_result(single_result)
+                high_res_results.add_single_result(
+                    single_result, self.config.intersection_threshold)
 
         selected_results = Results()
         for single_result in high_res_results.regions:
-            dup_region = req_regions.is_dup(single_result)
+            dup_region = req_regions.is_dup(
+                single_result, self.config.intersection_threshold)
             if dup_region:
                 self.logger.debug(f"Matched {single_result.to_str()} with "
                                   f"{dup_region.to_str()} "
                                   f"in requested regions")
                 single_result.origin = (f"{single_result.origin}"
                                         f"[{dup_region.origin}]")
-                selected_results.add_single_result(single_result)
+                selected_results.add_single_result(
+                    single_result, self.config.intersection_threshold)
 
         return selected_results
