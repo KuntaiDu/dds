@@ -1,6 +1,7 @@
 import os
 from dds_utils import read_results_dict, Results
 import matplotlib.pyplot as plt
+from matplotlib.backends.backend_pdf import PdfPages
 
 
 emulation_direc = "../emulation-results"
@@ -124,31 +125,84 @@ def count_low_high(video, resolution):
     return fn0, fn1, fn2, fp
 
 
+def get_marks(pct, total):
+    absolute_value = int(total * (pct / 100.0))
+    return f"{pct:0.1f}%\n({absolute_value})"
+
+
+pf = PdfPages("video-analysis.pdf")
 for video in vidnames:
-    if "0113" not in video:
+    if video.split("_")[-1] in ["0002", "0060", "0028", "0079"]:
         continue
 
-    fig, axs = plt.subplots(3, 3)
+    fig = plt.figure(figsize=(14, 8))
+    axs = fig.subplots(3, 2)
 
-    fn0, fn1, fn2, fp0, fp1 = count_dds(video)
-    # DDS
-    axs[0, 0].pie([fn0, fn1, fn2], autopct="%1.1f%%",
-                  radius=((fn0 + fn1 + fn2) / (fn0 + fn1 + fn2 + fp0 + fp1)))
-    axs[0, 1].pie([fp0, fp1], autopct="%1.1f%%",
-                  radius=((fp0 + fp1) / (fn0 + fn1 + fn2 + fp0 + fp1)))
+    axs[0, 0].text(2.5, 2, video, weight="bold")
+    axs[0, 1].text(-0.7, 1.5, "False Positives", weight="bold")
+    axs[0, 0].text(-0.7, 1.5, "False Negatives", weight="bold")
 
     # Low resolution
     fn0, fn1, fn2, fp = count_low_high(video, "23_0.375")
-    axs[1, 0].pie([fn0, fn1, fn2], autopct="%1.1f%%",
-                  radius=((fn0 + fn1 + fn2) / (fn0 + fn1 + fn2 + fp)))
-    axs[1, 1].pie([fp], autopct="%1.1f%%",
-                  radius=((fp0 + fp1) / (fn0 + fn1 + fn2 + fp)))
+    if (fn0 + fn1 + fn2 + fp) == 0:
+        continue
+    rad = ((fn0 + fn1 + fn2) / (fn0 + fn1 + fn2 + fp))
+    print(video)
+    pdist = 0.75 / rad
+    wedges, texts, autotexts = axs[0, 0].pie([fn0, fn1, fn2],
+                                             autopct=lambda pct: get_marks(pct, fn0 + fn1 + fn2),
+                                             pctdistance=pdist, radius=rad)
+    axs[0, 0].text(-2.5, 0, "Low", weight="bold")
+    plt.setp(autotexts, size=8)
+    rad = ((fp) / (fn0 + fn1 + fn2 + fp))
+    pdist = 0.75 / rad
+    wedges, texts, autotexts = axs[0, 1].pie([fp], autopct=lambda pct: get_marks(pct, fp),
+                                             pctdistance=pdist, radius=rad)
+    plt.setp(autotexts, size=8)
 
     # High resolution
     fn0, fn1, fn2, fp = count_low_high(video, "23_0.75")
-    axs[2, 0].pie([fn0, fn1, fn2], autopct="%1.1f%%",
-                  radius=((fn0 + fn1 + fn2) / (fn0 + fn1 + fn2 + fp)))
-    axs[2, 1].pie([fp], autopct="%1.1f%%",
-                  radius=((fp0 + fp1) / (fn0 + fn1 + fn2 + fp)))
+    if (fn0 + fn1 + fn2 + fp) == 0:
+        continue
+    rad = ((fn0 + fn1 + fn2) / (fn0 + fn1 + fn2 + fp))
+    pdist = 0.75 / rad
+    wedges, texts, autotexts = axs[1, 0].pie([fn0, fn1, fn2],
+                                             autopct=lambda pct: get_marks(pct, fn0 + fn1 + fn2),
+                                             pctdistance=pdist,
+                                             radius=rad)
+    axs[1, 0].text(-2.5, 0, "High", weight="bold")
+    plt.setp(autotexts, size=8)
+    rad = ((fp) / (fn0 + fn1 + fn2 + fp))
+    pdist = 0.75 / rad
+    wedges, texts, autotexts = axs[1, 1].pie([fp], autopct=lambda pct: get_marks(pct, fp),
+                                             pctdistance=pdist,
+                                             radius=rad)
+    plt.setp(autotexts, size=8)
 
-    # plt.show()
+    fn0, fn1, fn2, fp0, fp1 = count_dds(video)
+    if (fn0 + fn1 + fn2 + fp0 + fp1) == 0:
+        continue
+    # DDS
+    rad = ((fn0 + fn1 + fn2) / (fn0 + fn1 + fn2 + fp0 + fp1))
+    pdist = 0.75 / rad
+    wedges, texts, autotexts = axs[2, 0].pie([fn0, fn1, fn2],
+                                             autopct=lambda pct: get_marks(pct, fn0 + fn1 + fn2),
+                                             pctdistance=pdist,
+                                             radius=rad)
+    axs[2, 0].legend(wedges, ["No detection", "c < 0.5", "Server confirms"],
+                     loc="best",
+                     bbox_to_anchor=(1, 0, 0.5, 1))
+    axs[2, 0].text(-2.5, 0, "DDS", weight="bold")
+    plt.setp(autotexts, size=8)
+    rad = ((fp0 + fp1) / (fn0 + fn1 + fn2 + fp0 + fp1))
+    pdist = 0.75 / rad
+    wedges, texts, autotexts = axs[2, 1].pie([fp0, fp1], autopct=lambda pct: get_marks(pct, fp0 + fp1),
+                                             pctdistance=pdist, radius=rad)
+    plt.setp(autotexts, size=8)
+    axs[2, 1].legend(wedges, ["c > 0.8", "Server confirms"],
+                     loc="best",
+                     bbox_to_anchor=(1, 0, 0.5, 1))
+
+    pf.savefig()
+    plt.close(fig)
+pf.close()
