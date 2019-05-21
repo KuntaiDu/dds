@@ -184,12 +184,21 @@ class Server:
                                                      images_direc,
                                                      results_for_regions,
                                                      simulation=True)
+
+        # Iterate over regions to query and remove all that have matched in
+        # accepte results
+        final_regions_to_query = Results()
+        for region in regions_to_query.regions:
+            if not accepted_results.is_dup(region):
+                final_regions_to_query.add_single_result(
+                    region, self.config.intersection_threshold)
+
         self.logger.info(f"Returning {accepted_results.results_len()} "
                          f"confirmed results and "
-                         f"{regions_to_query.results_len()} regions")
+                         f"{final_regions_to_query.results_len()} regions")
 
         # Return results and regions
-        return accepted_results, regions_to_query
+        return accepted_results, final_regions_to_query
 
     def simulate_high_query(self, req_regions, high_results_dict):
         high_res_results = Results()
