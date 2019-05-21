@@ -180,30 +180,76 @@ def calc_iou(a, b):
     return intersection_area / union_area
 
 
+def get_interval_area(width, all_yes):
+    area = 0
+    for y1, y2 in all_yes:
+        area += (y2 - y1) * width
+    return area
+
+
+def insert_range_y(all_yes, y1, y2):
+    ranges_length = len(all_yes)
+    idx = 0
+    while idx < ranges_length:
+        if not (y1 > all_yes[idx][1] or all_yes[idx][0] > y2):
+            # Overlapping
+            y1 = min(y1, all_yes[idx][0])
+            y2 = max(y2, all_yes[idx][1])
+            del all_yes[idx]
+            ranges_length = len(all_yes)
+        else:
+            idx += 1
+
+    all_yes.append((y1, y2))
+
+
+def get_y_ranges(regions, j, x1, x2):
+    all_yes = []
+    while j < len(regions):
+        if (x1 < (regions[j].x + regions[j].w) and
+                x2 > regions[j].x):
+            y1 = regions[j].y
+            y2 = regions[j].y + regions[j].h
+            insert_range_y(all_yes, y1, y2)
+        j += 1
+    return all_yes
+
+
+def compute_area_of_frame(regions):
+    regions.sort(key=lambda r: r.x + r.w)
+
+    all_xes = []
+    for r in regions:
+        all_xes.append(r.x)
+        all_xes.append(r.x + r.w)
+    all_xes.sort()
+
+    area = 0
+    j = 0
+    for i in range(len(all_xes) - 1):
+        x1 = all_xes[i]
+        x2 = all_xes[i + 1]
+
+        if x1 < x2:
+            while (regions[j].x + regions[j].w) < x1:
+                j += 1
+            all_yes = get_y_ranges(regions, j, x1, x2)
+            area += get_interval_area(x2 - x1, all_yes)
+
+    return area
+
+
 def compute_area_of_regions(results):
-    # Dict will have fid -> (total area, intersection)
-    area_dict = {}
+    if len(results.regions) == 0:
+        return 0
 
-    for idx, single_result in enumerate(results.regions):
-        region_area = calc_area(single_result)
-
-        intersection_area = 0
-        for obj in results.regions[idx + 1:]:
-            if obj.fid != single_result.fid:
-                continue
-
-            intersection_area += calc_intersection_area(obj, single_result)
-
-        if single_result.fid not in area_dict:
-            area_dict[single_result.fid] = [0, 0]
-        area_dict_entry = area_dict[single_result.fid]
-        area_dict_entry[0] += region_area
-        area_dict_entry[1] += intersection_area
-        area_dict[single_result.fid] = area_dict_entry
+    min_frame = min([r.fid for r in results.regions])
+    max_frame = max([r.fid for r in results.regions])
 
     total_area = 0
-    for _, (total_frame_area, intersection_area) in area_dict.items():
-        total_area += (total_frame_area - intersection_area)
+    for fid in range(min_frame, max_frame + 1):
+        regions_for_frame = [r for r in results.regions if r.fid == fid]
+        total_area += compute_area_of_frame(regions_for_frame)
 
     return total_area
 
