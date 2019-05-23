@@ -16,7 +16,8 @@ def main(args):
 
     if args.hname is None:
         # Make backup ServerConfig
-        config = ServerConfig(args.high_threshold, args.low_threshold,
+        config = ServerConfig(args.resolutions[0], args.resolutions[1],
+                              args.high_threshold, args.low_threshold,
                               args.max_object_size, args.tracker_length,
                               args.boundary, args.intersection_threshold)
 
@@ -30,9 +31,11 @@ def main(args):
         client = Client(server, args.hname, config)
 
         # Run simulation
-        logging.info(f"Analyzing video {args.video_name}")
+        logging.info(f"Analyzing video {args.video_name} with low resolution "
+                     f"of {args.resolutions[0]} and high resolution of "
+                     f"{args.resolutions[1]}")
         results, bw = client.analyze_video_simulate(args.video_name,
-                                                    args.images_loc,
+                                                    args.low_images_path,
                                                     args.bsize,
                                                     args.high_results_path,
                                                     args.low_results_path)
@@ -60,9 +63,15 @@ if __name__ == "__main__":
     parser.add_argument("--vid-name", dest="video_name",
                         required=True, type=str,
                         help="Name of video to analyze")
-    parser.add_argument("--src", dest="images_loc",
+    parser.add_argument("--low-src", dest="low_images_path",
                         required=True, type=str,
-                        help="Path to frames of the video")
+                        help="Path of low resolution images of the video")
+    parser.add_argument("--high-src", dest="high_images_path",
+                        type=str, default=None,
+                        help="Path to high resolution images of the video")
+    parser.add_argument("--resolutions", dest="resolutions", type=float,
+                        nargs=2, metavar=("LOW", "HIGH"), required=True,
+                        help="The low resolution for DDS to use")
     parser.add_argument("--hname",
                         type=str, default=None,
                         help="Host name for server "
@@ -83,6 +92,11 @@ if __name__ == "__main__":
                         dest="outfile", type=str, default="stats",
                         help="The name of the file to which to append "
                         "statistics about the experiment after evaluation")
+    parser.add_argument("--estimate-bandwidth",
+                        dest="estimate_banwidth", action="store_true",
+                        help="Flag to indicate whether DDS should encode "
+                        "and estimate bandwidth or just give fractions for "
+                        "high resolution regions")
     # Server config arguments
     parser.add_argument("--low-threshold", dest="low_threshold",
                         type=float, default=0.1,
@@ -126,5 +140,21 @@ if __name__ == "__main__":
               "Verbosity can only be one of the following:\n"
               "\tdebug\n\tinfo\n\twarning\n\terror")
         exit()
+
+    if args.hname and not args.high_images_loc:
+        print("Need location of high resolution images when "
+              "not running in simulation mode")
+        exit()
+
+    if args.estimate_banwidth and not args.high_images_loc:
+        print("DDS needs location of high resolution images to "
+              "calculate true bandwidth")
+        exit()
+
+    if args.resolutions[1] < args.resolutions[0]:
+        logging.warn("Given high resolution is less than low resolution, "
+                     "swapping resolutions")
+        args.resolutions[0], args.resolutions[1] = (args.resolutions[1],
+                                                    args.resolutions[0])
 
     main(args)

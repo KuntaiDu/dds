@@ -3,8 +3,10 @@ import os
 
 
 class ServerConfig:
-    def __init__(self, h_thres, l_thres, max_obj_size, tracker_length,
-                 boundary, intersection_threshold):
+    def __init__(self, low_res, high_res, h_thres, l_thres, max_obj_size,
+                 tracker_length, boundary, intersection_threshold):
+        self.low_resolution = low_res
+        self.high_resolution = high_res
         self.high_threshold = h_thres
         self.low_threshold = l_thres
         self.max_object_size = max_obj_size
@@ -239,6 +241,19 @@ def compute_area_of_frame(regions):
     return area
 
 
+def compute_regions_bandwidth(results, vid_name, images_direc,
+                              simulation=True):
+    if not images_direc:
+        # If not simulation then compress and encode images
+        # and get size
+        compress_images(results, vid_name, images_direc)
+        bandwidth = os.path.getsize(os.path.join(vid_name, "temp.mp4"))
+    else:
+        bandwidth = compute_area_of_regions(results)
+
+    return bandwidth
+
+
 def compute_area_of_regions(results):
     if len(results.regions) == 0:
         return 0
@@ -303,10 +318,12 @@ def evaluate(results, gt_dict, high_threshold, iou_threshold=0.5):
 
 
 def write_stats_txt(fname, vid_name, bsize, config, f1, stats, bw):
-    header_str = ("video-name,batch-size,low-threshold,high-threshold,"
+    header_str = ("video-name,low-resolution,high-resolution,batch-size"
+                  ",low-threshold,high-threshold,"
                   "tracker-length,TP,FP,FN,F1,"
                   "low-bandwidth,high-bandwidth,total-bandwidth")
-    results_str = (f"{vid_name},{bsize},{config.low_threshold},"
+    results_str = (f"{vid_name},{config.low_resolution},"
+                   f"{config.high_resolution},{bsize},{config.low_threshold},"
                    f"{config.high_threshold},{config.tracker_length},"
                    f"{stats[0]},{stats[1]},{stats[2]},"
                    f"{f1},{bw[0]},{bw[1]},{bw[0] + bw[1]}")
