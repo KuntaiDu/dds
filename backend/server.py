@@ -57,8 +57,8 @@ class Server:
             status, bbox = tracker.update(curr_frame)
             if status:
                 # Add bounding box to areas to be searched
-                x = bbox[0] / im_width
-                y = bbox[1] / im_height
+                x = max(0, bbox[0] / im_width)
+                y = max(0, bbox[1] / im_height)
                 w = bbox[2] / im_width
                 h = bbox[3] / im_height
                 region = Region(fid, x, y, w, h, conf, label, resolution,
