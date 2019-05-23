@@ -87,6 +87,11 @@ if __name__ == "__main__":
     parser.add_argument("--ground-truth", dest="ground_truth",
                         type=str, default=None,
                         help="File containing the ground_truth")
+    parser.add_argument("--mpeg-result-summary", dest="mpeg_results_path",
+                        type=str, default=None,
+                        help="The path to the results.log file for MPEG that "
+                        "the simulator can use to calculate low bandwidth "
+                        "without enoding images to low resolution")
     parser.add_argument("--batch-size", dest="bsize",
                         type=int, default=15,
                         help="Segment size to use for DDS")
