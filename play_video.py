@@ -22,18 +22,18 @@ def main(args):
                               args.boundary, args.intersection_threshold)
 
         # Make simulation objects
-        logging.info(f"Starting server with high threshold of "
-                     f"{args.high_threshold} low threshold of "
-                     f"{args.low_threshold} tracker length of "
-                     f"{args.tracker_length}")
+        logger.info(f"Starting server with high threshold of "
+                    f"{args.high_threshold} low threshold of "
+                    f"{args.low_threshold} tracker length of "
+                    f"{args.tracker_length}")
         server = Server(config)
-        logging.info("Starting client")
+        logger.info("Starting client")
         client = Client(server, args.hname, config)
 
         # Run simulation
-        logging.info(f"Analyzing video {args.video_name} with low resolution "
-                     f"of {args.resolutions[0]} and high resolution of "
-                     f"{args.resolutions[1]}")
+        logger.info(f"Analyzing video {args.video_name} with low resolution "
+                    f"of {args.resolutions[0]} and high resolution of "
+                    f"{args.resolutions[1]}")
         results, bw = client.analyze_video_simulate(args.video_name,
                                                     args.low_images_path,
                                                     args.bsize,
@@ -44,12 +44,12 @@ def main(args):
         # Evaluation and writing results
         # Read Groundtruth results
         ground_truth_dict = read_results_dict(args.ground_truth, fmat="txt")
-        logging.info("Reading ground truth results complete")
+        logger.info("Reading ground truth results complete")
         f1, stats = evaluate(results, ground_truth_dict, args.high_threshold)
-        logging.info(f"Got an f1 score of {f1} "
-                     f"for this experiment using simulation with "
-                     f"tp {stats[0]} fp {stats[1]} fn {stats[2]} "
-                     f"with total bandwidth {sum(bw)}")
+        logger.info(f"Got an f1 score of {f1} "
+                    f"for this experiment using simulation with "
+                    f"tp {stats[0]} fp {stats[1]} fn {stats[2]} "
+                    f"with total bandwidth {sum(bw)}")
 
         # Write evaluation results to file
         write_stats(args.outfile, args.video_name, args.bsize,
