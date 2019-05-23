@@ -1,5 +1,8 @@
 import math
 import os
+import subprocess
+import numpy as np
+import cv2 as cv
 
 
 class ServerConfig:
@@ -241,19 +244,6 @@ def compute_area_of_frame(regions):
     return area
 
 
-def compute_regions_bandwidth(results, vid_name, images_direc,
-                              simulation=True):
-    if not images_direc:
-        # If not simulation then compress and encode images
-        # and get size
-        compress_images(results, vid_name, images_direc)
-        bandwidth = os.path.getsize(os.path.join(vid_name, "temp.mp4"))
-    else:
-        bandwidth = compute_area_of_regions(results)
-
-    return bandwidth
-
-
 def compute_area_of_regions(results):
     if len(results.regions) == 0:
         return 0
@@ -267,6 +257,83 @@ def compute_area_of_regions(results):
         total_area += compute_area_of_frame(regions_for_frame)
 
     return total_area
+
+
+def compress_and_get_size(images_path, start_id, end_id, resolution):
+    number_of_frames = end_id - start_id
+    # Compress using ffmpeg
+    encoded_vid_path = os.path.join(images_path, "temp.mp4")
+    encoding_result = subprocess.run(["ffmpeg", "-y", "-loglevel", "error",
+                                      "-start_number", start_id,
+                                      "-frames:v", number_of_frames,
+                                      '-i', f"{images_path}/%010d.png",
+                                      "-vcodec", "libx264",
+                                      "-pix_fmt", "yuv420p", "-g", "8"
+                                      "-crf", "23", "-vf",
+                                      f"scale=iw*{resolution}:ih*{resolution}",
+                                      encoded_vid_path],
+                                     stdout=subprocess.PIPE,
+                                     stderr=subprocess.PIPE,
+                                     universal_newlines=True)
+
+    size = 0
+    if encoding_result.returncode != 0:
+        # Encoding failed
+        size = 0
+    else:
+        size = os.path.getsize(encoded_vid_path)
+        os.remove(encoded_vid_path)
+
+    return size
+
+
+def crop_and_merge_images(results, vid_name, images_direc):
+    cached_image = None
+    cropped_images = {}
+
+    for region in results:
+        if not (cached_image and
+                cached_image[0] == region.fid):
+            image_path = os.path.join(images_direc,
+                                      f"{str(region.fid).zfill(10)}.png")
+            cached_image = (region.fid, cv.imread(image_path))
+
+        width = cached_image[1].shape[1]
+        height = cached_image[1].shape[0]
+        x0 = int(region.x * width)
+        y0 = int(region.y * height)
+        x1 = int((region.x + region.w) * width)
+        y1 = int((region.y + region.h) * height)
+
+        if region.fid not in cropped_images:
+            cropped_images[region.fid] = np.zeros_like(cached_image[1])
+
+        cropped_image = cropped_images[region.fid]
+        cropped_image[y0:y1, x0:x1, :] = cached_image[1][y0:y1, x0:x1, :]
+        cropped_images[region.fid] = cropped_image
+
+    os.makedirs(vid_name, exists_ok=True)
+    frames_count = len(cropped_images)
+    frames = sorted(cropped_images.items(), key=lambda e: e[0])
+    for idx, (_, frame) in enumerate(frames):
+        cv.imwrite(os.path.join(vid_name, f"{str(idx).zfill(10)}.png"), frame)
+
+    return frames_count
+
+
+def compute_regions_bandwidth(results, vid_name, images_direc, resolution,
+                              estimate_banwidth=True):
+    if estimate_banwidth:
+        # If not simulation then compress and encode images
+        # and get size
+        vid_name = f"{vid_name}-cropped"
+        frames_count = crop_and_merge_images(results, vid_name, images_direc)
+        size = compress_and_get_size(vid_name, 0, frames_count, resolution)
+        os.rmdirs(vid_name)
+    else:
+        size = compute_area_of_regions(results)
+
+    return size
 
 
 def evaluate(results, gt_dict, high_threshold, iou_threshold=0.5):

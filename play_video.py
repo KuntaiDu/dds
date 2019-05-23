@@ -36,9 +36,11 @@ def main(args):
                     f"{args.resolutions[1]}")
         results, bw = client.analyze_video_simulate(args.video_name,
                                                     args.low_images_path,
+                                                    args.high_images_path,
                                                     args.bsize,
                                                     args.high_results_path,
-                                                    args.low_results_path)
+                                                    args.low_results_path,
+                                                    args.estimate_banwidth)
         low, high = bw
 
         # Evaluation and writing results
