@@ -260,7 +260,7 @@ def evaluate(results, gt_dict, high_threshold, iou_threshold=0.5):
         for single_result in v:
             if single_result.conf < high_threshold:
                 continue
-            gt_results.add_single_result(single_result)
+            gt_results.add_single_result(single_result, iou_threshold)
 
     # Save regions count because the regions that match
     # will be removed from the gt_regions to ensure better
