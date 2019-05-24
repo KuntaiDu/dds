@@ -327,6 +327,9 @@ def crop_and_merge_images(results, vid_name, images_direc):
 
 def compute_regions_size(results, vid_name, images_direc, resolution,
                          estimate_banwidth=True):
+    if results.results_len() == 0:
+        return 0
+
     if estimate_banwidth:
         # If not simulation then compress and encode images
         # and get size
