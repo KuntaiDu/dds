@@ -60,6 +60,7 @@ class Client:
             # Add the number of regions requested by the server
             total_regions_count += req_regions.results_len()
 
+            encoded_batch_video_size = 0
             if not mpeg_results_path and estimate_banwidth:
                 encoded_batch_video_size = compress_and_get_size(
                     high_images_path, start_frame_id, end_frame_id,

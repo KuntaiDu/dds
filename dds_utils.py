@@ -1,5 +1,6 @@
 import math
 import os
+import shutil
 import subprocess
 import numpy as np
 import cv2 as cv
@@ -264,8 +265,8 @@ def compress_and_get_size(images_path, start_id, end_id, resolution):
     # Compress using ffmpeg
     encoded_vid_path = os.path.join(images_path, "temp.mp4")
     encoding_result = subprocess.run(["ffmpeg", "-y", "-loglevel", "error",
-                                      "-start_number", start_id,
-                                      "-frames:v", number_of_frames,
+                                      "-start_number", str(start_id),
+                                      "-frames:v", str(number_of_frames),
                                       '-i', f"{images_path}/%010d.png",
                                       "-vcodec", "libx264",
                                       "-pix_fmt", "yuv420p", "-g", "8"
@@ -291,7 +292,7 @@ def crop_and_merge_images(results, vid_name, images_direc):
     cached_image = None
     cropped_images = {}
 
-    for region in results:
+    for region in results.regions:
         if not (cached_image and
                 cached_image[0] == region.fid):
             image_path = os.path.join(images_direc,
@@ -312,7 +313,7 @@ def crop_and_merge_images(results, vid_name, images_direc):
         cropped_image[y0:y1, x0:x1, :] = cached_image[1][y0:y1, x0:x1, :]
         cropped_images[region.fid] = cropped_image
 
-    os.makedirs(vid_name, exists_ok=True)
+    os.makedirs(vid_name, exist_ok=True)
     frames_count = len(cropped_images)
     frames = sorted(cropped_images.items(), key=lambda e: e[0])
     for idx, (_, frame) in enumerate(frames):
@@ -321,15 +322,15 @@ def crop_and_merge_images(results, vid_name, images_direc):
     return frames_count
 
 
-def compute_regions_bandwidth(results, vid_name, images_direc, resolution,
-                              estimate_banwidth=True):
+def compute_regions_size(results, vid_name, images_direc, resolution,
+                         estimate_banwidth=True):
     if estimate_banwidth:
         # If not simulation then compress and encode images
         # and get size
         vid_name = f"{vid_name}-cropped"
         frames_count = crop_and_merge_images(results, vid_name, images_direc)
         size = compress_and_get_size(vid_name, 0, frames_count, resolution)
-        os.rmdirs(vid_name)
+        shutil.rmtree(vid_name)
     else:
         size = compute_area_of_regions(results)
 

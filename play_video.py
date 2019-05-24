@@ -40,6 +40,7 @@ def main(args):
                                                     args.bsize,
                                                     args.high_results_path,
                                                     args.low_results_path,
+                                                    args.mpeg_results_path,
                                                     args.estimate_banwidth)
         low, high = bw
 
@@ -148,14 +149,9 @@ if __name__ == "__main__":
               "\tdebug\n\tinfo\n\twarning\n\terror")
         exit()
 
-    if args.hname and not args.high_images_loc:
-        print("Need location of high resolution images when "
-              "not running in simulation mode")
-        exit()
-
-    if args.estimate_banwidth and not args.high_images_loc:
+    if args.estimate_banwidth and not args.high_images_path:
         print("DDS needs location of high resolution images to "
-              "calculate true bandwidth")
+              "calculate true bandwidth estimate")
         exit()
 
     if args.resolutions[1] < args.resolutions[0]:
