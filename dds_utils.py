@@ -336,6 +336,18 @@ def compute_regions_bandwidth(results, vid_name, images_direc, resolution,
     return size
 
 
+def get_size_from_mpeg_results(results_log_path, resolution):
+    with open(results_log_path, "r") as f:
+        lines = f.readlines()
+    bandwidth = 0
+    for idx, line in enumerate(lines):
+        if f"RES {resolution}" in line:
+            bandwidth = float(lines[idx + 2])
+            break
+    size = bandwidth * 1024.0 * 8.0
+    return size
+
+
 def evaluate(results, gt_dict, high_threshold, iou_threshold=0.5):
     gt_results = Results()
     for k, v in gt_dict.items():

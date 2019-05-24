@@ -1,7 +1,8 @@
 import logging
 import os
 from dds_utils import (Results, read_results_dict, write_results,
-                       compress_and_get_size, compute_regions_size)
+                       compress_and_get_size, compute_regions_size,
+                       get_size_from_mpeg_results)
 
 
 class Client:
@@ -26,6 +27,7 @@ class Client:
     def analyze_video_simulate(self, video_name, low_images_path,
                                high_images_path, batch_size,
                                high_results_path, low_results_path,
+                               mpeg_results_path=None,
                                estimate_banwidth=False):
         results = Results()
         r1_results = Results()
@@ -58,11 +60,12 @@ class Client:
             # Add the number of regions requested by the server
             total_regions_count += req_regions.results_len()
 
-            # Calculate size of regions required by the server
-            encoded_batch_video_size = compress_and_get_size(
-                high_images_path, start_frame_id, end_frame_id,
-                self.config.low_resolution)
-            total_size[0] += encoded_batch_video_size
+            if not mpeg_results_path and estimate_banwidth:
+                encoded_batch_video_size = compress_and_get_size(
+                    high_images_path, start_frame_id, end_frame_id,
+                    self.config.low_resolution)
+                total_size[0] += encoded_batch_video_size
+
             regions_size = compute_regions_size(
                 req_regions, video_name, high_images_path,
                 self.config.high_resolution, estimate_banwidth)
@@ -92,6 +95,11 @@ class Client:
 
         # Write results
         write_results(results, video_name, fmat="txt")
+
+        # Get results from summary file if given
+        if mpeg_results_path and estimate_banwidth:
+            total_size[0] = get_size_from_mpeg_results(
+                mpeg_results_path, self.config.low_resolution)
 
         self.logger.info(f"Writing results for {video_name}")
         self.logger.info(f"{results.results_len()} objects detected "
