@@ -65,6 +65,13 @@ class Results:
     def results_len(self):
         return len(self.regions)
 
+    def results_high_len(self, threshold):
+        count = 0
+        for r in self.regions:
+            if r.conf > threshold:
+                count += 1
+        return count
+
     def is_dup(self, result_to_add, threshold=0.5):
         for existing_result in self.regions:
             if existing_result.is_same(result_to_add, threshold):
