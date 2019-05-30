@@ -87,11 +87,6 @@ class Results:
             else:
                 # Update confidence to the max confidence that we see
                 dup_region.conf = max(result_to_add.conf, dup_region.conf)
-                # Replace the origin iff a high resolution result is
-                # being added and the dup_region was a low resolution result
-                if ("high" not in dup_region.origin and
-                        "high" in result_to_add.origin):
-                    dup_region.origin = result_to_add.origin
 
     def add_single_result(self, result_to_add, threshold=0.5):
         temp_results = Results()
