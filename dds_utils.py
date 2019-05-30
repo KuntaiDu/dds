@@ -450,6 +450,8 @@ def visualize_regions(results, images_direc, label="debugging"):
         y1 = int((r.h * height) + y0)
 
         cv.rectangle(image_np, (x0, y0), (x1, y1), (0, 0, 255), 2)
+        cv.putText(image_np, f"{r.fid}", (10, 20),
+                   cv.FONT_HERSHEY_SIMPLEX, 0.75, (0, 0, 255), 2)
 
         cv.imshow(label, image_np)
         key = cv.waitKey()
