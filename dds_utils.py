@@ -81,18 +81,15 @@ class Results:
 
     def combine_results(self, additional_results, threshold=0.5):
         for result_to_add in additional_results.regions:
-            dup_region = self.is_dup(result_to_add, threshold)
-            if not dup_region:
-                self.regions.append(result_to_add)
-                self.regions.sort(key=lambda x: x.fid)
-            else:
-                # Update confidence to the max confidence that we see
-                dup_region.conf = max(result_to_add.conf, dup_region.conf)
+            self.add_single_result(result_to_add, threshold)
 
     def add_single_result(self, result_to_add, threshold=0.5):
-        temp_results = Results()
-        temp_results.regions = [result_to_add]
-        self.combine_results(temp_results, threshold)
+        dup_region = self.is_dup(result_to_add, threshold)
+        if not dup_region:
+            self.regions.append(result_to_add)
+            self.regions.sort(key=lambda x: x.fid)
+        else:
+            dup_region.conf = max(result_to_add.conf, dup_region.conf)
 
     def remove(self, region_to_remove):
         self.regions.remove(region_to_remove)
