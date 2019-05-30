@@ -35,14 +35,15 @@ class Region:
     def to_str(self):
         string_rep = (f"{self.fid}, {self.x:0.3f}, {self.y:0.3f}, "
                       f"{self.w:0.3f}, {self.h:0.3f}, {self.conf:0.3f}, "
-                      f"{self.resolution:0.3f}, {self.origin}")
+                      f"{self.label}, {self.origin}")
         return string_rep
 
     def is_same(self, region_to_check, threshold=0.5):
         # If the fids or labels are different
         # then not the same
         if (self.fid != region_to_check.fid or
-                self.label != region_to_check.label):
+                ((self.label != "-1" and region_to_check.label != "-1") and
+                 (self.label != region_to_check.label))):
             return False
 
         # If the intersection to union area
