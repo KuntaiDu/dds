@@ -89,7 +89,18 @@ class Results:
             self.regions.append(result_to_add)
             self.regions.sort(key=lambda x: x.fid)
         else:
-            dup_region.conf = max(result_to_add.conf, dup_region.conf)
+            if (dup_region.origin == "low-res" and
+                    "high-res" in result_to_add.origin):
+                # If the result to be added is a high resolution
+                # and the result that is a duplicate is a low resolution
+                # result replace all properties with high resolution
+                dup_region.x = result_to_add.x
+                dup_region.y = result_to_add.y
+                dup_region.w = result_to_add.w
+                dup_region.h = result_to_add.h
+                dup_region.label = result_to_add.label
+                dup_region.conf = result_to_add.conf
+                dup_region.resolution = result_to_add.resolution
 
     def remove(self, region_to_remove):
         self.regions.remove(region_to_remove)
