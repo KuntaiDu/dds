@@ -1,6 +1,8 @@
 import os
 import math
 import cv2 as cv
+import matplotlib.pyplot as plt
+from matplotlib.backends.backend_pdf import PdfPages
 from dds_utils import Results, read_results_dict, write_results
 
 emulation_direc = "../emulation-results"
@@ -113,6 +115,37 @@ def overlay_bboxes(results_list, src, dst):
         cv.imwrite(image_write_path, image_np)
 
 
+def get_pct(pct, total):
+    absolute_value = math.ceil(total * (pct / 100.0))
+    return f"{pct:0.1f}%\n({absolute_value})"
+
+
+def draw_stats(pf, vid, f1, tp, fp, fn):
+    fig = plt.figure()
+    axs = fig.subplots(2, 1)
+
+    axs[0].text(-1.25, 1.5, vid)
+    portions = list([fp, fn])
+    wedges, texts, autotexts = axs[0].pie(
+        portions, labels=["False Positives", "False Negatives"],
+        autopct=lambda pct: get_pct(pct, fp + fn))
+
+    row_labels = ["True Positives", "False Positives", "False Negatives",
+                  "Recall", "Precision", "F1"]
+    col_labels = ["DDS w.r.t High"]
+    precision = round(tp / (fp + tp), 4)
+    recall = round(tp / (fn + tp), 4)
+    f1 = round(2.0 * precision * recall / (precision + recall), 4)
+    axs[1].table(cellText=[[tp], [fp], [fn], [recall], [precision], [f1]],
+                 colWidths=[0.2] * 3, rowLabels=row_labels,
+                 colLabels=col_labels, loc="center")
+    axs[1].axis("off")
+
+    pf.savefig()
+    plt.close(fig)
+
+
+pf = PdfPages("dds-high-difference.pdf")
 vids = os.listdir(sim_results_direc)
 for vid in vids:
     sim_dict = read_results_dict(
@@ -149,3 +182,7 @@ for vid in vids:
     os.makedirs(overlayed_images_direc, exist_ok=True)
     overlay_bboxes([fp_regions, fn_regions, low_conf_tp],
                    original_images_direc, overlayed_images_direc)
+
+    # Draw plot
+    draw_stats(pf, vid, f1, tp, fp, fn)
+pf.close()
