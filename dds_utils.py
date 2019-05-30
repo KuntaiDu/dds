@@ -433,26 +433,30 @@ def write_stats(fname, vid_name, bsize, config, f1, stats, bw, fmat="csv"):
 def visualize_regions(results, images_direc, label="debugging"):
     idx = 0
     while idx < len(results.regions):
-        r = results.regions[idx]
-        image_path = os.path.join(images_direc, f"{str(r.fid).zfill(10)}.png")
-        image_np = cv.imread(image_path)
-        width = image_np.shape[1]
-        height = image_np.shape[0]
-
-        x0 = int(r.x * width)
-        y0 = int(r.y * height)
-        x1 = int((r.w * width) + x0)
-        y1 = int((r.h * height) + y0)
-
-        cv.rectangle(image_np, (x0, y0), (x1, y1), (0, 0, 255), 2)
-        cv.putText(image_np, f"{r.fid}", (10, 20),
-                   cv.FONT_HERSHEY_SIMPLEX, 0.75, (0, 0, 255), 2)
-
-        cv.imshow(label, image_np)
-        key = cv.waitKey()
+        region = results.regions[idx]
+        key = visualize_single_regions(region, images_direc, label)
         if key & 0xFF == ord("q"):
             break
         elif key & 0xFF == ord("k"):
             idx -= 2
 
         idx += 1
+
+
+def visualize_single_regions(region, images_direc, label="debugging"):
+    image_path = os.path.join(images_direc, f"{str(region.fid).zfill(10)}.png")
+    image_np = cv.imread(image_path)
+    width = image_np.shape[1]
+    height = image_np.shape[0]
+
+    x0 = int(region.x * width)
+    y0 = int(region.y * height)
+    x1 = int((region.w * width) + x0)
+    y1 = int((region.h * height) + y0)
+
+    cv.rectangle(image_np, (x0, y0), (x1, y1), (0, 0, 255), 2)
+    cv.putText(image_np, f"{region.fid}, {region.label}, {region.conf:0.2f}",
+               (10, 20), cv.FONT_HERSHEY_SIMPLEX, 0.75, (0, 0, 255), 2)
+
+    cv.imshow(label, image_np)
+    return cv.waitKey()
