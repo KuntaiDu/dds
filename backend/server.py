@@ -1,7 +1,8 @@
 import os
 import logging
 import cv2 as cv
-from dds_utils import Results, Region
+from dds_utils import (Results, Region, calc_intersection_area,
+                       calc_area)
 
 
 class Server:
@@ -189,9 +190,12 @@ class Server:
         # accepte results
         final_regions_to_query = Results()
         for region in regions_to_query.regions:
-            if not accepted_results.is_dup(region):
+            matched_region = accepted_results.is_dup(region)
+            if (not matched_region or
+                    matched_region.conf < self.config.high_threshold):
                 final_regions_to_query.add_single_result(
                     region, self.config.intersection_threshold)
+            region.label = "-1"
 
         self.logger.info(f"Returning {accepted_results.results_len()} "
                          f"confirmed results and "
@@ -213,6 +217,10 @@ class Server:
                 high_res_results.add_single_result(
                     single_result, self.config.intersection_threshold)
 
+        # Iterate over high_res_results to ensure that all matching regions
+        # are added. Iterating over required regions would just add one
+        # high resolution region for a requested region
+        high_res_regions_to_del = []
         selected_results = Results()
         for single_result in high_res_results.regions:
             dup_region = req_regions.is_dup(
@@ -220,10 +228,27 @@ class Server:
             if dup_region:
                 self.logger.debug(f"Matched {single_result.to_str()} with "
                                   f"{dup_region.to_str()} "
-                                  f"in requested regions")
+                                  f"in requested regions from IOU")
                 single_result.origin = (f"{single_result.origin}"
                                         f"[{dup_region.origin}]")
                 selected_results.add_single_result(
                     single_result, self.config.intersection_threshold)
+                high_res_regions_to_del.append(single_result)
+        # Delete the high resolution regions that have already been added to
+        # selected_results
+        for region in high_res_regions_to_del:
+            high_res_results.remove(region)
+
+        # Add regions based on intersection alone
+        for high_region in high_res_results.regions:
+            for req_region in req_regions.regions:
+                intersection = calc_intersection_area(high_region, req_region)
+                if intersection > 0.8 * calc_area(high_region):
+                    self.logger.debug(f"Matched {high_region.to_str()} with "
+                                      f"{req_region.to_str()} "
+                                      f"in requested regions from "
+                                      f"intersection")
+                    selected_results.add_single_result(
+                        high_region, self.config.intersection_threshold)
 
         return selected_results
