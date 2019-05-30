@@ -433,3 +433,29 @@ def write_stats_txt(fname, vid_name, bsize, config, f1, stats, bw):
 def write_stats(fname, vid_name, bsize, config, f1, stats, bw, fmat="csv"):
     if fmat == "txt":
         write_stats_txt(fname, vid_name, bsize, config, f1, stats, bw)
+
+
+def visualize_regions(results, images_direc, label="debugging"):
+    idx = 0
+    while idx < len(results.regions):
+        r = results.regions[idx]
+        image_path = os.path.join(images_direc, f"{str(r.fid).zfill(10)}.png")
+        image_np = cv.imread(image_path)
+        width = image_np.shape[1]
+        height = image_np.shape[0]
+
+        x0 = int(r.x * width)
+        y0 = int(r.y * height)
+        x1 = int((r.w * width) + x0)
+        y1 = int((r.h * height) + y0)
+
+        cv.rectangle(image_np, (x0, y0), (x1, y1), (0, 0, 255), 2)
+
+        cv.imshow(label, image_np)
+        key = cv.waitKey()
+        if key & 0xFF == ord("q"):
+            break
+        elif key & 0xFF == ord("k"):
+            idx -= 2
+
+        idx += 1
