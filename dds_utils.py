@@ -408,6 +408,9 @@ def evaluate(results, gt_dict, high_threshold, iou_threshold=0.5):
 
     fn = gt_regions_count - tp
 
+    if (fp + tp) == 0 or (fn + tp) == 0:
+        return 0, (tp, fp, fn)
+
     precision = tp / (fp + tp)
     recall = tp / (fn + tp)
     f1 = 2.0 * precision * recall / (precision + recall)
