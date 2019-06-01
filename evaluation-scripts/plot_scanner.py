@@ -69,6 +69,7 @@ for vid in videos:
                                     "Result_log_MPEG.log")
         with open(summary_path, "r") as f:
             summary_lines = f.readlines()
+        summary_lines = [l for l in summary_lines if l.rstrip().rstrip() != ""]
         bw = 0
         for idx, line in enumerate(summary_lines):
             if f"RES {res}" in line:
