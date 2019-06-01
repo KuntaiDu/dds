@@ -16,12 +16,15 @@ with open("stats", "r") as f:
 
 
 pf = PdfPages("f1-difference.pdf")
-videos = os.listdir(sim_results_direc)
+experiments = os.listdir(sim_results_direc)
 results_dict = {}
 count = 0
-for vid in videos:
-    if vid.split("_")[-1] in ["0060", "0079", "0027"]:
+for experiment in experiments:
+    if experiment.split("_")[-1] in ["0060", "0079", "0027"]:
         continue
+
+    vid = "_".join(experiment.split("_")[:-2])
+    exp_res = "-".join(experiment.split("_")[-2:])
 
     fig = plt.Figure()
     ax = fig.add_subplot()
@@ -44,12 +47,12 @@ for vid in videos:
     bw = 0
     for line in lines:
         line = line.split(",")
-        if vid not in line[0]:
+        if experiment not in line[0]:
             continue
         bw = float(line[-1])
 
     print(dds_f1, bw * 8 / 1024 / 10)
-    plt.scatter([bw * 8 / 1024 / 10], [dds_f1], marker="x", label="DDS")
+    plt.scatter([bw * 8 / 1024 / 10], [dds_f1], marker="x", label=exp_res)
     if "DDS" not in results_dict:
         results_dict["DDS"] = np.array([0, 0, 0, 0, 0], dtype="float64")
     results_dict["DDS"] += np.array([dds_f1, tp, fp, fn, bw], dtype="float64")
