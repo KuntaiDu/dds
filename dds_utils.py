@@ -106,6 +106,8 @@ class Results:
         self.regions.remove(region_to_remove)
 
     def fill_gaps(self, number_of_frames):
+        if len(self.regions) == 0:
+            return
         results_to_add = Results()
         max_resolution = max([e.resolution for e in self.regions])
         fids_in_results = [e.fid for e in self.regions]
