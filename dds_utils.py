@@ -357,6 +357,8 @@ def compute_regions_size(results, vid_name, images_direc, resolution,
 def get_size_from_mpeg_results(results_log_path, resolution):
     with open(results_log_path, "r") as f:
         lines = f.readlines()
+    lines = [line for line in lines if line.rstrip().lstrip() != ""]
+
     bandwidth = 0
     for idx, line in enumerate(lines):
         if f"RES {resolution}" in line:
