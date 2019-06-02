@@ -100,7 +100,8 @@ class Server:
                 regions_from_tracking, self.config.intersection_threshold)
 
             # Backward tracking
-            end_frame = max(0, start_frame - self.config.tracker_length)
+            end_frame = max(start_frame,
+                            start_frame - self.config.tracker_length)
             regions_from_tracking = self.track(single_result, start_frame,
                                                end_frame, images_direc)
             self.logger.debug(f"Found {regions_from_tracking.results_len()} "
