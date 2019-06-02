@@ -413,6 +413,10 @@ def evaluate(results, gt_dict, high_threshold, iou_threshold=0.5):
 
     precision = tp / (fp + tp)
     recall = tp / (fn + tp)
+
+    if (precision + recall) == 0:
+        return 0, (tp, fp, fn)
+
     f1 = 2.0 * precision * recall / (precision + recall)
 
     if math.isnan(f1):
