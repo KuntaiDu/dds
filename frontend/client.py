@@ -28,7 +28,7 @@ class Client:
                                high_images_path, batch_size,
                                high_results_path, low_results_path,
                                mpeg_results_path=None,
-                               estimate_banwidth=False):
+                               estimate_banwidth=False, debug_mode=False):
         results = Results()
         r1_results = Results()
         r2_results = Results()
@@ -64,7 +64,7 @@ class Client:
             if not mpeg_results_path and estimate_banwidth:
                 encoded_batch_video_size = compress_and_get_size(
                     high_images_path, start_frame_id, end_frame_id,
-                    self.config.low_resolution)
+                    self.config.low_resolution, debug_mode)
                 total_size[0] += encoded_batch_video_size
 
             regions_size = compute_regions_size(

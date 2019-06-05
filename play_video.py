@@ -41,7 +41,8 @@ def main(args):
                                                     args.high_results_path,
                                                     args.low_results_path,
                                                     args.mpeg_results_path,
-                                                    args.estimate_banwidth)
+                                                    args.estimate_banwidth,
+                                                    args.debug_mode)
         low, high = bw
 
         # Evaluation and writing results
@@ -132,6 +133,10 @@ if __name__ == "__main__":
                         default=0.5, type=float,
                         help="The intersection threshold to use"
                         " when combining results objects")
+    parser.add_argument("--debug-mode",
+                        dest="debug_mode", action="store_true",
+                        help="If provided the simulator does not delete "
+                        "intermediate high resolution videos")
 
     args = parser.parse_args()
 
@@ -148,6 +153,11 @@ if __name__ == "__main__":
               "Verbosity can only be one of the following:\n"
               "\tdebug\n\tinfo\n\twarning\n\terror")
         exit()
+
+    if args.debug_mode and not args.estimate_banwidth:
+        logging.warn("DDS needs to estimate bandwidth for debugging mode "
+                     "switching to estimate_bandwidth")
+        args.estimate_bandwidth = True
 
     if args.estimate_banwidth and not args.high_images_path:
         print("DDS needs location of high resolution images to "
