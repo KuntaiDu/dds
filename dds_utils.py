@@ -281,7 +281,7 @@ def compress_and_get_size(images_path, start_id, end_id, resolution):
     encoding_result = subprocess.run(["ffmpeg", "-y", "-loglevel", "error",
                                       '-i', f"{images_path}/%010d.png",
                                       "-vcodec", "libx264",
-                                      "-pix_fmt", "yuv420p", "-g", "8",
+                                      "-pix_fmt", "yuv420p",
                                       "-crf", "23", "-vf", scale,
                                       "-start_number", str(start_id),
                                       "-frames:v", str(number_of_frames),
