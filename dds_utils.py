@@ -280,9 +280,8 @@ def compress_and_get_size(images_path, start_id, end_id, resolution):
     encoded_vid_path = os.path.join(images_path, "temp.mp4")
     encoding_result = subprocess.run(["ffmpeg", "-y", "-loglevel", "error",
                                       '-i', f"{images_path}/%010d.png",
-                                      "-vcodec", "libx264",
-                                      "-pix_fmt", "yuv420p",
-                                      "-crf", "23", "-vf", scale,
+                                      "-vcodec", "libx264", "-crf", "23",
+                                      "-pix_fmt", "yuv420p", "-vf", scale,
                                       "-start_number", str(start_id),
                                       "-frames:v", str(number_of_frames),
                                       encoded_vid_path],
@@ -475,7 +474,8 @@ def visualize_single_regions(region, images_direc, label="debugging"):
     y1 = int((region.h * height) + y0)
 
     cv.rectangle(image_np, (x0, y0), (x1, y1), (0, 0, 255), 2)
-    cv.putText(image_np, f"{region.fid}, {region.label}, {region.conf:0.2f}",
+    cv.putText(image_np, f"{region.fid}, {region.label}, {region.conf:0.2f}, "
+               f"{region.w * region.h}",
                (10, 20), cv.FONT_HERSHEY_SIMPLEX, 0.75, (0, 0, 255), 2)
 
     cv.imshow(label, image_np)
