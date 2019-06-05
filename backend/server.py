@@ -2,7 +2,7 @@ import os
 import logging
 import cv2 as cv
 from dds_utils import (Results, Region, calc_intersection_area,
-                       calc_area)
+                       calc_area, visualize_regions)
 
 
 class Server:
@@ -62,6 +62,7 @@ class Server:
                 y = max(0, bbox[1] / im_height)
                 w = bbox[2] / im_width
                 h = bbox[3] / im_height
+
                 region = Region(fid, x, y, w, h, conf, label, resolution,
                                 f"tracking-extension[{start_fid}-{end_fid}]")
                 regions.add_single_result(region,
@@ -188,9 +189,14 @@ class Server:
                                                      simulation=True)
 
         # Iterate over regions to query and remove all that have matched in
-        # accepte results
+        # accepted results
         final_regions_to_query = Results()
         for region in regions_to_query.regions:
+            # If size of the object is greater than max_object_size
+            # do not add object to the regions that need to be checked
+            if region.w * region.h > self.config.max_object_size:
+                continue
+
             matched_region = accepted_results.is_dup(region)
             if (not matched_region or
                     matched_region.conf < self.config.high_threshold):
