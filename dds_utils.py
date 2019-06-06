@@ -374,7 +374,7 @@ def get_size_from_mpeg_results(results_log_path, images_path, resolution):
         if f"RES {resolution}" in line:
             bandwidth = float(lines[idx + 2])
             break
-    size = bandwidth * 1024.0 * 10.0 * num_frames
+    size = bandwidth * 1024.0 * (num_frames / 10.0)
     return size
 
 
