@@ -83,24 +83,31 @@ class Results:
         for result_to_add in additional_results.regions:
             self.add_single_result(result_to_add, threshold)
 
-    def add_single_result(self, result_to_add, threshold=0.5):
-        dup_region = self.is_dup(result_to_add, threshold)
-        if not dup_region:
-            self.regions.append(result_to_add)
-            self.regions.sort(key=lambda x: x.fid)
+    def add_single_result(self, region_to_add, threshold=0.5):
+        dup_region = self.is_dup(region_to_add, threshold)
+        if (not dup_region or
+                ("tracking" in region_to_add.origin and
+                 "tracking" in dup_region.origin)):
+            self.regions.append(region_to_add)
+            self.regions.sort(key=lambda r: r.fid)
         else:
-            if (dup_region.origin == "low-res" and
-                    "high-res" in result_to_add.origin):
-                # If the result to be added is a high resolution
-                # and the result that is a duplicate is a low resolution
-                # result replace all properties with high resolution
-                dup_region.x = result_to_add.x
-                dup_region.y = result_to_add.y
-                dup_region.w = result_to_add.w
-                dup_region.h = result_to_add.h
-                dup_region.label = result_to_add.label
-                dup_region.conf = result_to_add.conf
-                dup_region.resolution = result_to_add.resolution
+            final_object = None
+            if (("generic" in dup_region.origin and
+                 "generic" in region_to_add.origin) or
+                ("low" in dup_region.origin and
+                 "low" in region_to_add.origin) or
+                ("high" in dup_region.origin and
+                 "high" in region_to_add.origin)):
+                final_object = max([region_to_add, dup_region],
+                                   key=lambda r: r.conf)
+            elif "low" in dup_region.origin and "high" in region_to_add.origin:
+                final_object = region_to_add
+            dup_region.x = final_object.x
+            dup_region.y = final_object.y
+            dup_region.w = final_object.w
+            dup_region.h = final_object.h
+            dup_region.conf = final_object.conf
+            dup_region.origin = final_object.origin
 
     def remove(self, region_to_remove):
         self.regions.remove(region_to_remove)

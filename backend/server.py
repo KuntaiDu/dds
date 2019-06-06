@@ -2,7 +2,7 @@ import os
 import logging
 import cv2 as cv
 from dds_utils import (Results, Region, calc_intersection_area,
-                       calc_area, visualize_regions)
+                       calc_area)
 
 
 class Server:
@@ -236,7 +236,7 @@ class Server:
                 self.logger.debug(f"Matched {single_result.to_str()} with "
                                   f"{dup_region.to_str()} "
                                   f"in requested regions from IOU")
-                single_result.origin = f"high-res[{dup_region.origin}]"
+                single_result.origin = "high-res"
                 selected_results.add_single_result(
                     single_result, self.config.intersection_threshold)
                 high_res_regions_to_del.append(single_result)
@@ -254,7 +254,7 @@ class Server:
                                       f"{req_region.to_str()} "
                                       f"in requested regions from "
                                       f"intersection")
-                    high_region.origin = f"high-res[{req_region.origin}]"
+                    high_region.origin = "high-res"
                     selected_results.add_single_result(
                         high_region, self.config.intersection_threshold)
 
