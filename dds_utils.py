@@ -355,17 +355,19 @@ def compute_regions_size(results, vid_name, images_direc, resolution,
     return size
 
 
-def get_size_from_mpeg_results(results_log_path, resolution):
+def get_size_from_mpeg_results(results_log_path, images_path, resolution):
     with open(results_log_path, "r") as f:
         lines = f.readlines()
     lines = [line for line in lines if line.rstrip().lstrip() != ""]
+
+    num_frames = len([x for x in os.listdir(images_path) if "png" in x])
 
     bandwidth = 0
     for idx, line in enumerate(lines):
         if f"RES {resolution}" in line:
             bandwidth = float(lines[idx + 2])
             break
-    size = bandwidth * 1024.0 * 10.0
+    size = bandwidth * 1024.0 * 10.0 * num_frames
     return size
 
 
@@ -428,7 +430,7 @@ def write_stats_txt(fname, vid_name, bsize, config, f1, stats, bw):
     header_str = ("video-name,low-resolution,high-resolution,batch-size"
                   ",low-threshold,high-threshold,"
                   "tracker-length,TP,FP,FN,F1,"
-                  "low-bandwidth,high-bandwidth,total-bandwidth")
+                  "low-size,high-size,total-size")
     results_str = (f"{vid_name},{config.low_resolution},"
                    f"{config.high_resolution},{bsize},{config.low_threshold},"
                    f"{config.high_threshold},{config.tracker_length},"

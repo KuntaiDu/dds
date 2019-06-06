@@ -100,7 +100,7 @@ class Client:
         # Get results from summary file if given
         if mpeg_results_path and estimate_banwidth:
             total_size[0] = get_size_from_mpeg_results(
-                mpeg_results_path, self.config.low_resolution)
+                mpeg_results_path, low_images_path, self.config.low_resolution)
 
         self.logger.info(f"Writing results for {video_name}")
         self.logger.info(f"{results.results_len()} objects detected "
