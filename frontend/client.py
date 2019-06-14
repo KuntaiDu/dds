@@ -95,7 +95,7 @@ class Client:
         results.fill_gaps(number_of_frames)
 
         # Write results
-        write_results(results, video_name, fmat="txt")
+        results.write(video_name, fmat="txt")
 
         # Get results from summary file if given
         if mpeg_results_path and estimate_banwidth:

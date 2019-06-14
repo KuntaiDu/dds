@@ -1,5 +1,7 @@
 import math
+import re
 import os
+import csv
 import shutil
 import subprocess
 import numpy as np
@@ -128,6 +130,36 @@ class Results:
                                                      max_resolution))
         self.combine_results(results_to_add)
 
+    def write_results_txt(self, fname):
+        results_file = open(fname, "w")
+        for region in self.regions:
+            # prepare the string to write
+            str_to_write = (f"{region.fid},{region.x},{region.y},"
+                            f"{region.w},{region.h},"
+                            f"{region.label},{region.conf},"
+                            f"{region.resolution},{region.origin}\n")
+            results_file.write(str_to_write)
+        results_file.close()
+
+    def write_results_csv(self, fname):
+        results_files = open(fname, "w")
+        csv_writer = csv.writer(results_files)
+        for region in self.regions:
+            row = [region.fid, region.x, region.y,
+                   region.w, region.h,
+                   region.label, region.conf,
+                   region.resolution, region.origin]
+            csv_writer.writerow(row)
+        results_files.close()
+
+    def write(self, fname, fmat="csv"):
+        if fmat == "csv":
+            if not re.match(r"\w+[.]csv\Z", fname):
+                fname += ".csv"
+            self.write_results_csv(fname)
+        else:
+            self.write_results_txt(fname)
+
 
 def read_results_txt_dict(fname):
     """Return a dictionary with fid mapped to
@@ -165,23 +197,6 @@ def read_results_dict(fname, fmat="csv"):
     # TODO: Need to implement a CSV function
     if fmat == "txt":
         return read_results_txt_dict(fname)
-
-
-def write_results_txt(results, fname):
-    results_file = open(fname, "w")
-    for result in results.regions:
-        # prepare the string to write
-        str_to_write = (f"{result.fid},{result.x},{result.y},"
-                        f"{result.w},{result.h},"
-                        f"{result.label},{result.conf},"
-                        f"{result.resolution},{result.origin}\n")
-        results_file.write(str_to_write)
-    results_file.close()
-
-
-def write_results(results, fname, fmat="csv"):
-    if fmat == "txt":
-        write_results_txt(results, fname)
 
 
 def calc_intersection_area(a, b):
