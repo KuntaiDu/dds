@@ -88,20 +88,20 @@ class Detector:
                     output_dict['detection_masks'][0])
         return output_dict
 
-    def infer(self, image_np, threshold):
+    def infer(self, image_np):
         output_dict = self.run_inference_for_single_image(image_np,
                                                           self.d_graph)
         # The results array will have (class, (xmin, xmax, ymin, ymax)) tuples
         results = []
         for i in range(len(output_dict['detection_boxes'])):
-            if output_dict['detection_scores'][i] > threshold:
-                obj_class_index = self.category_index[
-                    output_dict['detection_classes'][i]]
-                object_class = obj_class_index['name']
-                if object_class not in ["car", "bus",
-                                        "train", "truck"]:
-                    continue
-                ymin, xmin, ymax, xmax = output_dict['detection_boxes'][i]
-                box_tuple = (xmin, ymin, xmax - xmin, ymax - ymin)
-                results.append((object_class, box_tuple))
+            obj_class_index = self.category_index[
+                output_dict['detection_classes'][i]]
+            object_class = obj_class_index['name']
+            if object_class not in ["car", "bus",
+                                    "train", "truck"]:
+                continue
+            ymin, xmin, ymax, xmax = output_dict['detection_boxes'][i]
+            confidence = output_dict['detection_scores'][i]
+            box_tuple = (xmin, ymin, xmax - xmin, ymax - ymin)
+            results.append((object_class, confidence, box_tuple))
         return (image_np, results)
