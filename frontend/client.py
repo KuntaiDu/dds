@@ -52,13 +52,13 @@ class Client:
                                                              end_frame_id,
                                                              low_images_path,
                                                              low_results_dict)
-            self.logger.info(f"Got {r1.results_len()} confirmed "
-                             f"results with {req_regions.results_len()} "
+            self.logger.info(f"Got {len(r1)} confirmed "
+                             f"results with {len(req_regions)} "
                              f"regions to query in first phase of batch")
             r1_results.combine_results(r1, self.config.intersection_threshold)
 
             # Add the number of regions requested by the server
-            total_regions_count += req_regions.results_len()
+            total_regions_count += len(req_regions)
 
             encoded_batch_video_size = 0
             if not mpeg_results_path and estimate_banwidth:
@@ -72,21 +72,21 @@ class Client:
                 self.config.high_resolution, estimate_banwidth)
             total_size[1] += regions_size
             self.logger.info(f"{encoded_batch_video_size}KB sent in base "
-                             f"phase {req_regions.results_len()} regions have "
+                             f"phase {len(req_regions)} regions have "
                              f"{regions_size} units total size")
 
             # Second (high resolution) phase
             r2 = self.server.simulate_high_query(req_regions,
                                                  high_results_dict)
-            self.logger.info(f"Got {r2.results_len()} results in "
+            self.logger.info(f"Got {len(r2)} results in "
                              f"second phase of batch")
             r2_results.combine_results(r2, self.config.intersection_threshold)
 
         # Combine results
-        self.logger.info(f"Got {r1_results.results_len()} unique results "
+        self.logger.info(f"Got {len(r1_results)} unique results "
                          f"in base phase")
         results.combine_results(r1_results, self.config.intersection_threshold)
-        self.logger.info(f"Got {r2_results.results_len()} positive "
+        self.logger.info(f"Got {len(r2_results)} positive "
                          f"identifications out of {total_regions_count} "
                          f"requests in second phase")
         results.combine_results(r2_results, self.config.intersection_threshold)
@@ -103,7 +103,7 @@ class Client:
                 mpeg_results_path, low_images_path, self.config.low_resolution)
 
         self.logger.info(f"Writing results for {video_name}")
-        self.logger.info(f"{results.results_len()} objects detected "
+        self.logger.info(f"{len(results)} objects detected "
                          f"and {total_size[1]} total size "
                          f"of regions sent in high resolution")
 

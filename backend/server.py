@@ -88,13 +88,13 @@ class Server:
             # Track it across frames
             start_frame = single_result.fid
             self.logger.debug(f"Finding regions to query for "
-                              f"{single_result.to_str()}")
+                              f"{single_result}")
 
             # Forward tracking
             end_frame = min(start_frame + self.config.tracker_length, end_fid)
             regions_from_tracking = self.track(single_result, start_frame,
                                                end_frame, images_direc)
-            self.logger.debug(f"Found {regions_from_tracking.results_len()} "
+            self.logger.debug(f"Found {len(regions_from_tracking)} "
                               f"regions using forward tracking from"
                               f" {start_frame} to {end_frame}")
             tracking_regions.combine_results(
@@ -105,16 +105,16 @@ class Server:
                             start_frame - self.config.tracker_length)
             regions_from_tracking = self.track(single_result, start_frame,
                                                end_frame, images_direc)
-            self.logger.debug(f"Found {regions_from_tracking.results_len()} "
+            self.logger.debug(f"Found {len(regions_from_tracking)} "
                               f"regions using backward tracking from"
                               f" {start_frame} to {end_frame}")
             tracking_regions.combine_results(
                 regions_from_tracking, self.config.intersection_threshold)
 
-        self.logger.info(f"Found {non_tracking_regions.results_len()} "
+        self.logger.info(f"Found {len(non_tracking_regions)} "
                          f"regions between {start_fid} and {end_fid} without "
                          f"tracking")
-        self.logger.info(f"Found {tracking_regions.results_len()} regions "
+        self.logger.info(f"Found {len(tracking_regions)} regions "
                          f"between {start_fid} and {end_fid} with tracking")
 
         # Enlarge regions iff we are running a simulation
@@ -204,9 +204,9 @@ class Server:
                     region, self.config.intersection_threshold)
             region.label = "-1"
 
-        self.logger.info(f"Returning {accepted_results.results_len()} "
+        self.logger.info(f"Returning {len(accepted_results)} "
                          f"confirmed results and "
-                         f"{final_regions_to_query.results_len()} regions")
+                         f"{len(final_regions_to_query)} regions")
 
         # Return results and regions
         return accepted_results, final_regions_to_query
@@ -233,8 +233,8 @@ class Server:
             dup_region = req_regions.is_dup(
                 single_result, self.config.intersection_threshold)
             if dup_region:
-                self.logger.debug(f"Matched {single_result.to_str()} with "
-                                  f"{dup_region.to_str()} "
+                self.logger.debug(f"Matched {single_result} with "
+                                  f"{dup_region} "
                                   f"in requested regions from IOU")
                 single_result.origin = "high-res"
                 selected_results.add_single_result(
@@ -250,8 +250,8 @@ class Server:
             for req_region in req_regions.regions:
                 intersection = calc_intersection_area(high_region, req_region)
                 if intersection > 0.8 * calc_area(high_region):
-                    self.logger.debug(f"Matched {high_region.to_str()} with "
-                                      f"{req_region.to_str()} "
+                    self.logger.debug(f"Matched {high_region} with "
+                                      f"{req_region} "
                                       f"in requested regions from "
                                       f"intersection")
                     high_region.origin = "high-res"

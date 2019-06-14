@@ -32,7 +32,7 @@ class Region:
         self.resolution = resolution
         self.origin = origin
 
-    def to_str(self):
+    def __str__(self):
         string_rep = (f"{self.fid}, {self.x:0.3f}, {self.y:0.3f}, "
                       f"{self.w:0.3f}, {self.h:0.3f}, {self.conf:0.3f}, "
                       f"{self.label}, {self.origin}")
@@ -63,7 +63,7 @@ class Results:
     def __init__(self):
         self.regions = []
 
-    def results_len(self):
+    def __len__(self):
         return len(self.regions)
 
     def results_high_len(self, threshold):
@@ -108,6 +108,9 @@ class Results:
             dup_region.h = final_object.h
             dup_region.conf = final_object.conf
             dup_region.origin = final_object.origin
+
+    def append(self, region_to_add):
+        self.regions.append(region_to_add)
 
     def remove(self, region_to_remove):
         self.regions.remove(region_to_remove)
