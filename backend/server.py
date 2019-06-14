@@ -3,6 +3,7 @@ import logging
 import cv2 as cv
 from dds_utils import (Results, Region, calc_intersection_area,
                        calc_area)
+from object_detector import Detector
 
 
 class Server:
@@ -16,6 +17,9 @@ class Server:
         self.logger = logging.getLogger("server")
         handler = logging.NullHandler()
         self.logger.addHandler(handler)
+
+        if not self.config.simulation:
+            self.detector = Detector()
 
         self.logger.info("Server started")
 
@@ -259,3 +263,23 @@ class Server:
                         high_region, self.config.intersection_threshold)
 
         return selected_results
+
+    def perform_detection(self, images_direc, resolution):
+        final_results = Results()
+        for fname in os.listdir(images_direc):
+            if "png" not in fname:
+                continue
+            image_path = os.path.join(images_direc, fname)
+            image = cv.imread(image_path)
+            image = cv.cvtColor(image, cv.COLOR_BGR2RGB)
+
+            detection_results = self.detector.infer(image)
+
+            fid = int(fname.split(".")[0])
+
+            for label, conf, (x, y, w, h) in detection_results:
+                r = Region(fid, x, y, w, h, conf, label,
+                           resolution, origin="mpeg")
+                final_results.append(r)
+
+        return final_results
