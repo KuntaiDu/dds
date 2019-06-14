@@ -68,7 +68,7 @@ def main(args):
     # Evaluation and writing results
     # Read Groundtruth results
     low, high = bw
-    ground_truth_dict = read_results_dict(args.ground_truth, fmat="txt")
+    ground_truth_dict = read_results_dict(args.ground_truth)
     logger.info("Reading ground truth results complete")
     f1, stats = evaluate(results, ground_truth_dict, args.high_threshold)
     logger.info(f"Got an f1 score of {f1} "
@@ -78,7 +78,7 @@ def main(args):
 
     # Write evaluation results to file
     write_stats(args.outfile, args.video_name, args.bsize,
-                config, f1, stats, bw, mode, fmat="txt")
+                config, f1, stats, bw, mode)
 
 
 if __name__ == "__main__":

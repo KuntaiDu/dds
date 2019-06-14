@@ -52,6 +52,13 @@ class Client:
         self.logger.info(f"Detection {len(results)} regions for "
                          f"{number_of_frames} with a total size of "
                          f"{total_size / 1024}KB")
+
+        # Fill gaps in results
+        results.fill_gaps(number_of_frames)
+
+        # Write results
+        results.write(video_name)
+
         return results, total_size
 
     def analyze_video_emulate(self, vid_name, low_images_path,
@@ -68,9 +75,9 @@ class Client:
         r1_results = Results()
         r2_results = Results()
 
-        low_results_dict = read_results_dict(low_results_path, fmat="txt")
+        low_results_dict = read_results_dict(low_results_path)
         self.logger.info("Reading low resolution results complete")
-        high_results_dict = read_results_dict(high_results_path, fmat="txt")
+        high_results_dict = read_results_dict(high_results_path)
         self.logger.info("Reading high resolution results complete")
 
         total_regions_count = 0
@@ -131,7 +138,7 @@ class Client:
         results.fill_gaps(number_of_frames)
 
         # Write results
-        results.write(video_name, fmat="txt")
+        results.write(video_name)
 
         # Get results from summary file if given
         if mpeg_results_path and estimate_banwidth:

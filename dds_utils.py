@@ -153,10 +153,8 @@ class Results:
             csv_writer.writerow(row)
         results_files.close()
 
-    def write(self, fname, fmat="csv"):
-        if fmat == "csv":
-            if not re.match(r"\w+[.]csv\Z", fname):
-                fname += ".csv"
+    def write(self, fname):
+        if re.match(r"\w+[.]csv\Z", fname):
             self.write_results_csv(fname)
         else:
             self.write_results_txt(fname)
@@ -194,9 +192,41 @@ def read_results_txt_dict(fname):
     return results_dict
 
 
-def read_results_dict(fname, fmat="csv"):
+def read_results_csv_dict(fname):
+    """Return a dictionary with fid mapped to an array
+    that contains all Regions objects"""
+    results_dict = {}
+
+    rows = []
+    with open(fname) as csvfile:
+        csv_reader = csv.reader(csvfile)
+        for row in csv_reader:
+            rows.append(row)
+
+    for row in rows:
+        fid = int(row[0])
+        x, y, w, h = [float(e) for e in row[1:5]]
+        conf = float(row[6])
+        label = row[5]
+        resolution = float(row[7])
+        origin = float(row[8])
+
+        region = Region(fid, x, y, w, h, conf, label, resolution, origin)
+
+        if fid not in results_dict:
+            results_dict[fid] = []
+
+        if label != "no obj":
+            results_dict[fid].append(region)
+
+    return results_dict
+
+
+def read_results_dict(fname):
     # TODO: Need to implement a CSV function
-    if fmat == "txt":
+    if re.match(r"\w+[.]csv\Z", fname):
+        return read_results_csv_dict(fname)
+    else:
         return read_results_txt_dict(fname)
 
 
@@ -472,9 +502,28 @@ def write_stats_txt(fname, vid_name, bsize, config, f1, stats, bw, mode):
         f.write(str_to_write)
 
 
-def write_stats(fname, vid_name, bsize, config, f1, stats, bw, mode,
-                fmat="csv"):
-    if fmat == "txt":
+def write_stats_csv(fname, vid_name, bsize, config, f1, stats, bw, mode):
+    header = ("video-name,low-resolution,high-resolution,batch-size"
+              ",low-threshold,high-threshold,"
+              "tracker-length,TP,FP,FN,F1,"
+              "low-size,high-size,total-size, mode").split(",")
+    stats = (f"{vid_name},{config.low_resolution},"
+             f"{config.high_resolution},{bsize},{config.low_threshold},"
+             f"{config.high_threshold},{config.tracker_length},"
+             f"{stats[0]},{stats[1]},{stats[2]},"
+             f"{f1},{bw[0]},{bw[1]},{bw[0] + bw[1]}, {mode}").split(",")
+
+    results_files = open(fname, "w")
+    csv_writer = csv.writer(results_files)
+    csv_writer.writerow(header)
+    csv_writer.writerow(stats)
+    results_files.close()
+
+
+def write_stats(fname, vid_name, bsize, config, f1, stats, bw, mode):
+    if re.match(r"\w+[.]csv\Z", fname):
+        write_stats_csv(fname, vid_name, bsize, config, f1, stats, bw, mode)
+    else:
         write_stats_txt(fname, vid_name, bsize, config, f1, stats, bw, mode)
 
 
