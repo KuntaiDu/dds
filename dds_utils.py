@@ -10,7 +10,7 @@ import cv2 as cv
 
 class ServerConfig:
     def __init__(self, low_res, high_res, h_thres, l_thres, max_obj_size,
-                 tracker_length, boundary, intersection_threshold):
+                 tracker_length, boundary, intersection_threshold, simulation):
         self.low_resolution = low_res
         self.high_resolution = high_res
         self.high_threshold = h_thres
@@ -19,6 +19,7 @@ class ServerConfig:
         self.tracker_length = tracker_length
         self.boundary = boundary
         self.intersection_threshold = intersection_threshold
+        self.simulation = simulation
 
 
 class Region:
@@ -299,7 +300,7 @@ def compute_area_of_regions(results):
 
 
 def compress_and_get_size(images_path, start_id, end_id, resolution):
-    number_of_frames = end_id - start_id
+    number_of_frames = end_id - start_id + 1
     # Compress using ffmpeg
     scale = f"scale=trunc(iw*{resolution}/2)*2:trunc(ih*{resolution})"
     encoded_vid_path = os.path.join(images_path, "temp.mp4")
