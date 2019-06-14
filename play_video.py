@@ -14,22 +14,24 @@ def main(args):
     logger = logging.getLogger("dds")
     logger.addHandler(logging.NullHandler())
 
-    if args.hname is None:
-        # Make backup ServerConfig
-        config = ServerConfig(args.resolutions[0], args.resolutions[1],
-                              args.high_threshold, args.low_threshold,
-                              args.max_object_size, args.tracker_length,
-                              args.boundary, args.intersection_threshold)
+    # Make simulation objects
+    logger.info(f"Starting server with high threshold of "
+                f"{args.high_threshold} low threshold of "
+                f"{args.low_threshold} tracker length of "
+                f"{args.tracker_length}")
 
-        # Make simulation objects
-        logger.info(f"Starting server with high threshold of "
-                    f"{args.high_threshold} low threshold of "
-                    f"{args.low_threshold} tracker length of "
-                    f"{args.tracker_length}")
-        server = Server(config)
-        logger.info("Starting client")
-        client = Client(server, args.hname, config)
+    config = ServerConfig(args.resolutions[0], args.resolutions[1],
+                          args.high_threshold, args.low_threshold,
+                          args.max_object_size, args.tracker_length,
+                          args.boundary, args.intersection_threshold)
+    server = Server(config)
 
+    logger.info("Starting client")
+    client = Client(server, args.hname, config)
+
+    results, bw = None, None
+    if args.simulate:
+        logger.warn("Running DDS in SIMULATION mode")
         # Run simulation
         logger.info(f"Analyzing video {args.video_name} with low resolution "
                     f"of {args.resolutions[0]} and high resolution of "
@@ -43,21 +45,31 @@ def main(args):
                                                     args.mpeg_results_path,
                                                     args.estimate_banwidth,
                                                     args.debug_mode)
-        low, high = bw
+    elif not args.simulate and not args.hname:
+        logger.warn("Running DDS in EMULATION mode")
+        # Run emulation
+        results, bw = client.analyze_video_emulate(args.video_name,
+                                                   args.low_images_path,
+                                                   args.high_images_path,
+                                                   args.bsize,
+                                                   args.low_results_path,
+                                                   args.mpeg_results_path,
+                                                   args.debug_mode)
 
-        # Evaluation and writing results
-        # Read Groundtruth results
-        ground_truth_dict = read_results_dict(args.ground_truth, fmat="txt")
-        logger.info("Reading ground truth results complete")
-        f1, stats = evaluate(results, ground_truth_dict, args.high_threshold)
-        logger.info(f"Got an f1 score of {f1} "
-                    f"for this experiment using simulation with "
-                    f"tp {stats[0]} fp {stats[1]} fn {stats[2]} "
-                    f"with total bandwidth {sum(bw)}")
+    # Evaluation and writing results
+    # Read Groundtruth results
+    low, high = bw
+    ground_truth_dict = read_results_dict(args.ground_truth, fmat="txt")
+    logger.info("Reading ground truth results complete")
+    f1, stats = evaluate(results, ground_truth_dict, args.high_threshold)
+    logger.info(f"Got an f1 score of {f1} "
+                f"for this experiment using simulation with "
+                f"tp {stats[0]} fp {stats[1]} fn {stats[2]} "
+                f"with total bandwidth {sum(bw)}")
 
-        # Write evaluation results to file
-        write_stats(args.outfile, args.video_name, args.bsize,
-                    config, f1, stats, bw, fmat="txt")
+    # Write evaluation results to file
+    write_stats(args.outfile, args.video_name, args.bsize,
+                config, f1, stats, bw, fmat="txt")
 
 
 if __name__ == "__main__":
@@ -74,8 +86,9 @@ if __name__ == "__main__":
                         type=str, default=None,
                         help="Path to high resolution images of the video")
     parser.add_argument("--resolutions", dest="resolutions", type=float,
-                        nargs=2, metavar=("LOW", "HIGH"), required=True,
-                        help="The low resolution for DDS to use")
+                        nargs="+", required=True,
+                        help="The resolutions to use. If only one given "
+                        "runs MPEG emulation")
     parser.add_argument("--hname",
                         type=str, default=None,
                         help="Host name for server "
@@ -106,6 +119,7 @@ if __name__ == "__main__":
                         help="Flag to indicate whether DDS should encode "
                         "and estimate bandwidth or just give fractions for "
                         "high resolution regions")
+
     # Server config arguments
     parser.add_argument("--low-threshold", dest="low_threshold",
                         type=float, default=0.1,
@@ -133,6 +147,10 @@ if __name__ == "__main__":
                         default=0.5, type=float,
                         help="The intersection threshold to use"
                         " when combining results objects")
+    parser.add_argument("--simulate",
+                        dest="simulation", action="store_true",
+                        help="If provided use the given high and low results "
+                        "files to simulate actual DDS output")
     parser.add_argument("--debug-mode",
                         dest="debug_mode", action="store_true",
                         help="If provided the simulator does not delete "
@@ -140,13 +158,19 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
 
-    # Check that results path given if running in simulation mode
-    if (args.hname is None and
+    # If running simulation check if results files are present
+    if (args.simulate and
             (args.low_results_path is None or args.high_results_path is None)):
         print("Low and high results files not given.\n"
               "Low and high results files "
               "are needed when running in simulation mode")
         exit()
+
+    if (not args.simulate and not args.hname):
+        if not args.high_images_path:
+            print("Running DDS in emulation mode requires raw/high "
+                  "resolution images")
+            exit()
 
     if not re.match("DEBUG|INFO|WARNING|CRITICAL", args.verbosity.upper()):
         print("Incorrect argument for verbosity."
@@ -164,10 +188,13 @@ if __name__ == "__main__":
               "calculate true bandwidth estimate")
         exit()
 
-    if args.resolutions[1] < args.resolutions[0]:
-        logging.warn("Given high resolution is less than low resolution, "
-                     "swapping resolutions")
-        args.resolutions[0], args.resolutions[1] = (args.resolutions[1],
-                                                    args.resolutions[0])
+    if len(args.resolutions) < 2:
+        logging.info("Only one resolution given, running MPEG emulation")
+    else:
+        if args.resolutions[1] < args.resolutions[0]:
+            logging.warn("Given high resolution is less than low resolution, "
+                         "swapping resolutions")
+            args.resolutions[0], args.resolutions[1] = (args.resolutions[1],
+                                                        args.resolutions[0])
 
     main(args)
