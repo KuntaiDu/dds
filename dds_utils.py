@@ -452,16 +452,16 @@ def evaluate(results, gt_dict, high_threshold, iou_threshold=0.5):
     return f1, (tp, fp, fn)
 
 
-def write_stats_txt(fname, vid_name, bsize, config, f1, stats, bw):
+def write_stats_txt(fname, vid_name, bsize, config, f1, stats, bw, mode):
     header_str = ("video-name,low-resolution,high-resolution,batch-size"
                   ",low-threshold,high-threshold,"
                   "tracker-length,TP,FP,FN,F1,"
-                  "low-size,high-size,total-size")
+                  "low-size,high-size,total-size, mode")
     results_str = (f"{vid_name},{config.low_resolution},"
                    f"{config.high_resolution},{bsize},{config.low_threshold},"
                    f"{config.high_threshold},{config.tracker_length},"
                    f"{stats[0]},{stats[1]},{stats[2]},"
-                   f"{f1},{bw[0]},{bw[1]},{bw[0] + bw[1]}")
+                   f"{f1},{bw[0]},{bw[1]},{bw[0] + bw[1]}, {mode}")
 
     if not os.path.isfile(fname):
         str_to_write = f"{header_str}\n{results_str}\n"
@@ -472,9 +472,10 @@ def write_stats_txt(fname, vid_name, bsize, config, f1, stats, bw):
         f.write(str_to_write)
 
 
-def write_stats(fname, vid_name, bsize, config, f1, stats, bw, fmat="csv"):
+def write_stats(fname, vid_name, bsize, config, f1, stats, bw, mode,
+                fmat="csv"):
     if fmat == "txt":
-        write_stats_txt(fname, vid_name, bsize, config, f1, stats, bw)
+        write_stats_txt(fname, vid_name, bsize, config, f1, stats, bw, mode)
 
 
 def visualize_regions(results, images_direc, label="debugging"):
