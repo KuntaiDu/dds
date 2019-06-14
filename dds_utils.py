@@ -91,7 +91,6 @@ class Results:
                 ("tracking" in region_to_add.origin and
                  "tracking" in dup_region.origin)):
             self.regions.append(region_to_add)
-            self.regions.sort(key=lambda r: r.fid)
         else:
             final_object = None
             if (("generic" in dup_region.origin and
@@ -129,6 +128,7 @@ class Results:
                                                      0.1, "no obj",
                                                      max_resolution))
         self.combine_results(results_to_add)
+        self.regions.sort(key=lambda r: r.fid)
 
     def write_results_txt(self, fname):
         results_file = open(fname, "w")
