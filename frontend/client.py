@@ -1,6 +1,6 @@
 import logging
 import os
-from dds_utils import (Results, read_results_dict, write_results,
+from dds_utils import (Results, read_results_dict,
                        compress_and_get_size, compute_regions_size,
                        get_size_from_mpeg_results)
 
@@ -24,6 +24,41 @@ class Client:
         else:
             self.logger.info(f"Client started with server {self.hname}")
 
+    def analyze_video_mpeg(self, video_name, images_path,
+                           raw_images_path=None):
+        number_of_frames = len(
+            [f for f in os.listdir(images_path) if ".mp4" not in f])
+        results = self.server.perform_detection(images_path)
+
+        try:
+            for fname in os.listdir(images_path):
+                if ".mp4" in fname:
+                    total_size = os.path.getsize(fname)
+                    break
+        except FileNotFoundError:
+            self.logger.warn("Could not find video file in the "
+                             "images directory. Encoding video "
+                             "using raw images")
+            if raw_images_path is None:
+                self.logger.critical("Path to raw images was not given"
+                                     "Could not calculate size of file "
+                                     "to be sent")
+                exit()
+            else:
+                total_size = compress_and_get_size(images_path, 0,
+                                                   number_of_frames - 1,
+                                                   self.config.low_resolution)
+
+        self.logger.info(f"Detection {len(results)} regions for "
+                         f"{number_of_frames} with a total size of "
+                         f"{total_size / 1024}KB")
+        return results, total_size
+
+    def analyze_video_emulate(self, vid_name, low_images_path,
+                              high_images_path, bsize, low_results_path,
+                              mpeg_results_path, debug_mode):
+        return None, None
+
     def analyze_video_simulate(self, video_name, low_images_path,
                                high_images_path, batch_size,
                                high_results_path, low_results_path,
@@ -40,7 +75,8 @@ class Client:
 
         total_regions_count = 0
         total_size = [0, 0]
-        number_of_frames = len(os.listdir(low_images_path))
+        number_of_frames = len(
+            [x for x in os.listdir(low_images_path) if ".mp4" not in x])
         for i in range(0, number_of_frames, batch_size):
             start_frame_id = i
             end_frame_id = min(number_of_frames, i + batch_size)

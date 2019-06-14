@@ -29,8 +29,10 @@ def main(args):
     logger.info("Starting client")
     client = Client(server, args.hname, config)
 
+    mode = None
     results, bw = None, None
     if args.simulate:
+        mode = "simulation"
         logger.warn("Running DDS in SIMULATION mode")
         # Run simulation
         logger.info(f"Analyzing video {args.video_name} with low resolution "
@@ -45,7 +47,8 @@ def main(args):
                                                     args.mpeg_results_path,
                                                     args.estimate_banwidth,
                                                     args.debug_mode)
-    elif not args.simulate and not args.hname:
+    elif not args.simulate and not args.hname and len(args.resolutions) == 2:
+        mode = "emulation"
         logger.warn("Running DDS in EMULATION mode")
         # Run emulation
         results, bw = client.analyze_video_emulate(args.video_name,
@@ -55,6 +58,12 @@ def main(args):
                                                    args.low_results_path,
                                                    args.mpeg_results_path,
                                                    args.debug_mode)
+    elif not args.simulate and not args.hname and len(args.resolutoins) < 2:
+        mode = "mpeg"
+        logger.warn(f"Running in MPEG mode with "
+                    f"resolution {args.resolutions[0]}")
+        results, bw = client.analyze_video_mpeg(args.video_name,
+                                                args.low_images_path)
 
     # Evaluation and writing results
     # Read Groundtruth results
@@ -69,7 +78,7 @@ def main(args):
 
     # Write evaluation results to file
     write_stats(args.outfile, args.video_name, args.bsize,
-                config, f1, stats, bw, fmat="txt")
+                config, f1, stats, bw, mode, fmat="txt")
 
 
 if __name__ == "__main__":
@@ -166,7 +175,7 @@ if __name__ == "__main__":
               "are needed when running in simulation mode")
         exit()
 
-    if (not args.simulate and not args.hname):
+    if (not args.simulate and not args.hname and len(args.resolutions) == 2):
         if not args.high_images_path:
             print("Running DDS in emulation mode requires raw/high "
                   "resolution images")
@@ -190,6 +199,7 @@ if __name__ == "__main__":
 
     if len(args.resolutions) < 2:
         logging.info("Only one resolution given, running MPEG emulation")
+        args.resolutions.append(-1)
     else:
         if args.resolutions[1] < args.resolutions[0]:
             logging.warn("Given high resolution is less than low resolution, "
