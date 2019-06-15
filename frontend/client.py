@@ -1,8 +1,8 @@
 import logging
 import os
-from dds_utils import (Results, read_results_dict,
+from dds_utils import (Results, read_results_dict, cleanup,
                        compress_and_get_size, compute_regions_size,
-                       get_size_from_mpeg_results)
+                       get_size_from_mpeg_results, extract_images_from_video)
 
 
 class Client:
@@ -60,11 +60,6 @@ class Client:
         results.write(video_name)
 
         return results, total_size
-
-    def analyze_video_emulate(self, vid_name, low_images_path,
-                              high_images_path, bsize, low_results_path,
-                              mpeg_results_path, debug_mode):
-        return None, None
 
     def analyze_video_simulate(self, video_name, low_images_path,
                                high_images_path, batch_size,
@@ -125,6 +120,9 @@ class Client:
                              f"second phase of batch")
             r2_results.combine_results(r2, self.config.intersection_threshold)
 
+            # Perform cleanup for the next phase
+            cleanup(video_name, debug_mode)
+
         # Combine results
         self.logger.info(f"Got {len(r1_results)} unique results "
                          f"in base phase")
@@ -147,6 +145,109 @@ class Client:
 
         self.logger.info(f"Writing results for {video_name}")
         self.logger.info(f"{len(results)} objects detected "
+                         f"and {total_size[1]} total size "
+                         f"of regions sent in high resolution")
+
+        return results, total_size
+
+    def analyze_video_emulate(self, video_name, low_images_path,
+                              high_images_path, batch_size,
+                              low_results_path=None,
+                              mpeg_results_path=None, debug_mode=False):
+        final_results = Results()
+        low_phase_results = Results()
+        high_phase_results = Results()
+
+        number_of_frames = len(
+            [x for x in os.path.join(low_images_path) if "png" in x])
+
+        low_results_dict = None
+        if low_results_path:
+            low_results_dict = read_results_dict(low_results_path)
+
+        total_size = [0, 0]
+        total_regions_count = 0
+        for i in range(0, number_of_frames, batch_size):
+            start_fid = i
+            end_fid = min(number_of_frames, i + batch_size)
+            self.logger.info(f"Processing batch from {start_fid} to {end_fid}")
+
+            # Low resolution phase
+            r1, req_regions = None, None
+            if low_results_dict:
+                # If results dict is present then just simulate the first phase
+                r1, req_regions = (
+                    self.server.simulate_low_query(start_fid, end_fid,
+                                                   low_images_path,
+                                                   low_results_dict))
+            else:
+                # If results dict is not present then actually
+                # emulate first phase
+                r1, req_regions = (
+                    self.server.emulate_low_query(start_fid, end_fid,
+                                                  low_images_path))
+
+            self.logger.info(f"Got {len(r1)} confirmed regions with  "
+                             f"{len(req_regions)} regions to query in "
+                             f"the first phase")
+            low_phase_results.combine_results(
+                r1, self.config.intersection_threshold)
+
+            total_regions_count += len(req_regions)
+
+            encoded_batch_video_size = 0
+            if not mpeg_results_path:
+                encoded_batch_video_size = compress_and_get_size(
+                    high_images_path, start_fid, end_fid,
+                    self.config.low_resolution, debug_mode)
+                total_size[0] += encoded_batch_video_size
+
+            # Crop, compress and get size
+            regions_size = compute_regions_size(req_regions, video_name,
+                                                high_images_path,
+                                                self.config.high_resolution,
+                                                True)
+            self.logger.info(f"{encoded_batch_video_size}B sent in base "
+                             f"phase {len(req_regions)} regions have "
+                             f"{regions_size}B total size")
+            total_size[1] += regions_size
+
+            # Extract images in place of the original images
+            extract_images_from_video(video_name)
+
+            # High resolution phase
+            r2 = self.server.emulate_high_query(req_regions, video_name)
+            self.logger.info(f"Get {len(r2)} results in second phase of batch")
+            high_phase_results.combine_results(
+                r2, self.config.intersection_threshold)
+
+            # Cleanup for the next batch
+            cleanup(video_name, debug_mode)
+
+        # Combine results
+        self.logger.info(f"Got {len(low_phase_results)} unique results "
+                         f"in base phase")
+        final_results.combine_results(low_phase_results,
+                                      self.config.intersection_threshold)
+        self.logger.info(f"Got {len(high_phase_results)} positive "
+                         f"identifications out of {total_regions_count} "
+                         f"requests in second phase")
+        final_results.combine_results(high_phase_results,
+                                      self.config.intersection_threshold)
+
+        # Fill gaps in results
+        final_results.fill_gaps(number_of_frames)
+
+        # Write results
+        final_results.write(video_name)
+
+        # Get results from summary file if given
+        if mpeg_results_path:
+            total_size[0] = get_size_from_mpeg_results(
+                mpeg_results_path, low_images_path, self.config.low_resolution)
+
+        self.logger.info(f"Writing results for {video_name}")
+        self.logger.info(f"{len(final_results)} objects detected "
                          f"and {total_size[1]} total size "
                          f"of regions sent in high resolution")
 
