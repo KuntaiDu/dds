@@ -182,6 +182,7 @@ if __name__ == "__main__":
         if not args.high_images_path:
             print("Running DDS in emulation mode requires raw/high "
                   "resolution images")
+            args.intersection_threshold = 1.0
             exit()
 
     if not re.match("DEBUG|INFO|WARNING|CRITICAL", args.verbosity.upper()):
