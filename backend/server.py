@@ -264,9 +264,12 @@ class Server:
 
         return selected_results
 
-    def perform_detection(self, images_direc, resolution):
+    def perform_detection(self, images_direc, resolution, fnames=None):
         final_results = Results()
-        for fname in os.listdir(images_direc):
+        if fnames is None:
+            fname = os.listdir(images_direc)
+
+        for fname in fnames:
             if "png" not in fname:
                 continue
             image_path = os.path.join(images_direc, fname)
