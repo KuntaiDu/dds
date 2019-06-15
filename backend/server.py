@@ -23,6 +23,33 @@ class Server:
 
         self.logger.info("Server started")
 
+    def perform_detection(self, images_direc, resolution, fnames=None):
+        final_results = Results()
+        if fnames is None:
+            fname = sorted(os.listdir(images_direc))
+
+        for fname in fnames:
+            if "png" not in fname:
+                continue
+            image_path = os.path.join(images_direc, fname)
+            image = cv.imread(image_path)
+            image = cv.cvtColor(image, cv.COLOR_BGR2RGB)
+
+            detection_results = self.detector.infer(image)
+
+            fid = int(fname.split(".")[0])
+
+            if not detection_results:
+                r = Region(fid, 0, 0, 0, 0, 0.1, "no obj", resolution)
+                final_results.append(r)
+
+            for label, conf, (x, y, w, h) in detection_results:
+                r = Region(fid, x, y, w, h, conf, label,
+                           resolution, origin="mpeg")
+                final_results.append(r)
+
+        return final_results
+
     def track(self, obj_to_track, start_fid, end_fid, images_direc):
         regions = Results()
 
@@ -264,25 +291,47 @@ class Server:
 
         return selected_results
 
-    def perform_detection(self, images_direc, resolution, fnames=None):
-        final_results = Results()
-        if fnames is None:
-            fname = os.listdir(images_direc)
+    def emulate_low_query(self, start_fid, end_fid, low_images_path):
+        batch_fnames = sorted([f"str(i).zfill(10).png"
+                               for i in range(start_fid, end_fid)])
+        detection_results = self.perform_detection(
+            low_images_path, self.config.low_resolution, batch_fnames)
 
-        for fname in fnames:
-            if "png" not in fname:
+        results_dict = {}
+        for region in detection_results.regions:
+            # Do not add no obj detections in the dictionary
+            if region.label == "no obj":
                 continue
-            image_path = os.path.join(images_direc, fname)
-            image = cv.imread(image_path)
-            image = cv.cvtColor(image, cv.COLOR_BGR2RGB)
+            if region.fid not in results_dict:
+                results_dict[region.fid] = []
+            results_dict[region.fid].append(region)
 
-            detection_results = self.detector.infer(image)
+        accepted_results, final_regions_to_query = self.simulate_low_query(
+            start_fid, end_fid, low_images_path, results_dict)
 
-            fid = int(fname.split(".")[0])
+        return accepted_results, final_regions_to_query
 
-            for label, conf, (x, y, w, h) in detection_results:
-                r = Region(fid, x, y, w, h, conf, label,
-                           resolution, origin="mpeg")
-                final_results.append(r)
+    def emulate_high_query(self, req_regions, images_direc):
+        req_fids = list(set([r.fid for r in req_regions.regions]))
+        req_fids = sorted(req_fids)
 
-        return final_results
+        fnames = sorted([f for f in os.listdir(images_direc) if "png" in f])
+
+        results = self.perform_detection(images_direc,
+                                         self.config.high_resolution, fnames)
+
+        # Remap fid in results to fid in req regions
+        results_fids = list(set([r.fid for r in results.regions]))
+        fid_to_fid_mapping = {}
+        for idx in range(len(results_fids)):
+            fid_to_fid_mapping[results_fids[idx]] = req_fids[idx]
+        for r in results.regions:
+            r.fid = fid_to_fid_mapping[r.fid]
+
+        results_with_detections_only = Results()
+        for r in results.regions:
+            if r.label == "no obj":
+                continue
+            results_with_detections_only.append(r)
+
+        return results_with_detections_only
