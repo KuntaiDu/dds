@@ -1,3 +1,4 @@
+import os
 import re
 import logging
 import argparse
@@ -69,6 +70,8 @@ def main(args):
     # Read Groundtruth results
     low, high = bw
     ground_truth_dict = read_results_dict(args.ground_truth)
+    number_of_frames = len(
+        [x for x in os.listdir(args.low_images_path) if "png" in x])
     logger.info("Reading ground truth results complete")
     f1, stats = evaluate(results, ground_truth_dict, args.high_threshold)
     logger.info(f"Got an f1 score of {f1} "
@@ -78,7 +81,7 @@ def main(args):
 
     # Write evaluation results to file
     write_stats(args.outfile, args.video_name, args.bsize,
-                config, f1, stats, bw, mode)
+                config, f1, stats, bw, number_of_frames, mode)
 
 
 if __name__ == "__main__":
