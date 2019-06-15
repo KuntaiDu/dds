@@ -358,6 +358,32 @@ def compress_and_get_size(images_path, start_id, end_id, resolution):
     return size
 
 
+def extract_images_from_video(images_path):
+    # Remove all images from the vid_name directory
+    for fname in os.listdir(images_path):
+        if "png" not in fname:
+            continue
+        else:
+            os.remove(os.path.join(images_path, fname))
+
+    encoded_vid_path = os.path.join(images_path, "temp.mp4")
+    extacted_images_path = os.path.join(images_path, "%010d.png")
+    decoding_result = subprocess.run(["ffmpeg", "-y",
+                                      "-i", encoded_vid_path,
+                                      "-vcodec", "mjpeg",
+                                      "-pix_fmt", "yuvj420p",
+                                      "-g", "8", "-q:v", "2", "-vsync", "0",
+                                      extacted_images_path],
+                                     stdout=subprocess.PIPE,
+                                     stderr=subprocess.PIPE,
+                                     universal_newlines=True)
+
+    if decoding_result.returncode != 0:
+        print("DECODING FAILED")
+        print(decoding_result.stderr)
+        exit()
+
+
 def crop_and_merge_images(results, vid_name, images_direc):
     cached_image = None
     cropped_images = {}
