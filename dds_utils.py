@@ -330,7 +330,7 @@ def compute_area_of_regions(results):
 
 
 def compress_and_get_size(images_path, start_id, end_id, resolution):
-    number_of_frames = end_id - start_id + 1
+    number_of_frames = end_id - start_id
     # Compress using ffmpeg
     scale = f"scale=trunc(iw*{resolution}/2)*2:trunc(ih*{resolution})"
     encoded_vid_path = os.path.join(images_path, "temp.mp4")
@@ -354,7 +354,6 @@ def compress_and_get_size(images_path, start_id, end_id, resolution):
         size = 0
     else:
         size = os.path.getsize(encoded_vid_path)
-        os.remove(encoded_vid_path)
 
     return size
 
@@ -395,7 +394,7 @@ def crop_and_merge_images(results, vid_name, images_direc):
 
 def compute_regions_size(results, vid_name, images_direc, resolution,
                          estimate_banwidth=True):
-    if results.results_len() == 0:
+    if len(results) == 0:
         return 0
 
     if estimate_banwidth:
@@ -404,11 +403,14 @@ def compute_regions_size(results, vid_name, images_direc, resolution,
         vid_name = f"{vid_name}-cropped"
         frames_count = crop_and_merge_images(results, vid_name, images_direc)
         size = compress_and_get_size(vid_name, 0, frames_count, resolution)
-        shutil.rmtree(vid_name)
     else:
         size = compute_area_of_regions(results)
 
     return size
+
+
+def cleanup(vid_name, debug_mode=False):
+    shutil.rmtree(vid_name)
 
 
 def get_size_from_mpeg_results(results_log_path, images_path, resolution):
