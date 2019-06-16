@@ -77,10 +77,16 @@ class Results:
         return count
 
     def is_dup(self, result_to_add, threshold=0.5):
+        # return the regions with IOU greater than threshold
+        # and maximum confidence
+        max_conf = -1
+        max_conf_result = None
         for existing_result in self.regions:
             if existing_result.is_same(result_to_add, threshold):
-                return existing_result
-        return None
+                if existing_result.conf > max_conf:
+                    max_conf = existing_result.conf
+                    max_conf_result = existing_result
+        return max_conf_result
 
     def combine_results(self, additional_results, threshold=0.5):
         for result_to_add in additional_results.regions:
