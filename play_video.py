@@ -24,7 +24,8 @@ def main(args):
     config = ServerConfig(args.resolutions[0], args.resolutions[1],
                           args.high_threshold, args.low_threshold,
                           args.max_object_size, args.tracker_length,
-                          args.boundary, args.intersection_threshold)
+                          args.boundary, args.intersection_threshold,
+                          args.simulate)
     server = Server(config)
 
     logger.info("Starting client")
@@ -160,7 +161,7 @@ if __name__ == "__main__":
                         help="The intersection threshold to use"
                         " when combining results objects")
     parser.add_argument("--simulate",
-                        dest="simulation", action="store_true",
+                        dest="simulate", action="store_true",
                         help="If provided use the given high and low results "
                         "files to simulate actual DDS output")
     parser.add_argument("--debug-mode",

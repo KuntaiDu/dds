@@ -8,7 +8,7 @@ from object_detection.utils import ops as utils_ops
 class Detector:
     def __init__(self, model_path='frozen_inference_graph.pb',
                  labels_path='mscoco_label_map.pbtxt'):
-        self.logger = logging.getLogger("Object Detector")
+        self.logger = logging.getLogger("object_detector")
         handler = logging.NullHandler()
         self.logger.addHandler(handler)
 

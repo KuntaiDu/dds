@@ -78,7 +78,7 @@ class Client:
         total_regions_count = 0
         total_size = [0, 0]
         number_of_frames = len(
-            [x for x in os.listdir(low_images_path) if ".mp4" not in x])
+            [x for x in os.listdir(low_images_path) if "png" in x])
         for i in range(0, number_of_frames, batch_size):
             start_frame_id = i
             end_frame_id = min(number_of_frames, i + batch_size)
@@ -159,7 +159,7 @@ class Client:
         high_phase_results = Results()
 
         number_of_frames = len(
-            [x for x in os.path.join(low_images_path) if "png" in x])
+            [x for x in os.listdir(low_images_path) if "png" in x])
 
         low_results_dict = None
         if low_results_path:
@@ -251,4 +251,4 @@ class Client:
                          f"and {total_size[1]} total size "
                          f"of regions sent in high resolution")
 
-        return results, total_size
+        return final_results, total_size

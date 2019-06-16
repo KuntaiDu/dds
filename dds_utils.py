@@ -466,7 +466,7 @@ def evaluate(results, gt_dict, high_threshold, iou_threshold=0.5):
     # Save regions count because the regions that match
     # will be removed from the gt_regions to ensure better
     # search speed
-    gt_regions_count = gt_results.results_len()
+    gt_regions_count = len(gt_results)
 
     fp = 0.0
     tp = 0.0
