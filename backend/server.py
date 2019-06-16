@@ -3,7 +3,7 @@ import logging
 import cv2 as cv
 from dds_utils import (Results, Region, calc_intersection_area,
                        calc_area)
-from object_detector import Detector
+from .object_detector import Detector
 
 
 class Server:
@@ -96,20 +96,29 @@ class Server:
 
                 region = Region(fid, x, y, w, h, conf, label, resolution,
                                 f"tracking-extension[{start_fid}-{end_fid}]")
-                regions.add_single_result(region,
-                                          self.config.intersection_threshold)
+                regions.append(region)
+            else:
+                break
 
         return regions
 
-    def get_regions_to_query(self, start_fid, end_fid, images_direc, results,
+    def get_regions_to_query(self, start_fid, end_fid, images_direc,
+                             results_for_tracking, accepted_results,
                              simulation=False):
         non_tracking_regions = Results()
         tracking_regions = Results()
 
-        for single_result in results.regions:
+        for single_result in results_for_tracking.regions:
             single_result = single_result.copy()
-            if (single_result.conf > self.config.low_threshold and
-                    single_result.conf < self.config.high_threshold):
+
+            if (single_result.conf < self.config.low_threshold or
+                    ((single_result.w * single_result.h) >
+                     self.config.max_object_size)):
+                # Don't investivagte if the size is too large
+                # or if confidence is below low threshold
+                continue
+
+            if (single_result.conf < self.config.high_threshold):
                 # These are only those regions which are between thresholds
                 single_result.origin = f"tracking-origin[{single_result.fid}]"
                 non_tracking_regions.add_single_result(
@@ -132,8 +141,9 @@ class Server:
                 regions_from_tracking, self.config.intersection_threshold)
 
             # Backward tracking
-            end_frame = max(start_frame,
+            end_frame = max(start_fid,
                             start_frame - self.config.tracker_length)
+
             regions_from_tracking = self.track(single_result, start_frame,
                                                end_frame, images_direc)
             self.logger.debug(f"Found {len(regions_from_tracking)} "
@@ -179,10 +189,20 @@ class Server:
                 result.h = new_h
 
         final_regions = Results()
+        # Add all non_tracking_regions
         final_regions.combine_results(
             non_tracking_regions, self.config.intersection_threshold)
-        final_regions.combine_results(
-            tracking_regions, self.config.intersection_threshold)
+        # Cleanup tracking regions
+        for region in tracking_regions.regions:
+            if region.w * region.h > self.config.max_object_size:
+                # Skip if size too large
+                continue
+            matched_region = accepted_results.is_dup(region, 0.3)
+            if not matched_region:
+                final_regions.append(region)
+            elif matched_region.conf < self.config.high_threshold:
+                final_regions.append(region)
+            final_regions.label = "-1"
 
         return final_regions
 
@@ -217,30 +237,14 @@ class Server:
         regions_to_query = self.get_regions_to_query(start_fid, end_fid,
                                                      images_direc,
                                                      results_for_regions,
+                                                     accepted_results,
                                                      simulation=True)
-
-        # Iterate over regions to query and remove all that have matched in
-        # accepted results
-        final_regions_to_query = Results()
-        for region in regions_to_query.regions:
-            # If size of the object is greater than max_object_size
-            # do not add object to the regions that need to be checked
-            if region.w * region.h > self.config.max_object_size:
-                continue
-
-            matched_region = accepted_results.is_dup(region)
-            if (not matched_region or
-                    matched_region.conf < self.config.high_threshold):
-                final_regions_to_query.add_single_result(
-                    region, self.config.intersection_threshold)
-            region.label = "-1"
-
         self.logger.info(f"Returning {len(accepted_results)} "
                          f"confirmed results and "
-                         f"{len(final_regions_to_query)} regions")
+                         f"{len(regions_to_query)} regions")
 
         # Return results and regions
-        return accepted_results, final_regions_to_query
+        return accepted_results, regions_to_query
 
     def simulate_high_query(self, req_regions, high_results_dict):
         high_res_results = Results()
