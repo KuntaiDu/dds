@@ -321,6 +321,7 @@ class Server:
         return accepted_results, final_regions_to_query
 
     def emulate_high_query(self, req_regions, images_direc):
+        images_direc += "-cropped"
         req_fids = list(set([r.fid for r in req_regions.regions]))
         req_fids = sorted(req_fids)
 
