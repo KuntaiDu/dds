@@ -160,36 +160,6 @@ class Server:
         self.logger.info(f"Found {len(tracking_regions)} regions "
                          f"between {start_fid} and {end_fid} with tracking")
 
-        # Enlarge regions iff we are running a simulation
-        if not simulation:
-            # Enlarge non-tracking boxes
-            for result in non_tracking_regions.regions:
-                new_x = max(result.x - self.config.boundary * result.w, 0)
-                new_y = max(result.y - self.config.boundary * result.h, 0)
-                new_w = min(result.w + self.config.boundary * result.w * 2,
-                            1 - result.x + self.config.boundary * result.w)
-                new_h = min(result.h + self.config.boundary * result.h * 2,
-                            1 - result.y + self.config.boundary * result.h)
-
-                result.x = new_x
-                result.y = new_y
-                result.w = new_w
-                result.h = new_h
-
-            # Enlarge tracking boxes
-            for result in tracking_regions.regions:
-                new_x = max(result.x - 2 * self.config.boundary * result.w, 0)
-                new_y = max(result.y - 2 * self.config.boundary * result.h, 0)
-                new_w = min(result.w + 2 * self.config.boundary * result.w * 2,
-                            1 - result.w + 2 * self.config.boundary * result.w)
-                new_h = min(result.h + 2 * self.config.boundary * result.h * 2,
-                            1 - result.h + 2 * self.config.boundary * result.h)
-
-                result.x = new_x
-                result.y = new_y
-                result.w = new_w
-                result.h = new_h
-
         final_regions = Results()
         # Add all non_tracking_regions
         final_regions.combine_results(
@@ -207,10 +177,41 @@ class Server:
                 final_regions.append(region)
             final_regions.label = "-1"
 
+        # Enlarge regions iff we are running a simulation
+        # Enlarging refrence to the object
+        if not simulation:
+            # Enlarge non-tracking boxes
+            for region in non_tracking_regions.regions:
+                new_x = max(region.x - self.config.boundary * region.w, 0)
+                new_y = max(region.y - self.config.boundary * region.h, 0)
+                new_w = min(region.w + self.config.boundary * region.w * 2,
+                            1 - region.x + self.config.boundary * region.w)
+                new_h = min(region.h + self.config.boundary * region.h * 2,
+                            1 - region.y + self.config.boundary * region.h)
+
+                region.x = new_x
+                region.y = new_y
+                region.w = new_w
+                region.h = new_h
+
+            # Enlarge tracking boxes
+            for region in tracking_regions.regions:
+                new_x = max(region.x - 2 * self.config.boundary * region.w, 0)
+                new_y = max(region.y - 2 * self.config.boundary * region.h, 0)
+                new_w = min(region.w + 2 * self.config.boundary * region.w * 2,
+                            1 - region.w + 2 * self.config.boundary * region.w)
+                new_h = min(region.h + 2 * self.config.boundary * region.h * 2,
+                            1 - region.h + 2 * self.config.boundary * region.h)
+
+                region.x = new_x
+                region.y = new_y
+                region.w = new_w
+                region.h = new_h
+
         return final_regions
 
     def simulate_low_query(self, start_fid, end_fid, images_direc,
-                           results_dict):
+                           results_dict, simulation=True):
         results = Results()
         accepted_results = Results()
         results_for_regions = Results()  # Results used for regions detection
@@ -241,7 +242,7 @@ class Server:
                                                      images_direc,
                                                      results_for_regions,
                                                      accepted_results,
-                                                     simulation=True)
+                                                     simulation)
         self.logger.info(f"Returning {len(accepted_results)} "
                          f"confirmed results and "
                          f"{len(regions_to_query)} regions")
@@ -314,7 +315,8 @@ class Server:
             results_dict[region.fid].append(region)
 
         accepted_results, final_regions_to_query = self.simulate_low_query(
-            start_fid, end_fid, low_images_path, results_dict)
+            start_fid, end_fid, low_images_path, results_dict,
+            simulation=False)
 
         return accepted_results, final_regions_to_query
 
@@ -327,8 +329,8 @@ class Server:
         results = self.perform_detection(images_direc,
                                          self.config.high_resolution, fnames)
 
-        # Remap fid in results to fid in req regions
-        results_fids = list(set([r.fid for r in results.regions]))
+        # Remap fid in results to fid in requested regions
+        results_fids = sorted(list(set([r.fid for r in results.regions])))
         fid_to_fid_mapping = {}
         for idx in range(len(results_fids)):
             fid_to_fid_mapping[results_fids[idx]] = req_fids[idx]

@@ -369,6 +369,7 @@ def compress_and_get_size(images_path, start_id, end_id, resolution):
 
 def extract_images_from_video(images_path):
     # Remove all images from the vid_name directory
+    images_path += "-cropped"
     for fname in os.listdir(images_path):
         if "png" not in fname:
             continue
@@ -379,9 +380,8 @@ def extract_images_from_video(images_path):
     extacted_images_path = os.path.join(images_path, "%010d.png")
     decoding_result = subprocess.run(["ffmpeg", "-y",
                                       "-i", encoded_vid_path,
-                                      "-vcodec", "mjpeg",
                                       "-pix_fmt", "yuvj420p",
-                                      "-g", "8", "-q:v", "2", "-vsync", "0",
+                                      "-vsync", "0", "-start_number", "0",
                                       extacted_images_path],
                                      stdout=subprocess.PIPE,
                                      stderr=subprocess.PIPE,
@@ -445,7 +445,7 @@ def compute_regions_size(results, vid_name, images_direc, resolution,
 
 
 def cleanup(vid_name, debug_mode=False):
-    shutil.rmtree(vid_name)
+    shutil.rmtree(vid_name + "-cropped")
 
 
 def get_size_from_mpeg_results(results_log_path, images_path, resolution):

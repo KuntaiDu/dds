@@ -104,7 +104,7 @@ class Client:
             if not mpeg_results_path and estimate_banwidth:
                 encoded_batch_video_size = compress_and_get_size(
                     high_images_path, start_frame_id, end_frame_id,
-                    self.config.low_resolution, debug_mode)
+                    self.config.low_resolution)
                 total_size[0] += encoded_batch_video_size
 
             regions_size = compute_regions_size(
@@ -181,7 +181,7 @@ class Client:
                 r1, req_regions = (
                     self.server.simulate_low_query(start_fid, end_fid,
                                                    low_images_path,
-                                                   low_results_dict))
+                                                   low_results_dict, False))
             else:
                 # If results dict is not present then actually
                 # emulate first phase
@@ -197,12 +197,13 @@ class Client:
 
             total_regions_count += len(req_regions)
 
-            encoded_batch_video_size = 0
-            if not mpeg_results_path:
-                encoded_batch_video_size = compress_and_get_size(
-                    high_images_path, start_fid, end_fid,
-                    self.config.low_resolution, debug_mode)
-                total_size[0] += encoded_batch_video_size
+            # Encode frames in batch and get size
+            encoded_batch_video_size = compress_and_get_size(
+                high_images_path, start_fid, end_fid,
+                self.config.low_resolution)
+            # Remove encoded video manually
+            os.remove(os.path.join(high_images_path, "temp.mp4"))
+            total_size[0] += encoded_batch_video_size
 
             # Crop, compress and get size
             regions_size = compute_regions_size(req_regions, video_name,
