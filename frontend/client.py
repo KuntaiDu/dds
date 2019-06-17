@@ -28,7 +28,8 @@ class Client:
                            raw_images_path=None):
         number_of_frames = len(
             [f for f in os.listdir(images_path) if ".mp4" not in f])
-        results = self.server.perform_detection(images_path)
+        results = self.server.perform_detection(images_path,
+                                                self.config.low_resolution)
 
         try:
             for fname in os.listdir(images_path):

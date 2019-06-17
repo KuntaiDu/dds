@@ -96,4 +96,4 @@ class Detector:
             confidence = output_dict['detection_scores'][i]
             box_tuple = (xmin, ymin, xmax - xmin, ymax - ymin)
             results.append((object_class, confidence, box_tuple))
-        return (image_np, results)
+        return results

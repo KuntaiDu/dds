@@ -26,7 +26,7 @@ class Server:
     def perform_detection(self, images_direc, resolution, fnames=None):
         final_results = Results()
         if fnames is None:
-            fname = sorted(os.listdir(images_direc))
+            fnames = sorted(os.listdir(images_direc))
 
         for fname in fnames:
             if "png" not in fname:

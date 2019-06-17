@@ -49,7 +49,7 @@ def main(args):
                                                     args.mpeg_results_path,
                                                     args.estimate_banwidth,
                                                     args.debug_mode)
-    elif not args.simulate and not args.hname and len(args.resolutions) == 2:
+    elif not args.simulate and not args.hname and args.resolutions[-1] != -1:
         mode = "emulation"
         logger.warn("Running DDS in EMULATION mode")
         # Run emulation
@@ -60,7 +60,7 @@ def main(args):
                                                    args.low_results_path,
                                                    args.mpeg_results_path,
                                                    args.debug_mode)
-    elif not args.simulate and not args.hname and len(args.resolutoins) < 2:
+    elif not args.simulate and not args.hname:
         mode = "mpeg"
         logger.warn(f"Running in MPEG mode with "
                     f"resolution {args.resolutions[0]}")
@@ -193,8 +193,8 @@ if __name__ == "__main__":
         exit()
 
     if args.debug_mode and not args.estimate_banwidth:
-        logging.warn("DDS needs to estimate bandwidth for debugging mode "
-                     "switching to estimate_bandwidth")
+        print("DDS needs to estimate bandwidth for debugging mode "
+              "switching to estimate_bandwidth")
         args.estimate_bandwidth = True
 
     if args.estimate_banwidth and not args.high_images_path:
@@ -203,12 +203,12 @@ if __name__ == "__main__":
         exit()
 
     if len(args.resolutions) < 2:
-        logging.info("Only one resolution given, running MPEG emulation")
+        print("Only one resolution given, running MPEG emulation")
         args.resolutions.append(-1)
     else:
         if args.resolutions[1] < args.resolutions[0]:
-            logging.warn("Given high resolution is less than low resolution, "
-                         "swapping resolutions")
+            print("Given high resolution is less than low resolution, "
+                  "swapping resolutions")
             args.resolutions[0], args.resolutions[1] = (args.resolutions[1],
                                                         args.resolutions[0])
 
