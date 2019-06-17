@@ -60,7 +60,6 @@ def main(args):
                                                    args.high_images_path,
                                                    args.bsize,
                                                    args.low_results_path,
-                                                   args.mpeg_results_path,
                                                    args.debug_mode)
     elif not args.simulate and not args.hname:
         mode = "mpeg"

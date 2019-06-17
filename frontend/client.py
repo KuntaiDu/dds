@@ -154,8 +154,7 @@ class Client:
 
     def analyze_video_emulate(self, video_name, low_images_path,
                               high_images_path, batch_size,
-                              low_results_path=None,
-                              mpeg_results_path=None, debug_mode=False):
+                              low_results_path=None, debug_mode=False):
         final_results = Results()
         low_phase_results = Results()
         high_phase_results = Results()
@@ -243,11 +242,6 @@ class Client:
 
         # Write results
         final_results.write(video_name)
-
-        # Get results from summary file if given
-        if mpeg_results_path:
-            total_size[0] = get_size_from_mpeg_results(
-                mpeg_results_path, low_images_path, self.config.low_resolution)
 
         self.logger.info(f"Writing results for {video_name}")
         self.logger.info(f"{len(final_results)} objects detected "
