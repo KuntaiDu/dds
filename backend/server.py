@@ -27,7 +27,7 @@ class Server:
         final_results = Results()
         if fnames is None:
             fnames = sorted(os.listdir(images_direc))
-
+        self.logger.info(f"Running inference on {len(fnames)} frames")
         for fname in fnames:
             if "png" not in fname:
                 continue
@@ -44,6 +44,8 @@ class Server:
                 final_results.append(r)
 
             for label, conf, (x, y, w, h) in detection_results:
+                if w * h < self.config.min_object_size:
+                    continue
                 r = Region(fid, x, y, w, h, conf, label,
                            resolution, origin="mpeg")
                 final_results.append(r)
@@ -197,7 +199,8 @@ class Server:
             if region.w * region.h > self.config.max_object_size:
                 # Skip if size too large
                 continue
-            matched_region = accepted_results.is_dup(region, 0.3)
+            matched_region = accepted_results.is_dup(
+                region, self.config.tracking_threshold)
             if not matched_region:
                 final_regions.append(region)
             elif matched_region.conf < self.config.high_threshold:

@@ -23,8 +23,10 @@ def main(args):
 
     config = ServerConfig(args.resolutions[0], args.resolutions[1],
                           args.high_threshold, args.low_threshold,
-                          args.max_object_size, args.tracker_length,
-                          args.boundary, args.intersection_threshold,
+                          args.max_object_size, args.min_object_size,
+                          args.tracker_length, args.boundary,
+                          args.intersection_threshold,
+                          args.tracking_threshold,
                           args.simulate)
     server = Server(config)
 
@@ -144,6 +146,9 @@ if __name__ == "__main__":
     parser.add_argument("--max-size", dest="max_object_size",
                         type=float, default=0.3,
                         help="Maximum size of object as fraction frame")
+    parser.add_argument("--min-size", dest="min_object_size",
+                        type=float, default=0.0065,
+                        help="Minimum object size to cosider")
     parser.add_argument("--tracker-length", dest="tracker_length",
                         type=int, default=4,
                         help="Number of frame for tracking in ROI selection")
@@ -156,6 +161,11 @@ if __name__ == "__main__":
     parser.add_argument("--verbosity",
                         default="warning", type=str,
                         help="The verbosity of logging")
+    parser.add_argument("--tracking-intersection-threshold",
+                        dest="tracking_threshold", default=0.3,
+                        type=float,
+                        help="The threshold to use when determining whether "
+                        "tracked region is already in accpected results")
     parser.add_argument("--intersection-threshold",
                         dest="intersection_threshold",
                         default=0.5, type=float,
@@ -205,6 +215,7 @@ if __name__ == "__main__":
 
     if len(args.resolutions) < 2:
         print("Only one resolution given, running MPEG emulation")
+        args.intersection_threshold = 1.0
         args.resolutions.append(-1)
     else:
         if args.resolutions[1] < args.resolutions[0]:
