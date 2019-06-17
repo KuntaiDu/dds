@@ -61,7 +61,7 @@ class Client:
         # Write results
         results.write(video_name)
 
-        return results, total_size
+        return results, [total_size, 0]
 
     def analyze_video_simulate(self, video_name, low_images_path,
                                high_images_path, batch_size,
