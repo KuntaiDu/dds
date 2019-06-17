@@ -73,15 +73,20 @@ def main(args):
     # Evaluation and writing results
     # Read Groundtruth results
     low, high = bw
-    ground_truth_dict = read_results_dict(args.ground_truth)
-    number_of_frames = len(
-        [x for x in os.listdir(args.low_images_path) if "png" in x])
-    logger.info("Reading ground truth results complete")
-    f1, stats = evaluate(results, ground_truth_dict, args.high_threshold)
-    logger.info(f"Got an f1 score of {f1} "
-                f"for this experiment {mode} with "
-                f"tp {stats[0]} fp {stats[1]} fn {stats[2]} "
-                f"with total bandwidth {sum(bw)}")
+    f1 = 0
+    stats = (0, 0, 0)
+    if args.ground_truth:
+        ground_truth_dict = read_results_dict(args.ground_truth)
+        number_of_frames = len(
+            [x for x in os.listdir(args.low_images_path) if "png" in x])
+        logger.info("Reading ground truth results complete")
+        f1, stats = evaluate(results, ground_truth_dict, args.high_threshold)
+        logger.info(f"Got an f1 score of {f1} "
+                    f"for this experiment {mode} with "
+                    f"tp {stats[0]} fp {stats[1]} fn {stats[2]} "
+                    f"with total bandwidth {sum(bw)}")
+    else:
+        logger.info("No groundtruth given skipping evalution")
 
     # Write evaluation results to file
     write_stats(args.outfile, args.video_name, args.bsize,
