@@ -1,19 +1,16 @@
 import logging
 import numpy as np
 import tensorflow as tf
-from utils import label_map_util as lmp
 from object_detection.utils import ops as utils_ops
 
 
 class Detector:
-    def __init__(self, model_path='frozen_inference_graph.pb',
-                 labels_path='mscoco_label_map.pbtxt'):
+    def __init__(self, model_path='frozen_inference_graph.pb'):
         self.logger = logging.getLogger("object_detector")
         handler = logging.NullHandler()
         self.logger.addHandler(handler)
 
         self.model_path = model_path
-        self.labels_path = labels_path
         self.d_graph = tf.Graph()
         with self.d_graph.as_default():
             od_graph_def = tf.GraphDef()
@@ -22,8 +19,6 @@ class Detector:
                 od_graph_def.ParseFromString(serialized_graph)
                 tf.import_graph_def(od_graph_def, name='')
             self.session = tf.Session()
-        self.category_index = lmp.create_category_index_from_labelmap(
-            self.labels_path, use_display_name=True)
 
         self.logger.info("Object detector initialized")
 
@@ -94,11 +89,8 @@ class Detector:
         # The results array will have (class, (xmin, xmax, ymin, ymax)) tuples
         results = []
         for i in range(len(output_dict['detection_boxes'])):
-            obj_class_index = self.category_index[
-                output_dict['detection_classes'][i]]
-            object_class = obj_class_index['name']
-            if object_class not in ["car", "bus",
-                                    "train", "truck"]:
+            object_class = output_dict['detection_classes'][i]
+            if object_class not in [3, 6, 7, 8]:
                 continue
             ymin, xmin, ymax, xmax = output_dict['detection_boxes'][i]
             confidence = output_dict['detection_scores'][i]
