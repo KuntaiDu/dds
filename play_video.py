@@ -65,7 +65,8 @@ def main(args):
         logger.warn(f"Running in MPEG mode with "
                     f"resolution {args.resolutions[0]}")
         results, bw = client.analyze_video_mpeg(args.video_name,
-                                                args.low_images_path)
+                                                args.low_images_path,
+                                                args.high_images_path)
 
     # Evaluation and writing results
     # Read Groundtruth results

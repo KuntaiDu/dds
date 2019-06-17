@@ -34,20 +34,21 @@ class Client:
         try:
             for fname in os.listdir(images_path):
                 if ".mp4" in fname:
-                    total_size = os.path.getsize(fname)
+                    total_size = os.path.getsize(
+                        os.path.join(images_path, fname))
                     break
         except FileNotFoundError:
             self.logger.warn("Could not find video file in the "
                              "images directory. Encoding video "
                              "using raw images")
             if raw_images_path is None:
-                self.logger.critical("Path to raw images was not given"
-                                     "Could not calculate size of file "
+                self.logger.critical("Path to raw images was not given, "
+                                     "could not calculate size of file "
                                      "to be sent")
                 exit()
             else:
                 total_size = compress_and_get_size(images_path, 0,
-                                                   number_of_frames - 1,
+                                                   number_of_frames,
                                                    self.config.low_resolution)
 
         self.logger.info(f"Detection {len(results)} regions for "
