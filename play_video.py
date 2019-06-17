@@ -79,7 +79,7 @@ def main(args):
     logger.info("Reading ground truth results complete")
     f1, stats = evaluate(results, ground_truth_dict, args.high_threshold)
     logger.info(f"Got an f1 score of {f1} "
-                f"for this experiment using simulation with "
+                f"for this experiment {mode} with "
                 f"tp {stats[0]} fp {stats[1]} fn {stats[2]} "
                 f"with total bandwidth {sum(bw)}")
 

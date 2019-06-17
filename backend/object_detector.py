@@ -95,5 +95,5 @@ class Detector:
             ymin, xmin, ymax, xmax = output_dict['detection_boxes'][i]
             confidence = output_dict['detection_scores'][i]
             box_tuple = (xmin, ymin, xmax - xmin, ymax - ymin)
-            results.append((object_class, confidence, box_tuple))
+            results.append((str(object_class), confidence, box_tuple))
         return results
