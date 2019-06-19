@@ -341,13 +341,13 @@ def compute_area_of_regions(results):
 def compress_and_get_size(images_path, start_id, end_id, resolution):
     number_of_frames = end_id - start_id
     # Compress using ffmpeg
-    scale = f"scale=trunc(iw*{resolution}/2)*2:trunc(ih*{resolution})"
+    scale = f"scale=trunc(iw*{resolution}/2)*2:trunc(ih*{resolution}/2)*2"
     encoded_vid_path = os.path.join(images_path, "temp.mp4")
     encoding_result = subprocess.run(["ffmpeg", "-y", "-loglevel", "error",
+                                      "-start_number", str(start_id),
                                       '-i', f"{images_path}/%010d.png",
                                       "-vcodec", "libx264", "-crf", "23",
                                       "-pix_fmt", "yuv420p", "-vf", scale,
-                                      "-start_number", str(start_id),
                                       "-frames:v", str(number_of_frames),
                                       encoded_vid_path],
                                      stdout=subprocess.PIPE,
@@ -359,8 +359,8 @@ def compress_and_get_size(images_path, start_id, end_id, resolution):
         # Encoding failed
         print("ENCODING FAILED")
         print(encoding_result.stderr)
+        print(encoding_result.stdout)
         exit()
-        size = 0
     else:
         size = os.path.getsize(encoded_vid_path)
 
