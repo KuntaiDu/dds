@@ -39,7 +39,7 @@ class Client:
                 images_path, self.config.low_resolution, batch_fnames)
 
             batch_size = compress_and_get_size(
-                images_path,
+                raw_images_path,
                 start_frame, end_frame,
                 self.config.low_resolution)
             total_size += batch_size
