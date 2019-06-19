@@ -300,7 +300,7 @@ class Server:
         return selected_results
 
     def emulate_low_query(self, start_fid, end_fid, low_images_path):
-        batch_fnames = sorted([f"str(i).zfill(10).png"
+        batch_fnames = sorted([f"{str(i).zfill(10)}.png"
                                for i in range(start_fid, end_fid)])
         detection_results = self.perform_detection(
             low_images_path, self.config.low_resolution, batch_fnames)
