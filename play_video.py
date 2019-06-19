@@ -53,7 +53,7 @@ def main(args):
                                                     args.debug_mode)
     elif not args.simulate and not args.hname and args.resolutions[-1] != -1:
         mode = "emulation"
-        logger.warn("Running DDS in EMULATION mode")
+        logger.warn("Running DDS in EMULATION mode on {args.video_name}")
         # Run emulation
         results, bw = client.analyze_video_emulate(args.video_name,
                                                    args.low_images_path,
@@ -64,7 +64,7 @@ def main(args):
     elif not args.simulate and not args.hname:
         mode = "mpeg"
         logger.warn(f"Running in MPEG mode with "
-                    f"resolution {args.resolutions[0]}")
+                    f"resolution {args.resolutions[0]} on {args.video_name}")
         results, bw = client.analyze_video_mpeg(args.video_name,
                                                 args.low_images_path,
                                                 args.high_images_path,
