@@ -307,11 +307,11 @@ class Server:
 
         results_dict = {}
         for region in detection_results.regions:
+            if region.fid not in results_dict:
+                results_dict[region.fid] = []
             # Do not add no obj detections in the dictionary
             if region.label == "no obj":
                 continue
-            if region.fid not in results_dict:
-                results_dict[region.fid] = []
             results_dict[region.fid].append(region)
 
         accepted_results, final_regions_to_query = self.simulate_low_query(
