@@ -208,11 +208,6 @@ if __name__ == "__main__":
               "\tdebug\n\tinfo\n\twarning\n\terror")
         exit()
 
-    if args.debug_mode and not args.estimate_banwidth:
-        print("DDS needs to estimate bandwidth for debugging mode "
-              "switching to estimate_bandwidth")
-        args.estimate_bandwidth = True
-
     if args.estimate_banwidth and not args.high_images_path:
         print("DDS needs location of high resolution images to "
               "calculate true bandwidth estimate")
