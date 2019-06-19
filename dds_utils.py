@@ -448,7 +448,24 @@ def compute_regions_size(results, vid_name, images_direc, resolution,
 
 
 def cleanup(vid_name, debug_mode=False):
-    shutil.rmtree(vid_name + "-cropped")
+    if not os.path.isdir(vid_name + "-cropped"):
+        return
+
+    if not debug_mode:
+        shutil.rmtree(vid_name + "-cropped")
+    else:
+        os.makedirs("debugging", exist_ok=True)
+        leaf_direc = vid_name.split("/")[-1] + "-cropped"
+        # Find latest count
+        idx = 0
+        fnames = [int(x.split("-")[-1])
+                  for x in os.listdir("debugging") if leaf_direc in x]
+        if fnames:
+            idx = int(max(fnames) + 1)
+        shutil.move(vid_name + "-cropped", "debugging")
+        shutil.move(os.path.join("debugging", leaf_direc),
+                    os.path.join("debugging", f"{leaf_direc}-{idx}"),
+                    copy_function=os.replace)
 
 
 def get_size_from_mpeg_results(results_log_path, images_path, resolution):
