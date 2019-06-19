@@ -8,7 +8,8 @@ from dds_utils import (Results, read_results_dict, cleanup,
 class Client:
     """The client of the DDS protocol
        sends images in low resolution and waits for
-       further instructions from the server. And finally receives results"""
+       further instructions from the server. And finally receives results
+       Note: All frame ranges are half open ranges"""
 
     def __init__(self, server_handle, hname, config):
         self.hname = hname
@@ -19,41 +20,35 @@ class Client:
         handler = logging.NullHandler()
         self.logger.addHandler(handler)
 
-        if hname is None:
-            self.logger.info("Client started in simulation mode")
-        else:
-            self.logger.info(f"Client started with server {self.hname}")
+        self.logger.info(f"Client initialized")
 
-    def analyze_video_mpeg(self, video_name, images_path,
-                           raw_images_path=None):
+    def analyze_video_mpeg(self, video_name, images_path, raw_images_path,
+                           batch_size):
         number_of_frames = len(
             [f for f in os.listdir(images_path) if ".mp4" not in f])
-        results = self.server.perform_detection(images_path,
-                                                self.config.low_resolution)
 
-        try:
-            for fname in os.listdir(images_path):
-                if ".mp4" in fname:
-                    total_size = os.path.getsize(
-                        os.path.join(images_path, fname))
-                    break
-        except FileNotFoundError:
-            self.logger.warn("Could not find video file in the "
-                             "images directory. Encoding video "
-                             "using raw images")
-            if raw_images_path is None:
-                self.logger.critical("Path to raw images was not given, "
-                                     "could not calculate size of file "
-                                     "to be sent")
-                exit()
-            else:
-                total_size = compress_and_get_size(images_path, 0,
-                                                   number_of_frames,
-                                                   self.config.low_resolution)
+        final_results = Results()
+        total_size = 0
+        for i in range(0, number_of_frames, batch_size):
+            start_frame = i
+            end_frame = min(number_of_frames, i + 15)
 
-        self.logger.info(f"Detection {len(results)} regions for "
-                         f"{number_of_frames} with a total size of "
-                         f"{total_size / 1024}KB")
+            batch_fnames = sorted([f"str(idx).zfill(10).png"
+                                   for idx in range(start_frame, end_frame)])
+            results = self.server.perform_detection(
+                images_path, self.config.low_resolution, batch_fnames)
+
+            batch_size = compress_and_get_size(
+                images_path,
+                start_frame, end_frame,
+                self.config.low_resolution)
+            total_size += batch_size
+
+            self.logger.info(f"Detection {len(results)} regions for "
+                             f"batch {start_frame} to {end_frame} "
+                             f"with a total size of {batch_size / 1024}KB")
+
+            final_results.combine_results(results)
 
         # Fill gaps in results
         results.fill_gaps(number_of_frames)
