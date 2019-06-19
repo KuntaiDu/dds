@@ -42,6 +42,8 @@ class Client:
                 raw_images_path,
                 start_frame, end_frame,
                 self.config.low_resolution)
+            # Remove encoded video
+            os.remove(os.path.join(raw_images_path, "temp.mp4"))
             total_size += batch_size
 
             self.logger.info(f"Detection {len(results)} regions for "
