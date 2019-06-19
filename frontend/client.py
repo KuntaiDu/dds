@@ -52,12 +52,12 @@ class Client:
                 results, self.config.intersection_threshold)
 
         # Fill gaps in results
-        results.fill_gaps(number_of_frames)
+        final_results.fill_gaps(number_of_frames)
 
         # Write results
-        results.write(video_name)
+        final_results.write(video_name)
 
-        return results, [total_size, 0]
+        return final_results, [total_size, 0]
 
     def analyze_video_simulate(self, video_name, low_images_path,
                                high_images_path, batch_size,
