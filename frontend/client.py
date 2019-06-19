@@ -25,7 +25,7 @@ class Client:
     def analyze_video_mpeg(self, video_name, images_path, raw_images_path,
                            batch_size):
         number_of_frames = len(
-            [f for f in os.listdir(images_path) if ".mp4" not in f])
+            [f for f in os.listdir(images_path) if ".png" in f])
 
         final_results = Results()
         total_size = 0
