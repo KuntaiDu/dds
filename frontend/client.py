@@ -33,7 +33,7 @@ class Client:
             start_frame = i
             end_frame = min(number_of_frames, i + 15)
 
-            batch_fnames = sorted([f"str(idx).zfill(10).png"
+            batch_fnames = sorted([f"{str(idx).zfill(10)}.png"
                                    for idx in range(start_frame, end_frame)])
             results = self.server.perform_detection(
                 images_path, self.config.low_resolution, batch_fnames)
