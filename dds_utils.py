@@ -370,6 +370,9 @@ def compress_and_get_size(images_path, start_id, end_id, resolution):
 def extract_images_from_video(images_path):
     # Remove all images from the vid_name directory
     images_path += "-cropped"
+    if not os.path.isdir(images_path):
+        return
+
     for fname in os.listdir(images_path):
         if "png" not in fname:
             continue
