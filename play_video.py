@@ -53,7 +53,7 @@ def main(args):
                                                     args.debug_mode)
     elif not args.simulate and not args.hname and args.resolutions[-1] != -1:
         mode = "emulation"
-        logger.warn("Running DDS in EMULATION mode on {args.video_name}")
+        logger.warn(f"Running DDS in EMULATION mode on {args.video_name}")
         # Run emulation
         results, bw = client.analyze_video_emulate(args.video_name,
                                                    args.low_images_path,
@@ -199,7 +199,6 @@ if __name__ == "__main__":
         if not args.high_images_path:
             print("Running DDS in emulation mode requires raw/high "
                   "resolution images")
-            args.intersection_threshold = 1.0
             exit()
 
     if not re.match("DEBUG|INFO|WARNING|CRITICAL", args.verbosity.upper()):
@@ -212,6 +211,10 @@ if __name__ == "__main__":
         print("DDS needs location of high resolution images to "
               "calculate true bandwidth estimate")
         exit()
+
+    if not args.simulate and not args.hname and len(args.resolutions) == 2:
+        print("Running in emulation mode")
+        args.intersection_threshold = 1.0
 
     if len(args.resolutions) < 2:
         print("Only one resolution given, running MPEG emulation")
