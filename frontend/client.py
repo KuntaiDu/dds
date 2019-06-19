@@ -48,7 +48,8 @@ class Client:
                              f"batch {start_frame} to {end_frame} "
                              f"with a total size of {batch_size / 1024}KB")
 
-            final_results.combine_results(results)
+            final_results.combine_results(
+                results, self.config.intersection_threshold)
 
         # Fill gaps in results
         results.fill_gaps(number_of_frames)
