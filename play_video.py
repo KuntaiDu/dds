@@ -75,10 +75,10 @@ def main(args):
     low, high = bw
     f1 = 0
     stats = (0, 0, 0)
+    number_of_frames = len(
+        [x for x in os.listdir(args.low_images_path) if "png" in x])
     if args.ground_truth:
         ground_truth_dict = read_results_dict(args.ground_truth)
-        number_of_frames = len(
-            [x for x in os.listdir(args.low_images_path) if "png" in x])
         logger.info("Reading ground truth results complete")
         f1, stats = evaluate(results, ground_truth_dict, args.high_threshold)
         logger.info(f"Got an f1 score of {f1} "
