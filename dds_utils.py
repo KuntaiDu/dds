@@ -358,8 +358,8 @@ def compress_and_get_size(images_path, start_id, end_id, resolution):
     if encoding_result.returncode != 0:
         # Encoding failed
         print("ENCODING FAILED")
-        print(encoding_result.stderr)
         print(encoding_result.stdout)
+        print(encoding_result.stderr)
         exit()
     else:
         size = os.path.getsize(encoded_vid_path)
@@ -392,6 +392,7 @@ def extract_images_from_video(images_path):
 
     if decoding_result.returncode != 0:
         print("DECODING FAILED")
+        print(decoding_result.stdout)
         print(decoding_result.stderr)
         exit()
 
@@ -411,8 +412,8 @@ def crop_and_merge_images(results, vid_name, images_direc):
         height = cached_image[1].shape[0]
         x0 = int(region.x * width)
         y0 = int(region.y * height)
-        x1 = int((region.x + region.w) * width)
-        y1 = int((region.y + region.h) * height)
+        x1 = int((region.w * width) + x0)
+        y1 = int((region.h * height) + y0)
 
         if region.fid not in cropped_images:
             cropped_images[region.fid] = np.zeros_like(cached_image[1])
