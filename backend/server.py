@@ -346,6 +346,7 @@ class Server:
         for r in results.regions:
             if r.label == "no obj":
                 continue
+            r.origin = "high-res"
             results_with_detections_only.append(r)
 
         return results_with_detections_only

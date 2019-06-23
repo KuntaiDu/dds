@@ -426,7 +426,8 @@ def crop_and_merge_images(results, vid_name, images_direc):
     frames_count = len(cropped_images)
     frames = sorted(cropped_images.items(), key=lambda e: e[0])
     for idx, (_, frame) in enumerate(frames):
-        cv.imwrite(os.path.join(vid_name, f"{str(idx).zfill(10)}.png"), frame)
+        cv.imwrite(os.path.join(vid_name, f"{str(idx).zfill(10)}.png"), frame,
+                   [cv.IMWRITE_PNG_COMPRESSION, 0])
 
     return frames_count
 
