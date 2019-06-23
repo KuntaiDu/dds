@@ -39,16 +39,18 @@ class Server:
 
             fid = int(fname.split(".")[0])
 
-            if not detection_results:
-                r = Region(fid, 0, 0, 0, 0, 0.1, "no obj", resolution)
-                final_results.append(r)
-
+            frame_with_no_results = True
             for label, conf, (x, y, w, h) in detection_results:
                 if w * h < self.config.min_object_size:
                     continue
                 r = Region(fid, x, y, w, h, conf, label,
                            resolution, origin="mpeg")
                 final_results.append(r)
+                frame_with_no_results = False
+
+            if frame_with_no_results:
+                final_results.append(
+                    Region(fid, 0, 0, 0, 0, 0.1, "no obj", resolution))
 
         return final_results
 
