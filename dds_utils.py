@@ -367,7 +367,7 @@ def compress_and_get_size(images_path, start_id, end_id, resolution):
     return size
 
 
-def extract_images_from_video(images_path):
+def extract_images_from_video(images_path, req_regions):
     # Remove all images from the vid_name directory
     images_path += "-cropped"
     if not os.path.isdir(images_path):
@@ -389,12 +389,26 @@ def extract_images_from_video(images_path):
                                      stdout=subprocess.PIPE,
                                      stderr=subprocess.PIPE,
                                      universal_newlines=True)
-
     if decoding_result.returncode != 0:
         print("DECODING FAILED")
         print(decoding_result.stdout)
         print(decoding_result.stderr)
         exit()
+
+    fnames = sorted(
+        [os.path.join(images_path, name)
+         for name in os.listdir(images_path) if "png" in name])
+    fids = sorted(list(set([r.fid for r in req_regions.regions])))
+    fids_mapping = zip(fids, fnames)
+
+    fid_image_mapping = []
+    for fid, fname in fids_mapping:
+        image_np = cv.imread(fname)
+        fid_image_mapping.append((fid, image_np))
+        os.remove(fname)
+    for fid, image_np in fid_image_mapping:
+        cv.imwrite(os.path.join(images_path, f"{str(fid).zfill(10)}.png"),
+                   image_np)
 
 
 def crop_and_merge_images(results, vid_name, images_direc):

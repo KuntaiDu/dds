@@ -322,27 +322,16 @@ class Server:
 
         return accepted_results, final_regions_to_query
 
-    def emulate_high_query(self, req_regions, images_direc):
+    def emulate_high_query(self, images_direc):
         images_direc += "-cropped"
 
         if not os.path.isdir(images_direc):
             return Results()
 
-        req_fids = list(set([r.fid for r in req_regions.regions]))
-        req_fids = sorted(req_fids)
-
         fnames = sorted([f for f in os.listdir(images_direc) if "png" in f])
 
         results = self.perform_detection(images_direc,
                                          self.config.high_resolution, fnames)
-
-        # Remap fid in results to fid in requested regions
-        results_fids = sorted(list(set([r.fid for r in results.regions])))
-        fid_to_fid_mapping = {}
-        for idx in range(len(results_fids)):
-            fid_to_fid_mapping[results_fids[idx]] = req_fids[idx]
-        for r in results.regions:
-            r.fid = fid_to_fid_mapping[r.fid]
 
         results_with_detections_only = Results()
         for r in results.regions:

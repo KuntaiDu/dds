@@ -166,6 +166,7 @@ class Client:
 
         total_size = [0, 0]
         total_regions_count = 0
+
         for i in range(0, number_of_frames, batch_size):
             start_fid = i
             end_fid = min(number_of_frames, i + batch_size)
@@ -213,7 +214,7 @@ class Client:
             total_size[1] += regions_size
 
             # Extract images in place of the original images
-            extract_images_from_video(video_name)
+            extract_images_from_video(video_name, req_regions)
 
             # High resolution phase
             r2 = self.server.emulate_high_query(req_regions, video_name)
@@ -222,7 +223,7 @@ class Client:
                 r2, self.config.intersection_threshold)
 
             # Cleanup for the next batch
-            cleanup(video_name, debug_mode)
+            cleanup(video_name, debug_mode, start_fid, end_fid)
 
         # Combine results
         self.logger.info(f"Got {len(low_phase_results)} unique results "
