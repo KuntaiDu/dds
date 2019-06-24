@@ -1,8 +1,9 @@
 import os
+import shutil
 import logging
 import cv2 as cv
 from dds_utils import (Results, Region, calc_intersection_area,
-                       calc_area)
+                       calc_area, merge_images)
 from .object_detector import Detector
 
 
@@ -322,7 +323,7 @@ class Server:
 
         return accepted_results, final_regions_to_query
 
-    def emulate_high_query(self, images_direc):
+    def emulate_high_query(self, images_direc, low_images_direc, req_regions):
         images_direc += "-cropped"
 
         if not os.path.isdir(images_direc):
@@ -330,7 +331,15 @@ class Server:
 
         fnames = sorted([f for f in os.listdir(images_direc) if "png" in f])
 
-        results = self.perform_detection(images_direc,
+        # Make seperate directory and copy all images to that directory
+        merged_images_direc = os.path.join(images_direc, "merged")
+        os.makedirs(merged_images_direc, exist_ok=True)
+        for img in fnames:
+            shutil.copy(os.path.join(images_direc, img), merged_images_direc)
+
+        merge_images(merged_images_direc, low_images_direc, req_regions)
+
+        results = self.perform_detection(merged_images_direc,
                                          self.config.high_resolution, fnames)
 
         results_with_detections_only = Results()
@@ -339,5 +348,7 @@ class Server:
                 continue
             r.origin = "high-res"
             results_with_detections_only.append(r)
+
+        shutil.rmtree(merged_images_direc)
 
         return results_with_detections_only

@@ -217,7 +217,8 @@ class Client:
             extract_images_from_video(video_name, req_regions)
 
             # High resolution phase
-            r2 = self.server.emulate_high_query(video_name)
+            r2 = self.server.emulate_high_query(video_name, low_images_path,
+                                                req_regions)
             self.logger.info(f"Get {len(r2)} results in second phase of batch")
             high_phase_results.combine_results(
                 r2, self.config.intersection_threshold)

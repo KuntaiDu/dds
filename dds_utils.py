@@ -96,6 +96,9 @@ class Results:
             self.add_single_result(result_to_add, threshold)
 
     def add_single_result(self, region_to_add, threshold=0.5):
+        if threshold == 1:
+            self.append(region_to_add)
+            return
         dup_region = self.is_dup(region_to_add, threshold)
         if (not dup_region or
                 ("tracking" in region_to_add.origin and
@@ -105,6 +108,8 @@ class Results:
             final_object = None
             if (("generic" in dup_region.origin and
                  "generic" in region_to_add.origin) or
+                ("mpeg" in dup_region.origin and
+                 "mpeg" in region_to_add.origin) or
                 ("low" in dup_region.origin and
                  "low" in region_to_add.origin) or
                 ("high" in dup_region.origin and
@@ -408,10 +413,10 @@ def extract_images_from_video(images_path, req_regions):
         os.remove(fname)
     for fid, image_np in fid_image_mapping:
         cv.imwrite(os.path.join(images_path, f"{str(fid).zfill(10)}.png"),
-                   image_np)
+                   image_np, [cv.IMWRITE_PNG_COMPRESSION, 0])
 
 
-def crop_and_merge_images(results, vid_name, images_direc):
+def crop_images(results, vid_name, images_direc):
     cached_image = None
     cropped_images = {}
 
@@ -446,6 +451,35 @@ def crop_and_merge_images(results, vid_name, images_direc):
     return frames_count
 
 
+def merge_images(cropped_images_direc, low_images_direc, req_regions):
+    for fname in os.listdir(cropped_images_direc):
+        if "png" not in fname:
+            continue
+        fid = int(fname.split(".")[0])
+
+        # Read high resolution image
+        high_image = cv.imread(os.path.join(cropped_images_direc, fname))
+        width = high_image.shape[1]
+        height = high_image.shape[0]
+
+        # Read low resolution image
+        low_image = cv.imread(os.path.join(low_images_direc, fname))
+        # Enlarge low resolution image
+        enlarged_image = cv.resize(low_image, (width, height), fx=0, fy=0,
+                                   interpolation=cv.INTER_CUBIC)
+        # Put regions in place
+        for r in req_regions.regions:
+            if fid != r.fid:
+                continue
+            x0 = int(r.x * width)
+            y0 = int(r.y * height)
+            x1 = int((r.w * width) + x0)
+            y1 = int((r.h * height) + y0)
+            enlarged_image[y0:y1, x0:x1, :] = high_image[y0:y1, x0:x1, :]
+        cv.imwrite(os.path.join(cropped_images_direc, fname), enlarged_image,
+                   [cv.IMWRITE_PNG_COMPRESSION, 0])
+
+
 def compute_regions_size(results, vid_name, images_direc, resolution,
                          estimate_banwidth=True):
     if len(results) == 0:
@@ -455,7 +489,7 @@ def compute_regions_size(results, vid_name, images_direc, resolution,
         # If not simulation then compress and encode images
         # and get size
         vid_name = f"{vid_name}-cropped"
-        frames_count = crop_and_merge_images(results, vid_name, images_direc)
+        frames_count = crop_images(results, vid_name, images_direc)
         size = compress_and_get_size(vid_name, 0, frames_count, resolution)
     else:
         size = compute_area_of_regions(results)
