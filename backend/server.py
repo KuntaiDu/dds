@@ -36,6 +36,7 @@ class Server:
             image = cv.imread(image_path)
             image = cv.cvtColor(image, cv.COLOR_BGR2RGB)
 
+            self.logger.debug(f"Running detection for {fname}")
             detection_results = self.detector.infer(image)
 
             fid = int(fname.split(".")[0])

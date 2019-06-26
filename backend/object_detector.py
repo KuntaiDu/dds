@@ -1,7 +1,10 @@
+import os
 import logging
 import numpy as np
 import tensorflow as tf
+from tensorflow.compat.v1 import ConfigProto
 from object_detection.utils import ops as utils_ops
+os.environ['TF_CPP_MIN_VLOG_LEVEL'] = '3'
 
 
 class Detector:
@@ -10,22 +13,25 @@ class Detector:
         handler = logging.NullHandler()
         self.logger.addHandler(handler)
 
+        tf.compat.v1.logging.set_verbosity(tf.compat.v1.logging.INFO)
+        config = ConfigProto()
+        config.gpu_options.allow_growth = True
         self.model_path = model_path
         self.d_graph = tf.Graph()
         with self.d_graph.as_default():
-            od_graph_def = tf.GraphDef()
-            with tf.gfile.GFile(self.model_path, 'rb') as fid:
+            od_graph_def = tf.compat.v1.GraphDef()
+            with tf.io.gfile.GFile(self.model_path, 'rb') as fid:
                 serialized_graph = fid.read()
                 od_graph_def.ParseFromString(serialized_graph)
                 tf.import_graph_def(od_graph_def, name='')
-            self.session = tf.Session()
+            self.session = tf.compat.v1.Session(config=config)
 
         self.logger.info("Object detector initialized")
 
     def run_inference_for_single_image(self, image, graph):
         with self.d_graph.as_default():
             # Get handles to input and output tensors
-            ops = tf.get_default_graph().get_operations()
+            ops = tf.compat.v1.get_default_graph().get_operations()
             all_tensor_names = {output.name for op in ops
                                 for output in op.outputs}
             tensor_dict = {}
@@ -36,7 +42,7 @@ class Detector:
             ]:
                 tensor_name = key + ':0'
                 if tensor_name in all_tensor_names:
-                    tensor_dict[key] = (tf.get_default_graph()
+                    tensor_dict[key] = (tf.compat.v1.get_default_graph()
                                         .get_tensor_by_name(tensor_name))
             if 'detection_masks' in tensor_dict:
                 # The following processing is only for single image
@@ -61,7 +67,7 @@ class Detector:
                 # Follow the convention by adding back the batch dimension
                 tensor_dict['detection_masks'] = tf.expand_dims(
                     detection_masks_reframed, 0)
-            image_tensor = (tf.get_default_graph()
+            image_tensor = (tf.compat.v1.get_default_graph()
                             .get_tensor_by_name('image_tensor:0'))
             # Run inference
             feed_dict = {image_tensor: np.expand_dims(image, 0)}
