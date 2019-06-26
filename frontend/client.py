@@ -121,7 +121,7 @@ class Client:
             r2_results.combine_results(r2, self.config.intersection_threshold)
 
             # Perform cleanup for the next phase
-            cleanup(video_name, debug_mode)
+            cleanup(video_name, debug_mode, start_frame_id, end_frame_id)
 
         # Combine results
         self.logger.info(f"Got {len(r1_results)} unique results "
