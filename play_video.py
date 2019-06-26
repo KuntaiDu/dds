@@ -9,6 +9,7 @@ from dds_utils import (ServerConfig, read_results_dict,
 
 
 def main(args):
+    print(args.verbosity.upper())
     logging.basicConfig(format="%(name)s -- %(levelname)s -- %(message)s",
                         level=args.verbosity.upper())
 
@@ -37,7 +38,7 @@ def main(args):
     results, bw = None, None
     if args.simulate:
         mode = "simulation"
-        logger.warn("Running DDS in SIMULATION mode")
+        logger.warning("Running DDS in SIMULATION mode")
         # Run simulation
         logger.info(f"Analyzing video {args.video_name} with low resolution "
                     f"of {args.resolutions[0]} and high resolution of "
@@ -53,7 +54,7 @@ def main(args):
                                                     args.debug_mode)
     elif not args.simulate and not args.hname and args.resolutions[-1] != -1:
         mode = "emulation"
-        logger.warn(f"Running DDS in EMULATION mode on {args.video_name}")
+        logger.warning(f"Running DDS in EMULATION mode on {args.video_name}")
         # Run emulation
         results, bw = client.analyze_video_emulate(args.video_name,
                                                    args.low_images_path,
@@ -63,8 +64,8 @@ def main(args):
                                                    args.debug_mode)
     elif not args.simulate and not args.hname:
         mode = "mpeg"
-        logger.warn(f"Running in MPEG mode with "
-                    f"resolution {args.resolutions[0]} on {args.video_name}")
+        logger.warning(f"Running in MPEG mode with "
+                       f"resolution {args.resolutions[0]} on {args.video_name}")
         results, bw = client.analyze_video_mpeg(args.video_name,
                                                 args.low_images_path,
                                                 args.high_images_path,
