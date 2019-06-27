@@ -347,9 +347,16 @@ class Server:
         for r in results.regions:
             if r.label == "no obj":
                 continue
-            r.origin = "high-res"
             results_with_detections_only.append(r)
+
+        final_results_from_req_regions = Results()
+        for a in results_with_detections_only.regions:
+            for b in req_regions.regions:
+                if calc_intersection_area(a, b) > 0.5 * calc_area(a):
+                    a.origin = "high-res"
+                    final_results_from_req_regions.append(a)
+                    break
 
         shutil.rmtree(merged_images_direc)
 
-        return results_with_detections_only
+        return final_results_from_req_regions
