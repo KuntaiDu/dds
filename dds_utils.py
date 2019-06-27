@@ -538,12 +538,19 @@ def evaluate(results, gt_dict, high_threshold, iou_threshold=0.5):
         for single_result in v:
             if single_result.conf < high_threshold:
                 continue
-            gt_results.append(single_result)
+            gt_results.add_single_result(single_result)
 
     # Save regions count because the regions that match
     # will be removed from the gt_regions to ensure better
     # search speed
     gt_regions_count = len(gt_results)
+
+    deduplicated_results = Results()
+    for r in results.regions:
+        r = r.copy()
+        r.origin = "generic"
+        deduplicated_results.add_single_result(r)
+    results = deduplicated_results
 
     fp = 0.0
     tp = 0.0
@@ -643,15 +650,30 @@ def write_stats(fname, vid_name, bsize, config, f1, stats, bw,
 
 def visualize_regions(results, images_direc, label="debugging"):
     idx = 0
-    while idx < len(results.regions):
-        region = results.regions[idx]
-        key = visualize_single_regions(region, images_direc, label)
+    fids = sorted(list(set([r.fid for r in results.regions])))
+    while idx < len(fids):
+        image_np = cv.imread(
+            os.path.join(images_direc, f"{str(fids[idx]).zfill(10)}.png"))
+        width = image_np.shape[1]
+        height = image_np.shape[0]
+        regions = [r for r in results.regions if r.fid == fids[idx]]
+        for r in regions:
+            x0 = int(r.x * width)
+            y0 = int(r.y * height)
+            x1 = int(r.w * width + x0)
+            y1 = int(r.h * height + y0)
+            cv.rectangle(image_np, (x0, y0), (x1, y1), (0, 0, 255), 2)
+        cv.putText(image_np, f"{fids[idx]}", (10, 20),
+                   cv.FONT_HERSHEY_SIMPLEX, 0.75, (0, 0, 255), 2)
+        cv.imshow(label, image_np)
+        key = cv.waitKey()
         if key & 0xFF == ord("q"):
             break
         elif key & 0xFF == ord("k"):
             idx -= 2
 
         idx += 1
+    cv.destroyAllWindows()
 
 
 def visualize_single_regions(region, images_direc, label="debugging"):
@@ -671,4 +693,5 @@ def visualize_single_regions(region, images_direc, label="debugging"):
                (10, 20), cv.FONT_HERSHEY_SIMPLEX, 0.75, (0, 0, 255), 2)
 
     cv.imshow(label, image_np)
-    return cv.waitKey()
+    cv.waitKey()
+    cv.destroyAllWindows()
