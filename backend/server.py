@@ -362,15 +362,6 @@ class Server:
             results_with_detections_only.add_single_result(
                 r, self.config.intersection_threshold)
 
-        final_results_from_req_regions = Results()
-        for a in results_with_detections_only.regions:
-            for b in req_regions.regions:
-                if calc_intersection_area(a, b) > 0.5 * calc_area(a):
-                    a.origin = "high-res"
-                    final_results_from_req_regions.add_single_result(
-                        a, self.config.intersection_threshold)
-                    break
-
         shutil.rmtree(merged_images_direc)
 
-        return final_results_from_req_regions
+        return results_with_detections_only
