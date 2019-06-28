@@ -3,7 +3,7 @@ import shutil
 import logging
 import cv2 as cv
 from dds_utils import (Results, Region, calc_intersection_area,
-                       calc_area, merge_images)
+                       calc_iou, calc_area, merge_images)
 from .object_detector import Detector
 
 
@@ -56,7 +56,8 @@ class Server:
 
         return final_results
 
-    def track(self, obj_to_track, start_fid, end_fid, images_direc):
+    def track(self, obj_to_track, accepted_results, start_fid, end_fid,
+              images_direc):
         regions = Results()
 
         # Extract extra object properties to add to region
@@ -95,13 +96,31 @@ class Server:
             status, bbox = tracker.update(curr_frame)
             if status:
                 # Add bounding box to areas to be searched
-                x = max(0, bbox[0] / im_width)
-                y = max(0, bbox[1] / im_height)
+                x = bbox[0] / im_width
+                y = bbox[1] / im_height
                 w = bbox[2] / im_width
                 h = bbox[3] / im_height
 
                 region = Region(fid, x, y, w, h, conf, label, resolution,
                                 f"tracking-extension[{start_fid}-{end_fid}]")
+
+                # Skip if object too large
+                if calc_area(region) > self.config.max_object_size:
+                    break
+
+                # Skip if the object has been found in accepted results
+                # no need to check for object labels here
+                in_pred = False
+                relevant_regions = Results()
+                for r in accepted_results.regions:
+                    if r.fid == fid and r.conf > self.config.high_threshold:
+                        relevant_regions.append(r)
+                for r in relevant_regions.regions:
+                    if calc_iou(r, region) > self.config.tracking_threshold:
+                        in_pred = True
+                        break
+                if in_pred:
+                    break
                 regions.append(region)
             else:
                 break
@@ -138,8 +157,9 @@ class Server:
 
             # Forward tracking
             end_frame = min(start_frame + self.config.tracker_length, end_fid)
-            regions_from_tracking = self.track(single_result, start_frame,
-                                               end_frame, images_direc)
+            regions_from_tracking = self.track(single_result, accepted_results,
+                                               start_frame, end_frame,
+                                               images_direc)
             self.logger.debug(f"Found {len(regions_from_tracking)} "
                               f"regions using forward tracking from"
                               f" {start_frame} to {end_frame}")
@@ -147,11 +167,11 @@ class Server:
                 regions_from_tracking, self.config.intersection_threshold)
 
             # Backward tracking
-            end_frame = max(start_fid,
+            end_frame = max(start_fid - 1,
                             start_frame - self.config.tracker_length)
-
-            regions_from_tracking = self.track(single_result, start_frame,
-                                               end_frame, images_direc)
+            regions_from_tracking = self.track(single_result, accepted_results,
+                                               start_frame, end_frame,
+                                               images_direc)
             self.logger.debug(f"Found {len(regions_from_tracking)} "
                               f"regions using backward tracking from"
                               f" {start_frame} to {end_frame}")
@@ -165,21 +185,11 @@ class Server:
                          f"between {start_fid} and {end_fid} with tracking")
 
         final_regions = Results()
-        # Add all non_tracking_regions
+        # Combine all non-tracking and tracking regions
         final_regions.combine_results(
             non_tracking_regions, self.config.intersection_threshold)
-        # Cleanup tracking regions
-        for region in tracking_regions.regions:
-            if region.w * region.h > self.config.max_object_size:
-                # Skip if size too large
-                continue
-            matched_region = accepted_results.is_dup(
-                region, self.config.tracking_threshold)
-            if not matched_region:
-                final_regions.append(region)
-            elif matched_region.conf < self.config.high_threshold:
-                final_regions.append(region)
-            final_regions.label = "-1"
+        final_regions.combine_results(
+            tracking_regions, self.config.intersection_threshold)
 
         # Enlarge regions iff we are running a simulation
         # Enlarging refrence to the object
@@ -316,7 +326,9 @@ class Server:
             # Do not add no obj detections in the dictionary
             if region.label == "no obj":
                 continue
-            results_dict[region.fid].append(region)
+            region.origin = "low-res"
+            results_dict[region.fid].add_single_result(
+                region, self.config.intersection_threshold)
 
         accepted_results, final_regions_to_query = self.simulate_low_query(
             start_fid, end_fid, low_images_path, results_dict,
@@ -347,14 +359,16 @@ class Server:
         for r in results.regions:
             if r.label == "no obj":
                 continue
-            results_with_detections_only.append(r)
+            results_with_detections_only.add_single_result(
+                r, self.config.intersection_threshold)
 
         final_results_from_req_regions = Results()
         for a in results_with_detections_only.regions:
             for b in req_regions.regions:
                 if calc_intersection_area(a, b) > 0.5 * calc_area(a):
                     a.origin = "high-res"
-                    final_results_from_req_regions.append(a)
+                    final_results_from_req_regions.add_single_result(
+                        a, self.config.intersection_threshold)
                     break
 
         shutil.rmtree(merged_images_direc)
