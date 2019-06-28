@@ -431,8 +431,8 @@ def crop_images(results, vid_name, images_direc):
         height = cached_image[1].shape[0]
         x0 = int(region.x * width)
         y0 = int(region.y * height)
-        x1 = int((region.w * width) + x0)
-        y1 = int((region.h * height) + y0)
+        x1 = int((region.w * width) + x0 - 1)
+        y1 = int((region.h * height) + y0 - 1)
 
         if region.fid not in cropped_images:
             cropped_images[region.fid] = np.zeros_like(cached_image[1])
@@ -473,8 +473,8 @@ def merge_images(cropped_images_direc, low_images_direc, req_regions):
                 continue
             x0 = int(r.x * width)
             y0 = int(r.y * height)
-            x1 = int((r.w * width) + x0)
-            y1 = int((r.h * height) + y0)
+            x1 = int((r.w * width) + x0 - 1)
+            y1 = int((r.h * height) + y0 - 1)
             enlarged_image[y0:y1, x0:x1, :] = high_image[y0:y1, x0:x1, :]
         cv.imwrite(os.path.join(cropped_images_direc, fname), enlarged_image,
                    [cv.IMWRITE_PNG_COMPRESSION, 0])
