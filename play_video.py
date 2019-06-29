@@ -27,6 +27,7 @@ def main(args):
                           args.tracker_length, args.boundary,
                           args.intersection_threshold,
                           args.tracking_threshold,
+                          args.suppression_threshold,
                           args.simulate)
     server = Server(config)
 
@@ -161,6 +162,10 @@ if __name__ == "__main__":
                         type=float, default=0.2,
                         help="Size by which to enlarge boundary while "
                         "calculating regions to query")
+    parser.add_argument("--suppression-threshold",
+                        dest="suppression_threshold", type=float, default=0.5,
+                        help="The iou threshold to use during "
+                        "non maximum suppression")
 
     # Simulation settings
     parser.add_argument("--verbosity",

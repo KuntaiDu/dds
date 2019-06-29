@@ -11,7 +11,8 @@ import cv2 as cv
 class ServerConfig:
     def __init__(self, low_res, high_res, h_thres, l_thres, max_obj_size,
                  min_obj_size, tracker_length, boundary,
-                 intersection_threshold, tracking_threshold, simulation):
+                 intersection_threshold, tracking_threshold,
+                 suppression_threshold, simulation):
         self.low_resolution = low_res
         self.high_resolution = high_res
         self.high_threshold = h_thres
@@ -23,6 +24,7 @@ class ServerConfig:
         self.intersection_threshold = intersection_threshold
         self.simulation = simulation
         self.tracking_threshold = tracking_threshold
+        self.suppression_threshold = suppression_threshold
 
 
 class Region:
@@ -124,6 +126,24 @@ class Results:
             dup_region.h = final_object.h
             dup_region.conf = final_object.conf
             dup_region.origin = final_object.origin
+
+    def suppress(self, threshold=0.5):
+        new_regions_list = []
+        while len(self.regions) > 0:
+            max_conf_obj = max(self.regions, key=lambda e: e.conf)
+            new_regions_list.append(max_conf_obj)
+            self.regions.remove(max_conf_obj)
+            objs_to_remove = []
+            for r in self.regions:
+                if r.fid != max_conf_obj.fid:
+                    continue
+                print(calc_iou(r, max_conf_obj))
+                if calc_iou(r, max_conf_obj) > threshold:
+                    objs_to_remove.append(r)
+            for r in objs_to_remove:
+                self.regions.remove(r)
+        self.regions = new_regions_list
+        self.regions.sort(key=lambda e: e.fid)
 
     def append(self, region_to_add):
         self.regions.append(region_to_add)

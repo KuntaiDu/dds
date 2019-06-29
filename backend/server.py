@@ -3,7 +3,8 @@ import shutil
 import logging
 import cv2 as cv
 from dds_utils import (Results, Region, calc_intersection_area,
-                       calc_iou, calc_area, merge_images)
+                       compute_area_of_frame, calc_iou,
+                       calc_area, merge_images)
 from .object_detector import Detector
 
 
@@ -49,6 +50,7 @@ class Server:
                            resolution, origin="mpeg")
                 final_results.append(r)
                 frame_with_no_results = False
+            final_results.suppress(self.config.suppression_threshold)
 
             if frame_with_no_results:
                 final_results.append(
@@ -237,6 +239,7 @@ class Server:
                 single_result.origin = "low-res"
                 results.add_single_result(single_result,
                                           self.config.intersection_threshold)
+        results.suppress(self.config.suppression_threshold)
 
         self.logger.info(f"Getting results with threshold "
                          f"{self.config.low_threshold} and "
