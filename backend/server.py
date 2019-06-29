@@ -365,6 +365,26 @@ class Server:
             results_with_detections_only.add_single_result(
                 r, self.config.intersection_threshold)
 
+        final_results = Results()
+        area_dict = {}
+        for r in results_with_detections_only.regions:
+            # Get frame regions
+            frame_regions = [i for i in req_regions.regions
+                             if i.fid == r.fid]
+            regions_area = 0
+            if r.fid in area_dict:
+                regions_area = area_dict[r.fid]
+            else:
+                regions_area = compute_area_of_frame(frame_regions)
+                area_dict[r.fid] = regions_area
+            # Get area with added result
+            frame_regions += [r]
+            total_area = compute_area_of_frame(frame_regions)
+            extra_area = total_area - regions_area
+            if extra_area < 0.4 * calc_area(r):
+                final_results.append(r)
+        final_results.suppress(0.3)
+
         shutil.rmtree(merged_images_direc)
 
-        return results_with_detections_only
+        return final_results
