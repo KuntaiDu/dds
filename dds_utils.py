@@ -108,17 +108,13 @@ class Results:
             self.regions.append(region_to_add)
         else:
             final_object = None
-            if (("generic" in dup_region.origin and
-                 "generic" in region_to_add.origin) or
-                ("mpeg" in dup_region.origin and
-                 "mpeg" in region_to_add.origin) or
-                ("low" in dup_region.origin and
-                 "low" in region_to_add.origin) or
-                ("high" in dup_region.origin and
-                 "high" in region_to_add.origin)):
+            if dup_region.origin == region_to_add.origin:
                 final_object = max([region_to_add, dup_region],
                                    key=lambda r: r.conf)
-            elif "low" in dup_region.origin and "high" in region_to_add.origin:
+            elif (("low" in dup_region.origin and
+                   "high" in region_to_add.origin) or
+                  ("high" in dup_region.origin and
+                   "low" in region_to_add.origin)):
                 final_object = region_to_add
             dup_region.x = final_object.x
             dup_region.y = final_object.y
@@ -362,22 +358,34 @@ def compute_area_of_regions(results):
     return total_area
 
 
-def compress_and_get_size(images_path, start_id, end_id, resolution):
+def compress_and_get_size(images_path, start_id, end_id, resolution=None):
     number_of_frames = end_id - start_id
-    # Compress using ffmpeg
-    scale = f"scale=trunc(iw*{resolution}/2)*2:trunc(ih*{resolution}/2)*2"
     encoded_vid_path = os.path.join(images_path, "temp.mp4")
-    encoding_result = subprocess.run(["ffmpeg", "-y", "-loglevel", "error",
-                                      "-start_number", str(start_id),
-                                      '-i', f"{images_path}/%010d.png",
-                                      "-vcodec", "libx264", "-g", "15",
-                                      "-keyint_min", "15", "-crf", "23",
-                                      "-pix_fmt", "yuv420p", "-vf", scale,
-                                      "-frames:v", str(number_of_frames),
-                                      encoded_vid_path],
-                                     stdout=subprocess.PIPE,
-                                     stderr=subprocess.PIPE,
-                                     universal_newlines=True)
+    if resolution:
+        # Compress using ffmpeg
+        scale = f"scale=trunc(iw*{resolution}/2)*2:trunc(ih*{resolution}/2)*2"
+        encoding_result = subprocess.run(["ffmpeg", "-y", "-loglevel", "error",
+                                          "-start_number", str(start_id),
+                                          '-i', f"{images_path}/%010d.png",
+                                          "-vcodec", "libx264", "-g", "15",
+                                          "-keyint_min", "15", "-crf", "23",
+                                          "-pix_fmt", "yuv420p", "-vf", scale,
+                                          "-frames:v", str(number_of_frames),
+                                          encoded_vid_path],
+                                         stdout=subprocess.PIPE,
+                                         stderr=subprocess.PIPE,
+                                         universal_newlines=True)
+    else:
+        encoding_result = subprocess.run(["ffmpeg", "-y",
+                                          "-start_number", str(start_id),
+                                          "-i", f"{images_path}/%010d.png",
+                                          "-loglevel", "error",
+                                          "-vcodec", "libx264",
+                                          "-pix_fmt", "yuv420p", "-crf", "23",
+                                          encoded_vid_path],
+                                         stdout=subprocess.PIPE,
+                                         stderr=subprocess.PIPE,
+                                         universal_newlines=True)
 
     size = 0
     if encoding_result.returncode != 0:
@@ -401,17 +409,19 @@ def extract_images_from_video(images_path, req_regions):
             continue
         else:
             os.remove(os.path.join(images_path, fname))
-
     encoded_vid_path = os.path.join(images_path, "temp.mp4")
     extacted_images_path = os.path.join(images_path, "%010d.png")
     decoding_result = subprocess.run(["ffmpeg", "-y",
                                       "-i", encoded_vid_path,
+                                      "-vcodec", "mjpeg",
                                       "-pix_fmt", "yuvj420p",
+                                      "-g", "8", "-q:v", "2",
                                       "-vsync", "0", "-start_number", "0",
                                       extacted_images_path],
                                      stdout=subprocess.PIPE,
                                      stderr=subprocess.PIPE,
                                      universal_newlines=True)
+
     if decoding_result.returncode != 0:
         print("DECODING FAILED")
         print(decoding_result.stdout)
@@ -434,7 +444,7 @@ def extract_images_from_video(images_path, req_regions):
                    image_np, [cv.IMWRITE_PNG_COMPRESSION, 0])
 
 
-def crop_images(results, vid_name, images_direc):
+def crop_images(results, vid_name, images_direc, resolution=None):
     cached_image = None
     cropped_images = {}
 
@@ -463,8 +473,14 @@ def crop_images(results, vid_name, images_direc):
     frames_count = len(cropped_images)
     frames = sorted(cropped_images.items(), key=lambda e: e[0])
     for idx, (_, frame) in enumerate(frames):
-        cv.imwrite(os.path.join(vid_name, f"{str(idx).zfill(10)}.png"), frame,
-                   [cv.IMWRITE_PNG_COMPRESSION, 0])
+        if resolution:
+            w = int(frame.shape[1] * resolution)
+            h = int(frame.shape[0] * resolution)
+            im_to_write = cv.resize(frame, (w, h), fx=0, fy=0,
+                                    interpolation=cv.INTER_CUBIC)
+            frame = im_to_write
+        cv.imwrite(os.path.join(vid_name, f"{str(idx).zfill(10)}.png"),
+                   frame, [cv.IMWRITE_PNG_COMPRESSION, 0])
 
     return frames_count
 
@@ -504,8 +520,9 @@ def compute_regions_size(results, vid_name, images_direc, resolution,
         # If not simulation then compress and encode images
         # and get size
         vid_name = f"{vid_name}-cropped"
-        frames_count = crop_images(results, vid_name, images_direc)
-        size = compress_and_get_size(vid_name, 0, frames_count, resolution)
+        frames_count = crop_images(results, vid_name, images_direc,
+                                   resolution)
+        size = compress_and_get_size(vid_name, 0, frames_count)
     else:
         size = compute_area_of_regions(results)
 
