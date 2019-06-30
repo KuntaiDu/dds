@@ -50,7 +50,6 @@ class Server:
                            resolution, origin="mpeg")
                 final_results.append(r)
                 frame_with_no_results = False
-            final_results.suppress(self.config.suppression_threshold)
 
             if frame_with_no_results:
                 final_results.append(
@@ -58,11 +57,12 @@ class Server:
 
         return final_results
 
-    def track(self, obj_to_track, accepted_results, start_fid, end_fid,
+    def track(self, obj_to_track, accepted_results, frame_range,
               images_direc):
         regions = Results()
 
         # Extract extra object properties to add to region
+        start_fid = obj_to_track.fid
         conf = obj_to_track.conf
         label = obj_to_track.label
         resolution = obj_to_track.resolution
@@ -82,14 +82,6 @@ class Server:
         tracker = cv.TrackerKCF_create()
         tracker.init(init_frame, bbox)
 
-        # Make the frame range
-        frame_range = None
-        if start_fid < end_fid:
-            frame_range = range(start_fid, end_fid)
-        else:
-            frame_range = range(start_fid, end_fid, -1)
-        # Remove the first frame which was used to initialize the tracker
-        frame_range = frame_range[1:]
         for fid in frame_range:
             curr_frame_fname = f"{str(fid).zfill(10)}.png"
             curr_frame_path = os.path.join(images_direc, curr_frame_fname)
@@ -104,7 +96,8 @@ class Server:
                 h = bbox[3] / im_height
 
                 region = Region(fid, x, y, w, h, conf, label, resolution,
-                                f"tracking-extension[{start_fid}-{end_fid}]")
+                                f"tracking-extension"
+                                f"[{min(frame_range)}-{max(frame_range)}]")
 
                 # Skip if object too large
                 if calc_area(region) > self.config.max_object_size:
@@ -153,14 +146,16 @@ class Server:
 
             # Even if the results is not between thresholds we still need to
             # Track it across frames
-            start_frame = single_result.fid
             self.logger.debug(f"Finding regions to query for "
                               f"{single_result}")
 
             # Forward tracking
-            end_frame = min(start_frame + self.config.tracker_length, end_fid)
+            start_frame = single_result.fid + 1
+            end_frame = min(single_result.fid + self.config.tracker_length,
+                            end_fid)
+            frame_range = range(start_frame, end_frame)
             regions_from_tracking = self.track(single_result, accepted_results,
-                                               start_frame, end_frame,
+                                               frame_range,
                                                images_direc)
             self.logger.debug(f"Found {len(regions_from_tracking)} "
                               f"regions using forward tracking from"
@@ -169,10 +164,11 @@ class Server:
                 regions_from_tracking, self.config.intersection_threshold)
 
             # Backward tracking
-            end_frame = max(start_fid - 1,
-                            start_frame - self.config.tracker_length)
+            start_frame = max(single_result.fid - 1, 0)
+            end_frame = max(single_result.fid - self.config.tracker_length, -1)
+            frame_range = range(start_frame, end_frame, -1)
             regions_from_tracking = self.track(single_result, accepted_results,
-                                               start_frame, end_frame,
+                                               frame_range,
                                                images_direc)
             self.logger.debug(f"Found {len(regions_from_tracking)} "
                               f"regions using backward tracking from"
@@ -239,7 +235,6 @@ class Server:
                 single_result.origin = "low-res"
                 results.add_single_result(single_result,
                                           self.config.intersection_threshold)
-        results.suppress(self.config.suppression_threshold)
 
         self.logger.info(f"Getting results with threshold "
                          f"{self.config.low_threshold} and "
@@ -366,6 +361,7 @@ class Server:
         for r in results.regions:
             if r.label == "no obj":
                 continue
+            r.origin = "low-res"
             results_with_detections_only.add_single_result(
                 r, self.config.intersection_threshold)
 
@@ -386,9 +382,9 @@ class Server:
             total_area = compute_area_of_frame(frame_regions)
             extra_area = total_area - regions_area
             if extra_area < 0.4 * calc_area(r):
+                r.origin = "high-res"
                 final_results.append(r)
-        final_results.suppress(0.3)
 
         shutil.rmtree(merged_images_direc)
 
-        return final_results
+        return results_with_detections_only
