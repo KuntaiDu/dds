@@ -137,7 +137,6 @@ class Results:
             for r in self.regions:
                 if r.fid != max_conf_obj.fid:
                     continue
-                print(calc_iou(r, max_conf_obj))
                 if calc_iou(r, max_conf_obj) > threshold:
                     objs_to_remove.append(r)
             for r in objs_to_remove:
