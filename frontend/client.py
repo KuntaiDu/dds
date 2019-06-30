@@ -223,7 +223,7 @@ class Client:
                 high_phase_results.combine_results(
                     r2, self.config.intersection_threshold)
                 final_results.combine_results(
-                    r2.self.config.intersection_threshold)
+                    r2, self.config.intersection_threshold)
 
             # Cleanup for the next batch
             cleanup(video_name, debug_mode, start_fid, end_fid)

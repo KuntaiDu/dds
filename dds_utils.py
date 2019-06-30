@@ -576,17 +576,21 @@ def evaluate(results, gt_dict, high_threshold, iou_threshold=0.5):
             continue
 
         # Find match in gt_results
+        max_iou = -1
         matching_region = None
         for b in gt_results.regions:
             if a.is_same(b, iou_threshold):
-                tp += 1.0
-                matching_region = b
+                iou = calc_iou(a, b)
+                if iou > max_iou:
+                    max_iou = iou
+                    matching_region = b
                 break
 
         if matching_region:
             # Remove region from ground truth if
             # it has already matched with a region in results
             gt_results.remove(matching_region)
+            tp += 1.0
         else:
             fp += 1.0
 
