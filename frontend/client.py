@@ -172,6 +172,16 @@ class Client:
             end_fid = min(number_of_frames, i + batch_size)
             self.logger.info(f"Processing batch from {start_fid} to {end_fid}")
 
+            # Encode frames in batch and get size
+            encoded_batch_video_size = compress_and_get_size(
+                high_images_path, start_fid, end_fid,
+                self.config.low_resolution)
+            self.logger.info(f"{encoded_batch_video_size / 1024}KB sent "
+                             f"in base phase")
+            # Remove encoded video manually
+            os.remove(os.path.join(high_images_path, "temp.mp4"))
+            total_size[0] += encoded_batch_video_size
+
             # Low resolution phase
             r1, req_regions = None, None
             if low_results_dict:
@@ -186,56 +196,43 @@ class Client:
                 r1, req_regions = (
                     self.server.emulate_low_query(start_fid, end_fid,
                                                   low_images_path))
-
             self.logger.info(f"Got {len(r1)} confirmed regions with  "
                              f"{len(req_regions)} regions to query in "
                              f"the first phase")
             low_phase_results.combine_results(
                 r1, self.config.intersection_threshold)
+            final_results.combine_results(
+                r1, self.config.intersection_threshold)
 
             total_regions_count += len(req_regions)
 
-            # Encode frames in batch and get size
-            encoded_batch_video_size = compress_and_get_size(
-                high_images_path, start_fid, end_fid,
-                self.config.low_resolution)
-            # Remove encoded video manually
-            os.remove(os.path.join(high_images_path, "temp.mp4"))
-            total_size[0] += encoded_batch_video_size
+            if len(req_regions) > 0:
+                # Crop, compress and get size
+                regions_size = compute_regions_size(
+                    req_regions, video_name, high_images_path,
+                    self.config.high_resolution, True)
+                self.logger.info(f"Sent {len(req_regions)} regions which have "
+                                 f"{regions_size / 1024}KB in second phase")
+                total_size[1] += regions_size
 
-            # Crop, compress and get size
-            regions_size = compute_regions_size(req_regions, video_name,
-                                                high_images_path,
-                                                self.config.high_resolution,
-                                                True)
-            self.logger.info(f"{encoded_batch_video_size}B sent in base "
-                             f"phase {len(req_regions)} regions have "
-                             f"{regions_size}B total size")
-            total_size[1] += regions_size
-
-            # Extract images in place of the original images
-            extract_images_from_video(video_name, req_regions)
-
-            # High resolution phase
-            r2 = self.server.emulate_high_query(video_name, low_images_path,
-                                                req_regions)
-            self.logger.info(f"Get {len(r2)} results in second phase of batch")
-            high_phase_results.combine_results(
-                r2, self.config.intersection_threshold)
+                # High resolution phase
+                r2 = self.server.emulate_high_query(
+                    video_name, low_images_path, req_regions)
+                self.logger.info(f"Get {len(r2)} results in second phase "
+                                 f"of batch")
+                high_phase_results.combine_results(
+                    r2, self.config.intersection_threshold)
+                final_results.combine_results(
+                    r2.self.config.intersection_threshold)
 
             # Cleanup for the next batch
             cleanup(video_name, debug_mode, start_fid, end_fid)
 
-        # Combine results
         self.logger.info(f"Got {len(low_phase_results)} unique results "
                          f"in base phase")
-        final_results.combine_results(low_phase_results,
-                                      self.config.intersection_threshold)
         self.logger.info(f"Got {len(high_phase_results)} positive "
                          f"identifications out of {total_regions_count} "
                          f"requests in second phase")
-        final_results.combine_results(high_phase_results,
-                                      self.config.intersection_threshold)
 
         # Fill gaps in results
         final_results.fill_gaps(number_of_frames)

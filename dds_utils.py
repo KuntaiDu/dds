@@ -394,8 +394,6 @@ def compress_and_get_size(images_path, start_id, end_id, resolution):
 
 
 def extract_images_from_video(images_path, req_regions):
-    # Remove all images from the vid_name directory
-    images_path += "-cropped"
     if not os.path.isdir(images_path):
         return
 
@@ -503,9 +501,6 @@ def merge_images(cropped_images_direc, low_images_direc, req_regions):
 
 def compute_regions_size(results, vid_name, images_direc, resolution,
                          estimate_banwidth=True):
-    if len(results) == 0:
-        return 0
-
     if estimate_banwidth:
         # If not simulation then compress and encode images
         # and get size

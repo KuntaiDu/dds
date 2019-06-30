@@ -4,7 +4,7 @@ import logging
 import cv2 as cv
 from dds_utils import (Results, Region, calc_intersection_area,
                        compute_area_of_frame, calc_iou,
-                       calc_area, merge_images)
+                       calc_area, merge_images, extract_images_from_video)
 from .object_detector import Detector
 
 
@@ -341,8 +341,12 @@ class Server:
 
     def emulate_high_query(self, images_direc, low_images_direc, req_regions):
         images_direc += "-cropped"
+        # Extract images from encoded video
+        extract_images_from_video(images_direc, req_regions)
 
         if not os.path.isdir(images_direc):
+            self.logger.error("Images directory was not found but the "
+                              "second iteration was call anyway")
             return Results()
 
         fnames = sorted([f for f in os.listdir(images_direc) if "png" in f])
