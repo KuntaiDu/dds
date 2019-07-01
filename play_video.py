@@ -49,6 +49,7 @@ def main(args):
                                                     args.bsize,
                                                     args.high_results_path,
                                                     args.low_results_path,
+                                                    args.enforce_iframes,
                                                     args.mpeg_results_path,
                                                     args.estimate_banwidth,
                                                     args.debug_mode)
@@ -60,16 +61,18 @@ def main(args):
                                                    args.low_images_path,
                                                    args.high_images_path,
                                                    args.bsize,
+                                                   args.enforce_iframes,
                                                    args.low_results_path,
                                                    args.debug_mode)
     elif not args.simulate and not args.hname:
         mode = "mpeg"
-        logger.warning(f"Running in MPEG mode with "
-                       f"resolution {args.resolutions[0]} on {args.video_name}")
+        logger.warning(f"Running in MPEG mode with resolution "
+                       f"{args.resolutions[0]} on {args.video_name}")
         results, bw = client.analyze_video_mpeg(args.video_name,
                                                 args.low_images_path,
                                                 args.high_images_path,
-                                                args.bsize)
+                                                args.bsize,
+                                                args.enforce_iframes)
 
     # Evaluation and writing results
     # Read Groundtruth results
@@ -132,6 +135,10 @@ if __name__ == "__main__":
     parser.add_argument("--batch-size", dest="bsize",
                         type=int, default=15,
                         help="Segment size to use for DDS")
+    parser.add_argument("--enforce-iframes", action="store_true",
+                        dest="enforce_iframes",
+                        help="Flag to whether or not enfore only 1 "
+                        "iframe per batch")
     parser.add_argument("--output-file",
                         dest="outfile", type=str, default="stats",
                         help="The name of the file to which to append "

@@ -358,10 +358,11 @@ def compute_area_of_regions(results):
     return total_area
 
 
-def compress_and_get_size(images_path, start_id, end_id, resolution=None):
+def compress_and_get_size(images_path, start_id, end_id, resolution=None,
+                          enforce_iframes=False):
     number_of_frames = end_id - start_id
     encoded_vid_path = os.path.join(images_path, "temp.mp4")
-    if resolution:
+    if resolution and enforce_iframes:
         # Compress using ffmpeg
         scale = f"scale=trunc(iw*{resolution}/2)*2:trunc(ih*{resolution}/2)*2"
         encoding_result = subprocess.run(["ffmpeg", "-y", "-loglevel", "error",
@@ -515,14 +516,15 @@ def merge_images(cropped_images_direc, low_images_direc, req_regions):
 
 
 def compute_regions_size(results, vid_name, images_direc, resolution,
-                         estimate_banwidth=True):
+                         enforce_iframes, estimate_banwidth=True):
     if estimate_banwidth:
         # If not simulation then compress and encode images
         # and get size
         vid_name = f"{vid_name}-cropped"
         frames_count = crop_images(results, vid_name, images_direc,
                                    resolution)
-        size = compress_and_get_size(vid_name, 0, frames_count)
+        size = compress_and_get_size(vid_name, 0, frames_count,
+                                     enforce_iframes=enforce_iframes)
     else:
         size = compute_area_of_regions(results)
 
