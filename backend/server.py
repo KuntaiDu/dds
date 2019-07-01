@@ -25,7 +25,8 @@ class Server:
 
         self.logger.info("Server started")
 
-    def perform_detection(self, images_direc, resolution, fnames=None):
+    def perform_detection(self, images_direc, resolution, fnames=None,
+                          images=None):
         final_results = Results()
         if fnames is None:
             fnames = sorted(os.listdir(images_direc))
@@ -33,14 +34,17 @@ class Server:
         for fname in fnames:
             if "png" not in fname:
                 continue
-            image_path = os.path.join(images_direc, fname)
-            image = cv.imread(image_path)
+            fid = int(fname.split(".")[0])
+            image = None
+            if images:
+                image = images[fid]
+            else:
+                image_path = os.path.join(images_direc, fname)
+                image = cv.imread(image_path)
             image = cv.cvtColor(image, cv.COLOR_BGR2RGB)
 
             self.logger.debug(f"Running detection for {fname}")
             detection_results = self.detector.infer(image)
-
-            fid = int(fname.split(".")[0])
 
             frame_with_no_results = True
             for label, conf, (x, y, w, h) in detection_results:
@@ -352,10 +356,12 @@ class Server:
         for img in fnames:
             shutil.copy(os.path.join(images_direc, img), merged_images_direc)
 
-        merge_images(merged_images_direc, low_images_direc, req_regions)
+        merged_images = merge_images(merged_images_direc, low_images_direc,
+                                     req_regions)
 
-        results = self.perform_detection(merged_images_direc,
-                                         self.config.high_resolution, fnames)
+        results = self.perform_detection(
+            merged_images_direc, self.config.high_resolution, fnames,
+            merged_images)
 
         results_with_detections_only = Results()
         for r in results.regions:

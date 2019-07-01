@@ -421,7 +421,6 @@ def extract_images_from_video(images_path, req_regions):
                                      stdout=subprocess.PIPE,
                                      stderr=subprocess.PIPE,
                                      universal_newlines=True)
-
     if decoding_result.returncode != 0:
         print("DECODING FAILED")
         print(decoding_result.stdout)
@@ -433,15 +432,13 @@ def extract_images_from_video(images_path, req_regions):
          for name in os.listdir(images_path) if "png" in name])
     fids = sorted(list(set([r.fid for r in req_regions.regions])))
     fids_mapping = zip(fids, fnames)
+    for fname in fnames:
+        # Rename temporarily
+        os.rename(fname, f"{fname}_temp")
 
-    fid_image_mapping = []
     for fid, fname in fids_mapping:
-        image_np = cv.imread(fname)
-        fid_image_mapping.append((fid, image_np))
-        os.remove(fname)
-    for fid, image_np in fid_image_mapping:
-        cv.imwrite(os.path.join(images_path, f"{str(fid).zfill(10)}.png"),
-                   image_np, [cv.IMWRITE_PNG_COMPRESSION, 0])
+        os.rename(os.path.join(f"{fname}_temp"),
+                  os.path.join(images_path, f"{str(fid).zfill(10)}.png"))
 
 
 def crop_images(results, vid_name, images_direc, resolution=None):
@@ -486,6 +483,7 @@ def crop_images(results, vid_name, images_direc, resolution=None):
 
 
 def merge_images(cropped_images_direc, low_images_direc, req_regions):
+    images = {}
     for fname in os.listdir(cropped_images_direc):
         if "png" not in fname:
             continue
@@ -512,6 +510,8 @@ def merge_images(cropped_images_direc, low_images_direc, req_regions):
             enlarged_image[y0:y1, x0:x1, :] = high_image[y0:y1, x0:x1, :]
         cv.imwrite(os.path.join(cropped_images_direc, fname), enlarged_image,
                    [cv.IMWRITE_PNG_COMPRESSION, 0])
+        images[fid] = enlarged_image
+    return images
 
 
 def compute_regions_size(results, vid_name, images_direc, resolution,
