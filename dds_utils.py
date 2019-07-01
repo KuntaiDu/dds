@@ -523,7 +523,7 @@ def compute_regions_size(results, vid_name, images_direc, resolution,
         vid_name = f"{vid_name}-cropped"
         frames_count = crop_images(results, vid_name, images_direc,
                                    resolution)
-        size = compress_and_get_size(vid_name, 0, frames_count,
+        size = compress_and_get_size(vid_name, 0, frames_count, 1,
                                      enforce_iframes=enforce_iframes)
     else:
         size = compute_area_of_regions(results)
