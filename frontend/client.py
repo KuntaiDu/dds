@@ -1,6 +1,7 @@
 import logging
 import os
-from dds_utils import (Results, read_results_dict, cleanup,
+import shutil
+from dds_utils import (Results, read_results_dict, cleanup, Region,
                        compress_and_get_size, compute_regions_size,
                        get_size_from_mpeg_results, extract_images_from_video)
 
@@ -31,19 +32,25 @@ class Client:
         total_size = 0
         for i in range(0, number_of_frames, batch_size):
             start_frame = i
-            end_frame = min(number_of_frames, i + 15)
+            end_frame = min(number_of_frames, i + batch_size)
 
             batch_fnames = sorted([f"{str(idx).zfill(10)}.png"
                                    for idx in range(start_frame, end_frame)])
             results = self.server.perform_detection(
                 images_path, self.config.low_resolution, batch_fnames)
 
-            batch_size = compress_and_get_size(
-                raw_images_path,
-                start_frame, end_frame,
-                self.config.low_resolution, enforce_iframes)
-            # Remove encoded video
-            os.remove(os.path.join(raw_images_path, "temp.mp4"))
+            req_regions = Results()
+            for fid in range(start_frame, end_frame):
+                req_regions.append(
+                    Region(fid, 0, 0, 1, 1, 1.0, 2,
+                           self.config.high_resolution))
+            batch_size = compute_regions_size(
+                req_regions, f"{video_name}-base-phase", raw_images_path,
+                self.config.low_resolution, enforce_iframes, True)
+            self.logger.info(f"{batch_size / 1024}KB sent "
+                             f"in base phase")
+            # Remove encoded video manually
+            shutil.rmtree(f"{video_name}-base-phase-cropped")
             total_size += batch_size
 
             self.logger.info(f"Detection {len(results)} regions for "
@@ -174,13 +181,19 @@ class Client:
             self.logger.info(f"Processing batch from {start_fid} to {end_fid}")
 
             # Encode frames in batch and get size
-            encoded_batch_video_size = compress_and_get_size(
-                high_images_path, start_fid, end_fid,
-                self.config.low_resolution, enforce_iframes)
+            # Make temporary frames to downsize complete frames
+            req_regions = Results()
+            for fid in range(start_fid, end_fid):
+                req_regions.append(
+                    Region(fid, 0, 0, 1, 1, 1.0, 2,
+                           self.config.high_resolution))
+            encoded_batch_video_size = compute_regions_size(
+                req_regions, f"{video_name}-base-phase", high_images_path,
+                self.config.low_resolution, enforce_iframes, True)
             self.logger.info(f"{encoded_batch_video_size / 1024}KB sent "
                              f"in base phase")
             # Remove encoded video manually
-            os.remove(os.path.join(high_images_path, "temp.mp4"))
+            shutil.rmtree(f"{video_name}-base-phase-cropped")
             total_size[0] += encoded_batch_video_size
 
             # Low resolution phase
