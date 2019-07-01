@@ -329,8 +329,7 @@ class Server:
             if region.label == "no obj":
                 continue
             region.origin = "low-res"
-            results_dict[region.fid].add_single_result(
-                region, self.config.intersection_threshold)
+            results_dict[region.fid].append(region)
 
         accepted_results, final_regions_to_query = self.simulate_low_query(
             start_fid, end_fid, low_images_path, results_dict,
