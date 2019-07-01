@@ -36,6 +36,7 @@ class Client:
 
             batch_fnames = sorted([f"{str(idx).zfill(10)}.png"
                                    for idx in range(start_frame, end_frame)])
+
             results = self.server.perform_detection(
                 images_path, self.config.low_resolution, batch_fnames)
 
@@ -43,19 +44,19 @@ class Client:
             for fid in range(start_frame, end_frame):
                 req_regions.append(
                     Region(fid, 0, 0, 1, 1, 1.0, 2,
-                           self.config.high_resolution))
-            batch_size = compute_regions_size(
+                           self.config.low_resolution))
+            batch_video_size = compute_regions_size(
                 req_regions, f"{video_name}-base-phase", raw_images_path,
                 self.config.low_resolution, enforce_iframes, True)
-            self.logger.info(f"{batch_size / 1024}KB sent "
+            self.logger.info(f"{batch_video_size / 1024}KB sent "
                              f"in base phase")
             # Remove encoded video manually
             shutil.rmtree(f"{video_name}-base-phase-cropped")
-            total_size += batch_size
+            total_size += batch_video_size
 
             self.logger.info(f"Detection {len(results)} regions for "
-                             f"batch {start_frame} to {end_frame} "
-                             f"with a total size of {batch_size / 1024}KB")
+                             f"batch {start_frame} to {end_frame} with a "
+                             f"total size of {batch_video_size / 1024}KB")
 
             final_results.combine_results(
                 results, self.config.intersection_threshold)
