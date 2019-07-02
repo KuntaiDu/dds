@@ -169,7 +169,8 @@ class Server:
 
             # Backward tracking
             start_frame = max(single_result.fid - 1, 0)
-            end_frame = max(single_result.fid - self.config.tracker_length, -1)
+            end_frame = max(single_result.fid - self.config.tracker_length,
+                            start_fid - 1)
             frame_range = range(start_frame, end_frame, -1)
             regions_from_tracking = self.track(single_result, accepted_results,
                                                frame_range,
@@ -337,8 +338,8 @@ class Server:
 
         return accepted_results, final_regions_to_query
 
-    def emulate_high_query(self, images_direc, low_images_direc, req_regions):
-        images_direc += "-cropped"
+    def emulate_high_query(self, vid_name, low_images_direc, req_regions):
+        images_direc = vid_name + "-cropped"
         # Extract images from encoded video
         extract_images_from_video(images_direc, req_regions)
 
@@ -370,7 +371,7 @@ class Server:
             results_with_detections_only.add_single_result(
                 r, self.config.intersection_threshold)
 
-        final_results = Results()
+        high_only_results = Results()
         area_dict = {}
         for r in results_with_detections_only.regions:
             # Get frame regions
@@ -388,8 +389,8 @@ class Server:
             extra_area = total_area - regions_area
             if extra_area < 0.4 * calc_area(r):
                 r.origin = "high-res"
-                final_results.append(r)
+                high_only_results.append(r)
 
         shutil.rmtree(merged_images_direc)
 
-        return results_with_detections_only
+        return high_only_results

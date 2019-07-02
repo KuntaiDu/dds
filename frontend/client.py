@@ -2,7 +2,7 @@ import logging
 import os
 import shutil
 from dds_utils import (Results, read_results_dict, cleanup, Region,
-                       compress_and_get_size, compute_regions_size,
+                       compress_and_get_size, compute_regions_size, visualize_regions,
                        get_size_from_mpeg_results, extract_images_from_video)
 
 
@@ -168,6 +168,7 @@ class Client:
         final_results = Results()
         low_phase_results = Results()
         high_phase_results = Results()
+        all_req_regions = Results()
 
         number_of_frames = len(
             [x for x in os.listdir(low_images_path) if "png" in x])
@@ -208,12 +209,16 @@ class Client:
                     self.server.simulate_low_query(start_fid, end_fid,
                                                    low_images_path,
                                                    low_results_dict, False))
+                for r in req_regions.regions:
+                    all_req_regions.append(r)
             else:
                 # If results dict is not present then actually
                 # emulate first phase
                 r1, req_regions = (
                     self.server.emulate_low_query(start_fid, end_fid,
                                                   low_images_path))
+                for r in req_regions.regions:
+                    all_req_regions.append(r)
             self.logger.info(f"Got {len(r1)} confirmed regions with  "
                              f"{len(req_regions)} regions to query in "
                              f"the first phase")
@@ -236,6 +241,7 @@ class Client:
                 # High resolution phase
                 r2 = self.server.emulate_high_query(
                     video_name, low_images_path, req_regions)
+                visualize_regions(r2, high_images_path)
                 self.logger.info(f"Get {len(r2)} results in second phase "
                                  f"of batch")
                 high_phase_results.combine_results(
@@ -257,6 +263,7 @@ class Client:
 
         # Write results
         final_results.write(video_name)
+        all_req_regions.write(f"{video_name}_req_regions")
 
         self.logger.info(f"Writing results for {video_name}")
         self.logger.info(f"{len(final_results)} objects detected "
