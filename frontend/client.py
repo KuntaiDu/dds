@@ -2,7 +2,7 @@ import logging
 import os
 import shutil
 from dds_utils import (Results, read_results_dict, cleanup, Region,
-                       compress_and_get_size, compute_regions_size, visualize_regions,
+                       compress_and_get_size, compute_regions_size,
                        get_size_from_mpeg_results, extract_images_from_video)
 
 
@@ -241,7 +241,6 @@ class Client:
                 # High resolution phase
                 r2 = self.server.emulate_high_query(
                     video_name, low_images_path, req_regions)
-                visualize_regions(r2, high_images_path)
                 self.logger.info(f"Get {len(r2)} results in second phase "
                                  f"of batch")
                 high_phase_results.combine_results(
