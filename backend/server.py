@@ -387,10 +387,10 @@ class Server:
             frame_regions += [r]
             total_area = compute_area_of_frame(frame_regions)
             extra_area = total_area - regions_area
-            if extra_area < 0.4 * calc_area(r):
+            if extra_area < 0.05 * calc_area(r):
                 r.origin = "high-res"
                 high_only_results.append(r)
 
         shutil.rmtree(merged_images_direc)
 
-        return high_only_results
+        return results_with_detections_only
