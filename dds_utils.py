@@ -111,11 +111,12 @@ class Results:
             if dup_region.origin == region_to_add.origin:
                 final_object = max([region_to_add, dup_region],
                                    key=lambda r: r.conf)
-            elif (("low" in dup_region.origin and
-                   "high" in region_to_add.origin) or
-                  ("high" in dup_region.origin and
-                   "low" in region_to_add.origin)):
+            elif ("low" in dup_region.origin and
+                  "high" in region_to_add.origin):
                 final_object = region_to_add
+            elif ("high" in dup_region.origin and
+                  "low" in region_to_add.origin):
+                final_object = dup_region
             dup_region.x = final_object.x
             dup_region.y = final_object.y
             dup_region.w = final_object.w
