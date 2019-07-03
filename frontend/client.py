@@ -262,7 +262,9 @@ class Client:
 
         # Write results
         final_results.write(video_name)
-        all_req_regions.write(f"{video_name}_req_regions")
+        all_req_regions.write(
+            f"{video_name}_req_regions_"
+            f"{self.config.low_threshold}_{self.config.high_threshold}")
 
         self.logger.info(f"Writing results for {video_name}")
         self.logger.info(f"{len(final_results)} objects detected "
