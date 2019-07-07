@@ -393,4 +393,4 @@ class Server:
 
         shutil.rmtree(merged_images_direc)
 
-        return high_only_results
+        return results_with_detections_only
