@@ -687,7 +687,9 @@ def write_stats(fname, vid_name, bsize, config, f1, stats, bw,
                         frames_count, mode)
 
 
-def visualize_regions(results, images_direc, label="debugging"):
+def visualize_regions(results, images_direc,
+                      low_conf=0.0, high_conf=1.0,
+                      label="debugging"):
     idx = 0
     fids = sorted(list(set([r.fid for r in results.regions])))
     while idx < len(fids):
@@ -697,6 +699,8 @@ def visualize_regions(results, images_direc, label="debugging"):
         height = image_np.shape[0]
         regions = [r for r in results.regions if r.fid == fids[idx]]
         for r in regions:
+            if r.conf < low_conf or r.conf > high_conf:
+                continue
             x0 = int(r.x * width)
             y0 = int(r.y * height)
             x1 = int(r.w * width + x0)
