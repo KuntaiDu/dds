@@ -583,7 +583,6 @@ def evaluate(results, gt_dict, high_threshold, iou_threshold=0.5):
     deduplicated_results = Results()
     for r in results.regions:
         r = r.copy()
-        r.origin = "generic"
         deduplicated_results.add_single_result(r)
     results = deduplicated_results
 
