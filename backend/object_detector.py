@@ -98,8 +98,10 @@ class Detector:
             object_class = output_dict['detection_classes'][i]
             if object_class not in [3, 6, 7, 8]:
                 continue
+            if object_class in [3, 6, 7, 8]:
+                object_class = "vehicle"
             ymin, xmin, ymax, xmax = output_dict['detection_boxes'][i]
             confidence = output_dict['detection_scores'][i]
             box_tuple = (xmin, ymin, xmax - xmin, ymax - ymin)
-            results.append((str(object_class), confidence, box_tuple))
+            results.append((object_class, confidence, box_tuple))
         return results
