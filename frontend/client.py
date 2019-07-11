@@ -23,7 +23,7 @@ class Client:
 
         self.logger.info(f"Client initialized")
 
-    def analyze_video_mpeg(self, video_name, images_path, raw_images_path,
+    def analyze_video_mpeg(self, video_name, raw_images_path,
                            batch_size, enforce_iframes):
         number_of_frames = len(
             [f for f in os.listdir(raw_images_path) if ".png" in f])
@@ -162,8 +162,8 @@ class Client:
 
         return results, total_size
 
-    def analyze_video_emulate(self, video_name, low_images_path,
-                              high_images_path, batch_size, enforce_iframes,
+    def analyze_video_emulate(self, video_name, high_images_path,
+                              batch_size, enforce_iframes,
                               low_results_path=None, debug_mode=False):
         final_results = Results()
         low_phase_results = Results()
@@ -171,7 +171,7 @@ class Client:
         all_req_regions = Results()
 
         number_of_frames = len(
-            [x for x in os.listdir(low_images_path) if "png" in x])
+            [x for x in os.listdir(high_images_path) if "png" in x])
 
         low_results_dict = None
         if low_results_path:
@@ -187,24 +187,24 @@ class Client:
 
             # Encode frames in batch and get size
             # Make temporary frames to downsize complete frames
-            req_regions = Results()
+            base_req_regions = Results()
             for fid in range(start_fid, end_fid):
-                req_regions.append(
+                base_req_regions.append(
                     Region(fid, 0, 0, 1, 1, 1.0, 2,
                            self.config.high_resolution))
             encoded_batch_video_size = compute_regions_size(
-                req_regions, f"{video_name}-base-phase", high_images_path,
+                base_req_regions, f"{video_name}-base-phase", high_images_path,
                 self.config.low_resolution, enforce_iframes, True)
             self.logger.info(f"{encoded_batch_video_size / 1024}KB sent "
                              f"in base phase")
-            # Remove encoded video manually
-            shutil.rmtree(f"{video_name}-base-phase-cropped")
             total_size[0] += encoded_batch_video_size
 
             # Low resolution phase
+            low_images_path = f"{video_name}-base-phase-cropped"
             r1, req_regions = None, None
             if low_results_dict:
                 # If results dict is present then just simulate the first phase
+                extract_images_from_video(low_images_path, base_req_regions)
                 r1, req_regions = (
                     self.server.simulate_low_query(start_fid, end_fid,
                                                    low_images_path,
@@ -216,7 +216,8 @@ class Client:
                 # emulate first phase
                 r1, req_regions = (
                     self.server.emulate_low_query(start_fid, end_fid,
-                                                  low_images_path))
+                                                  low_images_path,
+                                                  req_regions))
                 for r in req_regions.regions:
                     all_req_regions.append(r)
             self.logger.info(f"Got {len(r1)} confirmed regions with  "
@@ -250,6 +251,7 @@ class Client:
 
             # Cleanup for the next batch
             cleanup(video_name, debug_mode, start_fid, end_fid)
+            shutil.rmtree(low_images_path)
 
         self.logger.info(f"Got {len(low_phase_results)} unique results "
                          f"in base phase")

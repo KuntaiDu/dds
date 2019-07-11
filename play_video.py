@@ -58,7 +58,6 @@ def main(args):
         logger.warning(f"Running DDS in EMULATION mode on {args.video_name}")
         # Run emulation
         results, bw = client.analyze_video_emulate(args.video_name,
-                                                   args.low_images_path,
                                                    args.high_images_path,
                                                    args.bsize,
                                                    args.enforce_iframes,
@@ -69,7 +68,6 @@ def main(args):
         logger.warning(f"Running in MPEG mode with resolution "
                        f"{args.resolutions[0]} on {args.video_name}")
         results, bw = client.analyze_video_mpeg(args.video_name,
-                                                args.low_images_path,
                                                 args.high_images_path,
                                                 args.bsize,
                                                 args.enforce_iframes)
@@ -80,7 +78,7 @@ def main(args):
     f1 = 0
     stats = (0, 0, 0)
     number_of_frames = len(
-        [x for x in os.listdir(args.low_images_path) if "png" in x])
+        [x for x in os.listdir(args.high_images_path) if "png" in x])
     if args.ground_truth:
         ground_truth_dict = read_results_dict(args.ground_truth)
         logger.info("Reading ground truth results complete")
@@ -105,7 +103,7 @@ if __name__ == "__main__":
                         required=True, type=str,
                         help="Name of video to analyze")
     parser.add_argument("--low-src", dest="low_images_path",
-                        required=True, type=str,
+                        type=str,
                         help="Path of low resolution images of the video")
     parser.add_argument("--high-src", dest="high_images_path",
                         type=str, default=None,
@@ -226,7 +224,14 @@ if __name__ == "__main__":
 
     if not args.simulate and not args.hname and len(args.resolutions) == 2:
         print("Running in emulation mode")
+        if args.low_images_path:
+            print("Discarding low images path")
+            args.low_images_path = None
         args.intersection_threshold = 1.0
+
+    if args.simulate and not args.low_images_path:
+        print("Running simulation require low resolution images")
+        exit()
 
     if len(args.resolutions) < 2:
         print("Only one resolution given, running MPEG emulation")

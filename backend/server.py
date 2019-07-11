@@ -316,7 +316,9 @@ class Server:
 
         return selected_results
 
-    def emulate_low_query(self, start_fid, end_fid, low_images_path):
+    def emulate_low_query(self, start_fid, end_fid, low_images_path,
+                          base_req_regions):
+        extract_images_from_video(low_images_path, base_req_regions)
         batch_fnames = sorted([f"{str(i).zfill(10)}.png"
                                for i in range(start_fid, end_fid)])
         detection_results = self.perform_detection(
