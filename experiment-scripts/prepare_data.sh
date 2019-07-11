@@ -14,14 +14,7 @@ fi
 
 for vid_path in $DATASET_ORIGIN/*
 do
-    vid_name=$(echo ${vid_path} | cut -f5 -d/ | cut -f1 -d.)
-    echo "====================Running ${vid_name}===================="
-    if [ ${vid_name} != "drivers_0_00_00_00" ];
-    then
-        continue
-    fi
-
-
+    vid_name=$(echo ${vid_path} | cut -f4 -d/ | cut -f1 -d.)
     vid_src_path=${SRC}/${vid_name}
 
     if [ ! -d ${vid_src_path} ];
