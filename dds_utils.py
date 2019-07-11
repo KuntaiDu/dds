@@ -454,6 +454,11 @@ def crop_images(results, vid_name, images_direc, resolution=None):
                                       f"{str(region.fid).zfill(10)}.png")
             cached_image = (region.fid, cv.imread(image_path))
 
+        # Just move the complete image
+        if region.x == 0 and region.y == 0 and region.w == 1 and region.h == 1:
+            cropped_images[region.fid] = cached_image[1]
+            continue
+
         width = cached_image[1].shape[1]
         height = cached_image[1].shape[0]
         x0 = int(region.x * width)
