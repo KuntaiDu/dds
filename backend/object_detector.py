@@ -8,6 +8,12 @@ os.environ['TF_CPP_MIN_VLOG_LEVEL'] = '3'
 
 
 class Detector:
+    classes = {
+        "vehicle": [3, 6, 7, 8],
+        "persons": [1, 2, 4],
+        "roadside-objects": [10, 11, 13, 14]
+    }
+
     def __init__(self, model_path='frozen_inference_graph.pb'):
         self.logger = logging.getLogger("object_detector")
         handler = logging.NullHandler()
@@ -96,10 +102,15 @@ class Detector:
         results = []
         for i in range(len(output_dict['detection_boxes'])):
             object_class = output_dict['detection_classes'][i]
-            if object_class not in [3, 6, 7, 8]:
+            relevant_class = False
+            for k in Detector.classes.keys():
+                if object_class in Detector.classes[k]:
+                    object_class = k
+                    relevant_class = True
+                    break
+            if not relevant_class:
                 continue
-            if object_class in [3, 6, 7, 8]:
-                object_class = "vehicle"
+
             ymin, xmin, ymax, xmax = output_dict['detection_boxes'][i]
             confidence = output_dict['detection_scores'][i]
             box_tuple = (xmin, ymin, xmax - xmin, ymax - ymin)
