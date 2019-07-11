@@ -571,8 +571,9 @@ def evaluate(results, gt_dict, high_threshold, iou_threshold=0.5):
     gt_results = Results()
     for k, v in gt_dict.items():
         for single_result in v:
-            if single_result.conf < high_threshold:
+            if single_result.conf < 0.3:
                 continue
+            single_result.conf = high_threshold
             gt_results.add_single_result(single_result)
 
     # Save regions count because the regions that match
@@ -582,7 +583,6 @@ def evaluate(results, gt_dict, high_threshold, iou_threshold=0.5):
 
     deduplicated_results = Results()
     for r in results.regions:
-        r = r.copy()
         deduplicated_results.add_single_result(r)
     results = deduplicated_results
 
