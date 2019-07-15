@@ -49,6 +49,7 @@ def main(args):
                                                     args.bsize,
                                                     args.high_results_path,
                                                     args.low_results_path,
+                                                    args.qp,
                                                     args.enforce_iframes,
                                                     args.mpeg_results_path,
                                                     args.estimate_banwidth,
@@ -60,6 +61,7 @@ def main(args):
         results, bw = client.analyze_video_emulate(args.video_name,
                                                    args.high_images_path,
                                                    args.bsize,
+                                                   args.qp,
                                                    args.enforce_iframes,
                                                    args.low_results_path,
                                                    args.debug_mode)
@@ -70,6 +72,7 @@ def main(args):
         results, bw = client.analyze_video_mpeg(args.video_name,
                                                 args.high_images_path,
                                                 args.bsize,
+                                                args.qp,
                                                 args.enforce_iframes)
 
     # Evaluation and writing results
@@ -92,7 +95,7 @@ def main(args):
 
     # Write evaluation results to file
     write_stats(args.outfile, args.video_name, args.bsize,
-                config, f1, stats, bw, number_of_frames, mode)
+                config, args.qp, f1, stats, bw, number_of_frames, mode)
 
 
 if __name__ == "__main__":
@@ -133,6 +136,9 @@ if __name__ == "__main__":
     parser.add_argument("--batch-size", dest="bsize",
                         type=int, default=15,
                         help="Segment size to use for DDS")
+    parser.add_argument("--qp", dest="qp",
+                        default=None, type=int,
+                        help="QP to be used for encoding video")
     parser.add_argument("--enforce-iframes", action="store_true",
                         dest="enforce_iframes",
                         help="Flag to whether or not enfore only 1 "
@@ -228,6 +234,10 @@ if __name__ == "__main__":
             print("Discarding low images path")
             args.low_images_path = None
         args.intersection_threshold = 1.0
+
+    if args.qp and args.qp < 1 or args.qp > 40:
+        print("QP value must be between 1 and 40 inclusive")
+        exit()
 
     if args.simulate and not args.low_images_path:
         print("Running simulation require low resolution images")

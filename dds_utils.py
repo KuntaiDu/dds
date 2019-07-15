@@ -359,24 +359,43 @@ def compute_area_of_regions(results):
     return total_area
 
 
-def compress_and_get_size(images_path, start_id, end_id, resolution=None,
-                          enforce_iframes=False):
+def compress_and_get_size(images_path, start_id, end_id, qp,
+                          enforce_iframes=False, resolution=None):
     number_of_frames = end_id - start_id
     encoded_vid_path = os.path.join(images_path, "temp.mp4")
     if resolution and enforce_iframes:
-        # Compress using ffmpeg
         scale = f"scale=trunc(iw*{resolution}/2)*2:trunc(ih*{resolution}/2)*2"
-        encoding_result = subprocess.run(["ffmpeg", "-y", "-loglevel", "error",
-                                          "-start_number", str(start_id),
-                                          '-i', f"{images_path}/%010d.png",
-                                          "-vcodec", "libx264", "-g", "15",
-                                          "-keyint_min", "15", "-crf", "23",
-                                          "-pix_fmt", "yuv420p", "-vf", scale,
-                                          "-frames:v", str(number_of_frames),
-                                          encoded_vid_path],
-                                         stdout=subprocess.PIPE,
-                                         stderr=subprocess.PIPE,
-                                         universal_newlines=True)
+        if not qp:
+            encoding_result = subprocess.run(["ffmpeg", "-y",
+                                              "-loglevel", "error",
+                                              "-start_number", str(start_id),
+                                              '-i', f"{images_path}/%010d.png",
+                                              "-vcodec", "libx264", "-g", "15",
+                                              "-keyint_min", "15",
+                                              "-pix_fmt", "yuv420p",
+                                              "-vf", scale,
+                                              "-frames:v",
+                                              str(number_of_frames),
+                                              encoded_vid_path],
+                                             stdout=subprocess.PIPE,
+                                             stderr=subprocess.PIPE,
+                                             universal_newlines=True)
+        else:
+            encoding_result = subprocess.run(["ffmpeg", "-y",
+                                              "-loglevel", "error",
+                                              "-start_number", str(start_id),
+                                              '-i', f"{images_path}/%010d.png",
+                                              "-vcodec", "libx264", "-g", "15",
+                                              "-keyint_min", "15",
+                                              "-qp", f"{qp}",
+                                              "-pix_fmt", "yuv420p",
+                                              "-vf", scale,
+                                              "-frames:v",
+                                              str(number_of_frames),
+                                              encoded_vid_path],
+                                             stdout=subprocess.PIPE,
+                                             stderr=subprocess.PIPE,
+                                             universal_newlines=True)
     else:
         encoding_result = subprocess.run(["ffmpeg", "-y",
                                           "-start_number", str(start_id),
@@ -521,7 +540,7 @@ def merge_images(cropped_images_direc, low_images_direc, req_regions):
     return images
 
 
-def compute_regions_size(results, vid_name, images_direc, resolution,
+def compute_regions_size(results, vid_name, images_direc, resolution, qp,
                          enforce_iframes, estimate_banwidth=True):
     if estimate_banwidth:
         # If not simulation then compress and encode images
@@ -529,8 +548,9 @@ def compute_regions_size(results, vid_name, images_direc, resolution,
         vid_name = f"{vid_name}-cropped"
         frames_count = crop_images(results, vid_name, images_direc,
                                    resolution)
-        size = compress_and_get_size(vid_name, 0, frames_count, 1,
-                                     enforce_iframes=enforce_iframes)
+        size = compress_and_get_size(vid_name, 0, frames_count, qp=qp,
+                                     enforce_iframes=enforce_iframes,
+                                     resolution=1)
     else:
         size = compute_area_of_regions(results)
 
@@ -637,36 +657,36 @@ def evaluate(results, gt_dict, high_threshold, iou_threshold=0.5):
     return f1, (tp, fp, fn)
 
 
-def write_stats_txt(fname, vid_name, bsize, config, f1, stats,
+def write_stats_txt(fname, vid_name, bsize, config, qp, f1, stats,
                     bw, frames_count, mode):
-    header_str = ("video-name,low-resolution,high-resolution,batch-size"
-                  ",low-threshold,high-threshold,"
-                  "tracker-length,TP,FP,FN,F1,"
-                  "low-size,high-size,total-size,frames,mode")
-    results_str = (f"{vid_name},{config.low_resolution},"
-                   f"{config.high_resolution},{bsize},{config.low_threshold},"
-                   f"{config.high_threshold},{config.tracker_length},"
-                   f"{stats[0]},{stats[1]},{stats[2]},"
-                   f"{f1},{bw[0]},{bw[1]},{bw[0] + bw[1]},"
-                   f"{frames_count},{mode}")
+    header = ("video-name,low-resolution,high-resolution,qp,batch-size"
+              ",low-threshold,high-threshold,"
+              "tracker-length,TP,FP,FN,F1,"
+              "low-size,high-size,total-size,frames,mode")
+    stats = (f"{vid_name},{config.low_resolution},"
+             f"{config.high_resolution},{qp},{bsize},{config.low_threshold},"
+             f"{config.high_threshold},{config.tracker_length},"
+             f"{stats[0]},{stats[1]},{stats[2]},"
+             f"{f1},{bw[0]},{bw[1]},{bw[0] + bw[1]},"
+             f"{frames_count},{mode}")
 
     if not os.path.isfile(fname):
-        str_to_write = f"{header_str}\n{results_str}\n"
+        str_to_write = f"{header}\n{stats}\n"
     else:
-        str_to_write = f"{results_str}\n"
+        str_to_write = f"{stats}\n"
 
     with open(fname, "a") as f:
         f.write(str_to_write)
 
 
-def write_stats_csv(fname, vid_name, bsize, config, f1, stats, bw,
+def write_stats_csv(fname, vid_name, bsize, config, qp, f1, stats, bw,
                     frames_count, mode):
-    header = ("video-name,low-resolution,high-resolution,batch-size"
+    header = ("video-name,low-resolution,high-resolution,qp,batch-size"
               ",low-threshold,high-threshold,"
               "tracker-length,TP,FP,FN,F1,"
               "low-size,high-size,total-size,frames,mode").split(",")
     stats = (f"{vid_name},{config.low_resolution},"
-             f"{config.high_resolution},{bsize},{config.low_threshold},"
+             f"{config.high_resolution},{qp},{bsize},{config.low_threshold},"
              f"{config.high_threshold},{config.tracker_length},"
              f"{stats[0]},{stats[1]},{stats[2]},"
              f"{f1},{bw[0]},{bw[1]},{bw[0] + bw[1]},"
@@ -681,13 +701,13 @@ def write_stats_csv(fname, vid_name, bsize, config, f1, stats, bw,
     results_files.close()
 
 
-def write_stats(fname, vid_name, bsize, config, f1, stats, bw,
+def write_stats(fname, vid_name, bsize, config, qp, f1, stats, bw,
                 frames_count, mode):
     if re.match(r"\w+[.]csv\Z", fname):
-        write_stats_csv(fname, vid_name, bsize, config, f1, stats, bw,
+        write_stats_csv(fname, vid_name, bsize, config, qp, f1, stats, bw,
                         frames_count, mode)
     else:
-        write_stats_txt(fname, vid_name, bsize, config, f1, stats, bw,
+        write_stats_txt(fname, vid_name, bsize, config, qp, f1, stats, bw,
                         frames_count, mode)
 
 

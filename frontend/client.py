@@ -24,7 +24,7 @@ class Client:
         self.logger.info(f"Client initialized")
 
     def analyze_video_mpeg(self, video_name, raw_images_path,
-                           batch_size, enforce_iframes):
+                           batch_size, qp, enforce_iframes):
         number_of_frames = len(
             [f for f in os.listdir(raw_images_path) if ".png" in f])
 
@@ -44,7 +44,7 @@ class Client:
                            self.config.low_resolution))
             batch_video_size = compute_regions_size(
                 req_regions, f"{video_name}-base-phase", raw_images_path,
-                self.config.low_resolution, enforce_iframes, True)
+                self.config.low_resolution, qp, enforce_iframes, True)
             self.logger.info(f"{batch_video_size / 1024}KB sent "
                              f"in base phase")
             extract_images_from_video(f"{video_name}-base-phase-cropped",
@@ -74,7 +74,7 @@ class Client:
 
     def analyze_video_simulate(self, video_name, low_images_path,
                                high_images_path, batch_size,
-                               high_results_path, low_results_path,
+                               high_results_path, low_results_path, qp,
                                enforce_iframes, mpeg_results_path=None,
                                estimate_banwidth=False, debug_mode=False,):
         results = Results()
@@ -113,7 +113,7 @@ class Client:
             if not mpeg_results_path and estimate_banwidth:
                 encoded_batch_video_size = compress_and_get_size(
                     high_images_path, start_frame_id, end_frame_id,
-                    self.config.low_resolution, enforce_iframes)
+                    self.config.low_resolution, qp, enforce_iframes)
                 total_size[0] += encoded_batch_video_size
 
             regions_size = compute_regions_size(
@@ -163,7 +163,7 @@ class Client:
         return results, total_size
 
     def analyze_video_emulate(self, video_name, high_images_path,
-                              batch_size, enforce_iframes,
+                              batch_size, qp, enforce_iframes,
                               low_results_path=None, debug_mode=False):
         final_results = Results()
         low_phase_results = Results()
@@ -194,7 +194,7 @@ class Client:
                            self.config.high_resolution))
             encoded_batch_video_size = compute_regions_size(
                 base_req_regions, f"{video_name}-base-phase", high_images_path,
-                self.config.low_resolution, enforce_iframes, True)
+                self.config.low_resolution, qp, enforce_iframes, True)
             self.logger.info(f"{encoded_batch_video_size / 1024}KB sent "
                              f"in base phase")
             total_size[0] += encoded_batch_video_size
@@ -234,7 +234,7 @@ class Client:
                 # Crop, compress and get size
                 regions_size = compute_regions_size(
                     req_regions, video_name, high_images_path,
-                    self.config.high_resolution, enforce_iframes, True)
+                    self.config.high_resolution, qp, enforce_iframes, True)
                 self.logger.info(f"Sent {len(req_regions)} regions which have "
                                  f"{regions_size / 1024}KB in second phase")
                 total_size[1] += regions_size
