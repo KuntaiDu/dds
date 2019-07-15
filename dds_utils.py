@@ -9,12 +9,14 @@ import cv2 as cv
 
 
 class ServerConfig:
-    def __init__(self, low_res, high_res, h_thres, l_thres, max_obj_size,
-                 min_obj_size, tracker_length, boundary,
+    def __init__(self, low_res, high_res, qp, bsize, h_thres, l_thres,
+                 max_obj_size, min_obj_size, tracker_length, boundary,
                  intersection_threshold, tracking_threshold,
                  suppression_threshold, simulation):
         self.low_resolution = low_res
         self.high_resolution = high_res
+        self.qp = qp
+        self.batch_size = bsize
         self.high_threshold = h_thres
         self.low_threshold = l_thres
         self.max_object_size = max_obj_size
@@ -664,9 +666,9 @@ def write_stats_txt(fname, vid_name, bsize, config, qp, f1, stats,
               "tracker-length,TP,FP,FN,F1,"
               "low-size,high-size,total-size,frames,mode")
     stats = (f"{vid_name},{config.low_resolution},"
-             f"{config.high_resolution},{qp},{bsize},{config.low_threshold},"
-             f"{config.high_threshold},{config.tracker_length},"
-             f"{stats[0]},{stats[1]},{stats[2]},"
+             f"{config.high_resolution},{config.qp},{config.batch_size},"
+             f"{config.low_threshold},{config.high_threshold},"
+             f"{config.tracker_length},{stats[0]},{stats[1]},{stats[2]},"
              f"{f1},{bw[0]},{bw[1]},{bw[0] + bw[1]},"
              f"{frames_count},{mode}")
 
@@ -679,16 +681,16 @@ def write_stats_txt(fname, vid_name, bsize, config, qp, f1, stats,
         f.write(str_to_write)
 
 
-def write_stats_csv(fname, vid_name, bsize, config, qp, f1, stats, bw,
+def write_stats_csv(fname, vid_name, config, f1, stats, bw,
                     frames_count, mode):
     header = ("video-name,low-resolution,high-resolution,qp,batch-size"
               ",low-threshold,high-threshold,"
               "tracker-length,TP,FP,FN,F1,"
               "low-size,high-size,total-size,frames,mode").split(",")
     stats = (f"{vid_name},{config.low_resolution},"
-             f"{config.high_resolution},{qp},{bsize},{config.low_threshold},"
-             f"{config.high_threshold},{config.tracker_length},"
-             f"{stats[0]},{stats[1]},{stats[2]},"
+             f"{config.high_resolution},{config.qp},{config.batch_size},"
+             f"{config.low_threshold},{config.high_threshold},"
+             f"{config.tracker_length},{stats[0]},{stats[1]},{stats[2]},"
              f"{f1},{bw[0]},{bw[1]},{bw[0] + bw[1]},"
              f"{frames_count},{mode}").split(",")
 
@@ -701,13 +703,13 @@ def write_stats_csv(fname, vid_name, bsize, config, qp, f1, stats, bw,
     results_files.close()
 
 
-def write_stats(fname, vid_name, bsize, config, qp, f1, stats, bw,
+def write_stats(fname, vid_name, config, f1, stats, bw,
                 frames_count, mode):
     if re.match(r"\w+[.]csv\Z", fname):
-        write_stats_csv(fname, vid_name, bsize, config, qp, f1, stats, bw,
+        write_stats_csv(fname, vid_name, config, f1, stats, bw,
                         frames_count, mode)
     else:
-        write_stats_txt(fname, vid_name, bsize, config, qp, f1, stats, bw,
+        write_stats_txt(fname, vid_name, config, f1, stats, bw,
                         frames_count, mode)
 
 

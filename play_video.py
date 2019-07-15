@@ -22,6 +22,7 @@ def main(args):
                 f"{args.tracker_length}")
 
     config = ServerConfig(args.resolutions[0], args.resolutions[1],
+                          args.qp, args.bsize,
                           args.high_threshold, args.low_threshold,
                           args.max_object_size, args.min_object_size,
                           args.tracker_length, args.boundary,
@@ -46,10 +47,8 @@ def main(args):
         results, bw = client.analyze_video_simulate(args.video_name,
                                                     args.low_images_path,
                                                     args.high_images_path,
-                                                    args.bsize,
                                                     args.high_results_path,
                                                     args.low_results_path,
-                                                    args.qp,
                                                     args.enforce_iframes,
                                                     args.mpeg_results_path,
                                                     args.estimate_banwidth,
@@ -60,8 +59,6 @@ def main(args):
         # Run emulation
         results, bw = client.analyze_video_emulate(args.video_name,
                                                    args.high_images_path,
-                                                   args.bsize,
-                                                   args.qp,
                                                    args.enforce_iframes,
                                                    args.low_results_path,
                                                    args.debug_mode)
@@ -71,8 +68,6 @@ def main(args):
                        f"{args.resolutions[0]} on {args.video_name}")
         results, bw = client.analyze_video_mpeg(args.video_name,
                                                 args.high_images_path,
-                                                args.bsize,
-                                                args.qp,
                                                 args.enforce_iframes)
 
     # Evaluation and writing results
@@ -94,8 +89,8 @@ def main(args):
         logger.info("No groundtruth given skipping evalution")
 
     # Write evaluation results to file
-    write_stats(args.outfile, args.video_name, args.bsize,
-                config, args.qp, f1, stats, bw, number_of_frames, mode)
+    write_stats(args.outfile, args.video_name, config, f1,
+                stats, bw, number_of_frames, mode)
 
 
 if __name__ == "__main__":
