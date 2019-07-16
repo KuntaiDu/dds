@@ -659,7 +659,7 @@ def evaluate(results, gt_dict, high_threshold, iou_threshold=0.5):
     return f1, (tp, fp, fn)
 
 
-def write_stats_txt(fname, vid_name, bsize, config, qp, f1, stats,
+def write_stats_txt(fname, vid_name, config, f1, stats,
                     bw, frames_count, mode):
     header = ("video-name,low-resolution,high-resolution,qp,batch-size"
               ",low-threshold,high-threshold,"
