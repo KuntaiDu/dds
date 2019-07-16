@@ -32,18 +32,27 @@ for video in vid_names:
     res = 1.0
     qp = gt_qps[video]
     vname = f"{video}_gt"
-    os.system(f"bash run_single.sh gt {video} {vname} {qp}")
+    if not os.path.exists(os.path.join("results", vname)):
+        os.system(f"bash run_single.sh gt {video} {vname} {qp}")
+    else:
+        print(f"Skipping {vname}")
 
     # Run MPEG
     for res in mpeg_resolutions:
         _, qps = dds_config[video]
         for qp in qps:
             vname = f"{video}_mpeg_{res}_{qp}"
-            os.system(f"bash run_single.sh mpeg {video} {vname} {qp} {res}")
+            if not os.path.exists(os.path.join("results", vname)):
+                os.system(f"bash run_single.sh mpeg {video} {vname} {qp} {res}")
+            else:
+                print(f"Skipping {vname}")
 
     # Run DDS
     res_config, qps = dds_config[video]
     for high, low in res_config:
         for qp in qps:
             vname = f"{video}_dds_{low}_{high}_{qp}"
-            os.system(f"bash run_single.sh dds {video} {vname} {qp} {low} {high}")
+            if not os.path.exists(os.path.join("results", vname)):
+                os.system(f"bash run_single.sh dds {video} {vname} {qp} {low} {high}")
+            else:
+                print(f"Skipping {vname}")

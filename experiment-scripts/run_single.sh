@@ -38,5 +38,5 @@ then
     python play_video.py --vid-name results/${vname} --high-src ${original_images} \
            --resolutions ${low} ${high} --low-results ${low_results} --output-file ${OUTPUT_FILE} \
            --ground-truth results/${vid_name}_gt --max-size 0.3 \
-           --low-threshold 0.3 --high-threshold 0.8 --enforce-iframes --verbosity info
+           --low-threshold 0.3 --high-threshold 0.8 --enforce-iframes --qp ${qp} --verbosity info
 fi
