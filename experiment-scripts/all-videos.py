@@ -38,8 +38,7 @@ for video in vid_names:
     #             print(f"Skipping {vname}")
 
     # Run DDS
-    res_config, qps = dds_config[video]
-    for low_res, high_res, low_qp, high_qp in res_config:
+    for low_res, high_res, low_qp, high_qp in dds_config[video]:
         for qp in qps:
             vname = f"{video}_dds_{low_res}_{high_res}_{low_qp}_{high_qp}"
             if not os.path.exists(os.path.join("results", vname)):
