@@ -43,7 +43,7 @@ class Client:
                            self.config.low_resolution))
             batch_video_size = compute_regions_size(
                 req_regions, f"{video_name}-base-phase", raw_images_path,
-                self.config.low_resolution, self.config.qp,
+                self.config.low_resolution, self.config.low_qp,
                 enforce_iframes, True)
             self.logger.info(f"{batch_video_size / 1024}KB sent "
                              f"in base phase")
@@ -113,7 +113,7 @@ class Client:
             if not mpeg_results_path and estimate_banwidth:
                 encoded_batch_video_size = compress_and_get_size(
                     high_images_path, start_frame_id, end_frame_id,
-                    self.config.low_resolution, self.config.qp,
+                    self.config.low_resolution, self.config.low_qp,
                     enforce_iframes)
                 total_size[0] += encoded_batch_video_size
 
@@ -195,7 +195,7 @@ class Client:
                            self.config.high_resolution))
             encoded_batch_video_size = compute_regions_size(
                 base_req_regions, f"{video_name}-base-phase", high_images_path,
-                self.config.low_resolution, self.config.qp, enforce_iframes, True)
+                self.config.low_resolution, self.config.low_qp, enforce_iframes, True)
             self.logger.info(f"{encoded_batch_video_size / 1024}KB sent "
                              f"in base phase")
             total_size[0] += encoded_batch_video_size
@@ -235,7 +235,7 @@ class Client:
                 # Crop, compress and get size
                 regions_size = compute_regions_size(
                     req_regions, video_name, high_images_path,
-                    self.config.high_resolution, self.config.qp,
+                    self.config.high_resolution, self.config.high_qp,
                     enforce_iframes, True)
                 self.logger.info(f"Sent {len(req_regions)} regions which have "
                                  f"{regions_size / 1024}KB in second phase")

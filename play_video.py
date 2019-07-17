@@ -22,7 +22,7 @@ def main(args):
                 f"{args.tracker_length}")
 
     config = ServerConfig(args.resolutions[0], args.resolutions[1],
-                          args.qp, args.bsize,
+                          args.qp[0], args.qp[1], args.bsize,
                           args.high_threshold, args.low_threshold,
                           args.max_object_size, args.min_object_size,
                           args.tracker_length, args.boundary,
@@ -131,7 +131,7 @@ if __name__ == "__main__":
     parser.add_argument("--batch-size", dest="bsize",
                         type=int, default=15,
                         help="Segment size to use for DDS")
-    parser.add_argument("--qp", dest="qp",
+    parser.add_argument("--qp", dest="qp", nargs="+",
                         default=None, type=int,
                         help="QP to be used for encoding video")
     parser.add_argument("--enforce-iframes", action="store_true",
@@ -230,10 +230,6 @@ if __name__ == "__main__":
             args.low_images_path = None
         args.intersection_threshold = 1.0
 
-    if args.qp and args.qp < 1 or args.qp > 40:
-        print("QP value must be between 1 and 40 inclusive")
-        exit()
-
     if args.simulate and not args.low_images_path:
         print("Running simulation require low resolution images")
         exit()
@@ -242,6 +238,10 @@ if __name__ == "__main__":
         print("Only one resolution given, running MPEG emulation")
         args.intersection_threshold = 1.0
         args.resolutions.append(-1)
+        if len(args.qps) == 2:
+            args.qps[1] = -1
+        else:
+            args.qps.append(-1)
     else:
         if args.resolutions[1] < args.resolutions[0]:
             print("Given high resolution is less than low resolution, "

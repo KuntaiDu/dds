@@ -9,13 +9,14 @@ import cv2 as cv
 
 
 class ServerConfig:
-    def __init__(self, low_res, high_res, qp, bsize, h_thres, l_thres,
-                 max_obj_size, min_obj_size, tracker_length, boundary,
-                 intersection_threshold, tracking_threshold,
-                 suppression_threshold, simulation):
+    def __init__(self, low_res, high_res, low_qp, high_qp, bsize,
+                 h_thres, l_thres, max_obj_size, min_obj_size,
+                 tracker_length, boundary, intersection_threshold,
+                 tracking_threshold, suppression_threshold, simulation):
         self.low_resolution = low_res
         self.high_resolution = high_res
-        self.qp = qp
+        self.low_qp = low_qp
+        self.high_qp = high_qp
         self.batch_size = bsize
         self.high_threshold = h_thres
         self.low_threshold = l_thres
@@ -661,12 +662,12 @@ def evaluate(results, gt_dict, high_threshold, iou_threshold=0.5):
 
 def write_stats_txt(fname, vid_name, config, f1, stats,
                     bw, frames_count, mode):
-    header = ("video-name,low-resolution,high-resolution,qp,batch-size"
-              ",low-threshold,high-threshold,"
+    header = ("video-name,low-resolution,high-resolution,low_qp,high_qp,"
+              "batch-size,low-threshold,high-threshold,"
               "tracker-length,TP,FP,FN,F1,"
               "low-size,high-size,total-size,frames,mode")
-    stats = (f"{vid_name},{config.low_resolution},"
-             f"{config.high_resolution},{config.qp},{config.batch_size},"
+    stats = (f"{vid_name},{config.low_resolution},{config.high_resolution},"
+             f"{config.low_qp},{config.high_qp},{config.batch_size},"
              f"{config.low_threshold},{config.high_threshold},"
              f"{config.tracker_length},{stats[0]},{stats[1]},{stats[2]},"
              f"{f1},{bw[0]},{bw[1]},{bw[0] + bw[1]},"
@@ -683,12 +684,12 @@ def write_stats_txt(fname, vid_name, config, f1, stats,
 
 def write_stats_csv(fname, vid_name, config, f1, stats, bw,
                     frames_count, mode):
-    header = ("video-name,low-resolution,high-resolution,qp,batch-size"
-              ",low-threshold,high-threshold,"
+    header = ("video-name,low-resolution,high-resolution,low-qp,high-qp,"
+              "batch-size,low-threshold,high-threshold,"
               "tracker-length,TP,FP,FN,F1,"
               "low-size,high-size,total-size,frames,mode").split(",")
-    stats = (f"{vid_name},{config.low_resolution},"
-             f"{config.high_resolution},{config.qp},{config.batch_size},"
+    stats = (f"{vid_name},{config.low_resolution},{config.high_resolution},"
+             f"{config.low_qp},{config.high_qp},{config.batch_size},"
              f"{config.low_threshold},{config.high_threshold},"
              f"{config.tracker_length},{stats[0]},{stats[1]},{stats[2]},"
              f"{f1},{bw[0]},{bw[1]},{bw[0] + bw[1]},"
