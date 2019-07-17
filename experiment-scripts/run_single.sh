@@ -35,7 +35,7 @@ then
     high_qp=$5
     low=$6
     high=$7
-    low_results=results/${video}_mpeg_${low}_${qp}
+    low_results=results/${video}_mpeg_${low}_${low_qp}
     python play_video.py --vid-name results/${vname} --high-src ${original_images} \
            --resolutions ${low} ${high} --low-results ${low_results} --output-file ${OUTPUT_FILE} \
            --ground-truth results/${vid_name}_gt --max-size 0.3 \
