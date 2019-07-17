@@ -30,6 +30,7 @@ then
            --max-size 0.3 --low-threshold 0.3 --high-threshold 0.8 --enforce-iframes --qp ${qp} --verbosity info
 elif [ $mode == "dds" ];
 then
+    vid_name=$2
     vname=$3
     low_qp=$4
     high_qp=$5
@@ -38,6 +39,6 @@ then
     low_results=results/${video}_mpeg_${low}_${low_qp}
     python play_video.py --vid-name results/${vname} --high-src ${original_images} \
            --resolutions ${low} ${high} --low-results ${low_results} --output-file ${OUTPUT_FILE} \
-           --ground-truth results/${vid_name}_gt --max-size 0.3 \
+           --ground-truth results/${video}_gt --max-size 0.3 \
            --low-threshold 0.3 --high-threshold 0.8 --enforce-iframes --qp ${low_qp} ${high_qp} --verbosity info
 fi
