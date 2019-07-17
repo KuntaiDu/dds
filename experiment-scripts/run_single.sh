@@ -31,12 +31,13 @@ then
 elif [ $mode == "dds" ];
 then
     vname=$3
-    qp=$4
-    low=$5
-    high=$6
+    low_qp=$4
+    high_qp=$5
+    low=$6
+    high=$7
     low_results=results/${video}_mpeg_${low}_${qp}
     python play_video.py --vid-name results/${vname} --high-src ${original_images} \
            --resolutions ${low} ${high} --low-results ${low_results} --output-file ${OUTPUT_FILE} \
            --ground-truth results/${vid_name}_gt --max-size 0.3 \
-           --low-threshold 0.3 --high-threshold 0.8 --enforce-iframes --qp ${qp} --verbosity info
+           --low-threshold 0.3 --high-threshold 0.8 --enforce-iframes --qp ${low_qp} ${high_qp} --verbosity info
 fi

@@ -46,7 +46,7 @@ class Client:
                 self.config.low_resolution, self.config.low_qp,
                 enforce_iframes, True)
             self.logger.info(f"{batch_video_size / 1024}KB sent "
-                             f"in base phase")
+                             f"in base phase using {self.config.low_qp}QP")
             extract_images_from_video(f"{video_name}-base-phase-cropped",
                                       req_regions)
 
@@ -195,9 +195,10 @@ class Client:
                            self.config.high_resolution))
             encoded_batch_video_size = compute_regions_size(
                 base_req_regions, f"{video_name}-base-phase", high_images_path,
-                self.config.low_resolution, self.config.low_qp, enforce_iframes, True)
+                self.config.low_resolution, self.config.low_qp,
+                enforce_iframes, True)
             self.logger.info(f"{encoded_batch_video_size / 1024}KB sent "
-                             f"in base phase")
+                             f"in base phase using {self.config.low_qp}")
             total_size[0] += encoded_batch_video_size
 
             # Low resolution phase
@@ -238,7 +239,8 @@ class Client:
                     self.config.high_resolution, self.config.high_qp,
                     enforce_iframes, True)
                 self.logger.info(f"Sent {len(req_regions)} regions which have "
-                                 f"{regions_size / 1024}KB in second phase")
+                                 f"{regions_size / 1024}KB in second phase "
+                                 f"using {self.config.high_qp}")
                 total_size[1] += regions_size
 
                 # High resolution phase
