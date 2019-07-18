@@ -238,10 +238,10 @@ if __name__ == "__main__":
         print("Only one resolution given, running MPEG emulation")
         args.intersection_threshold = 1.0
         args.resolutions.append(-1)
-        if len(args.qps) == 2:
-            args.qps[1] = -1
+        if len(args.qp) == 2:
+            args.qp[1] = -1
         else:
-            args.qps.append(-1)
+            args.qp.append(-1)
     else:
         if args.resolutions[1] < args.resolutions[0]:
             print("Given high resolution is less than low resolution, "
