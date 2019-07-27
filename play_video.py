@@ -159,7 +159,7 @@ if __name__ == "__main__":
                         type=float, default=0.3,
                         help="Maximum size of object as fraction frame")
     parser.add_argument("--min-size", dest="min_object_size",
-                        type=float, default=0.0065,
+                        type=float, default=None,
                         help="Minimum object size to cosider")
     parser.add_argument("--tracker-length", dest="tracker_length",
                         type=int, default=4,

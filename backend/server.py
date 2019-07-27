@@ -48,7 +48,9 @@ class Server:
 
             frame_with_no_results = True
             for label, conf, (x, y, w, h) in detection_results:
-                if w * h < self.config.min_object_size:
+                if (self.config.min_object_size and
+                        w * h < self.config.min_object_size):
+                    print("Continuing")
                     continue
                 r = Region(fid, x, y, w, h, conf, label,
                            resolution, origin="mpeg")
