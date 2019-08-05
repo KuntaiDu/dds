@@ -4,6 +4,9 @@ import networkx
 from networkx.algorithms.components.connected import connected_components
 import os
 from imageio import imread
+import sys
+sys.path.append("../../")
+from dds_utils import calc_iou
 
 def to_graph(l):
     G = networkx.Graph()
@@ -35,21 +38,23 @@ PATH_TO_SAVE_GT_ORIGIN='/data/yuanx/gt_origin'
 PATH_TO_SAVE_GT_MERGE='/data/yuanx/gt_merge'
 PATH_TO_SAVE_LOW_ORIGIN='/data/yuanx/low_origin'
 PATH_TO_SAVE_LOW_MERGE='/data/yuanx/low_merge'
-THRESHOLD_BBOX=0.3
+THRESHOLD_CONF_SCORE=0.3
+THRESHOLD_MERGE=0.3
 
 
-class Region:
-    def __init__(self, fid, x, y, w, h, conf, label, resolution,
-                 origin="generic"):
-        self.fid = fid
-        self.x = x
-        self.y = y
-        self.w = w
-        self.h = h
-        self.conf = conf
-        self.label = label
-        self.resolution = resolution
-        self.origin = origin
+# class Region:
+#     def __init__(self, fid, x, y, w, h, conf, label, resolution,
+#                  origin="generic"):
+#         self.fid = fid
+#         self.x = x
+#         self.y = y
+#         self.w = w
+#         self.h = h
+#         self.conf = conf
+#         self.label = label
+#         self.resolution = resolution
+#         self.origin = origin
+from dds_utils import Region
 
 def read_results_txt_dict(fname):
     """Return a dictionary with fid mapped to
@@ -82,7 +87,7 @@ def read_results_txt_dict(fname):
         if fid not in results_dict:
             results_dict[fid] = []
 
-        if conf > 0.3:
+        if conf > THRESHOLD_CONF_SCORE:
             results_dict[fid].append(single_result)
 
     return results_dict
@@ -109,7 +114,7 @@ def to_edges(l):
 
 def pairwise_overlap_indexing_list(single_result_frame):
     pointwise = [[i] for i in range(len(single_result_frame))]
-    pairwise = [[i,j] for i,x in enumerate(single_result_frame) for j,y in enumerate(single_result_frame) if i != j if overlap(x,y)]
+    pairwise = [[i,j] for i,x in enumerate(single_result_frame) for j,y in enumerate(single_result_frame) if i != j if filter_bbox_group(x,y)]
     return pointwise + pairwise
 
 def simple_merge(single_result_frame, index_to_merge):
@@ -121,16 +126,23 @@ def simple_merge(single_result_frame, index_to_merge):
         top = min(np.array(single_result_frame)[i2np], key=lambda x: x.y)
         right = max(np.array(single_result_frame)[i2np], key=lambda x: x.x+x.w)
         bottom = max(np.array(single_result_frame)[i2np], key=lambda x: x.y+x.h)
-        bbox_large.append([left.x,top.y,right.x + right.w -left.x,bottom.y + bottom.h -top.y])
+        fid,x,y,w,h,conf,label,resolution,origin = left.fid, left.x,top.y,\
+                                                    right.x + right.w -left.x, \
+                                                    bottom.y + bottom.h -top.y,\
+                                                    left.conf, left.label, \
+                                                    left.resolution, left.origin
+        single_merged_region = Region(fid,x,y,w,h,conf,label,resolution,origin)
+        bbox_large.append(single_merged_region)
+        # bbox_large.append([left.x,top.y,right.x + right.w -left.x,bottom.y + bottom.h -top.y])
     return bbox_large
 
-def draw_merged_bbox(frame, bbox_large):
-    for i in range(len(bbox_large)):
-        bbox = tuple(int(np.round(x)) for x in bbox_large[i])
-        frame = cv2.rectangle(frame, (bbox[0],bbox[1]), (bbox[0] + bbox[2], bbox[1] + bbox[3]), (0, 204, 0), 2)
-    return frame
+# def draw_merged_bbox(frame, bbox_large):
+#     for i in range(len(bbox_large)):
+#         bbox = tuple(int(np.round(x)) for x in bbox_large[i])
+#         frame = cv2.rectangle(frame, (bbox[0],bbox[1]), (bbox[0] + bbox[2], bbox[1] + bbox[3]), (0, 204, 0), 2)
+#     return frame
 
-def draw_original_bbox(frame,frame_result):
+def draw_bbox(frame,frame_result):
     for i in range(len(frame_result)):
         bbox = tuple([int(np.round(frame_result[i].x)), int(np.round(frame_result[i].y)), int(np.round(frame_result[i].w)), int(np.round(frame_result[i].h))])
         frame = cv2.rectangle(frame, (bbox[0],bbox[1]), (bbox[0] + bbox[2], bbox[1] + bbox[3]), (0, 204, 0), 2)
@@ -149,14 +161,20 @@ def overlap(bb1, bb2):
     else:
         return True
 
+def filter_bbox_group(bb1, bb2):
+    if calc_iou(bb1, bb2) > THRESHOLD_MERGE and bb1.label == bb2.label:
+        return True
+    else:
+        return False
+
 def main():
-    results_dict = read_results_txt_dict(PATH_TO_LOW_file)
+    results_dict = read_results_txt_dict(PATH_TO_GT_file)
     imglist = sorted(os.listdir(PATH_TO_FRAMES))
     num_images = len(imglist)
     for frame_id, single_result_frame in enumerate(results_dict.values()):
         print(frame_id)
-        if frame_id != 86:
-            continue
+        # if frame_id != 86:
+            # continue
         im_file = os.path.join(PATH_TO_FRAMES, imglist[frame_id])
         # im = cv2.imread(im_file)
         im_in = np.array(imread(im_file))
@@ -167,13 +185,16 @@ def main():
         overlap_graph = to_graph(overlap_pairwise_list)
         grouped_bbox_idx = [c for c in sorted(connected_components(overlap_graph), key=len, reverse=True)]
         # simple merge
+
+        # lagre box is a list of Region Object
+        # Each Region x,y,w,h is NOT normalized
         large_bbox = simple_merge(single_result_frame, grouped_bbox_idx)
-        im2show = draw_merged_bbox(im2show,large_bbox)
+        im2show = draw_bbox(im2show,large_bbox)
 
         # for origin show
         # im2show = draw_original_bbox(im2show, single_result_frame)
 
-        result_path = os.path.join(PATH_TO_SAVE_LOW_MERGE, imglist[frame_id][:-4] + ".jpg")
+        result_path = os.path.join(PATH_TO_SAVE_GT_MERGE, imglist[frame_id][:-4] + ".jpg")
         cv2.imwrite(result_path, im2show)
 
 if __name__== "__main__":
