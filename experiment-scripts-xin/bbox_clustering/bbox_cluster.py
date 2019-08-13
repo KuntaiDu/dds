@@ -38,6 +38,8 @@ PATH_TO_SAVE_GT_ORIGIN='/data/yuanx/gt_origin'
 PATH_TO_SAVE_GT_MERGE='/data/yuanx/gt_merge'
 PATH_TO_SAVE_LOW_ORIGIN='/data/yuanx/low_origin'
 PATH_TO_SAVE_LOW_MERGE='/data/yuanx/low_merge'
+PATH_TO_SAVE_HIGH_MERGE='/data/yuanx/high_merge'
+PATH_TO_HIGH_file='highway_0_00_00_00_mpeg_0.375_39.txt'
 THRESHOLD_CONF_SCORE=0.3
 THRESHOLD_MERGE=0.3
 
@@ -168,7 +170,7 @@ def filter_bbox_group(bb1, bb2):
         return False
 
 def main():
-    results_dict = read_results_txt_dict(PATH_TO_GT_file)
+    results_dict = read_results_txt_dict(PATH_TO_HIGH_file)
     imglist = sorted(os.listdir(PATH_TO_FRAMES))
     num_images = len(imglist)
     for frame_id, single_result_frame in enumerate(results_dict.values()):
@@ -194,7 +196,7 @@ def main():
         # for origin show
         # im2show = draw_original_bbox(im2show, single_result_frame)
 
-        result_path = os.path.join(PATH_TO_SAVE_GT_MERGE, imglist[frame_id][:-4] + ".jpg")
+        result_path = os.path.join(PATH_TO_SAVE_HIGH_MERGE, imglist[frame_id][:-4] + ".jpg")
         cv2.imwrite(result_path, im2show)
 
 if __name__== "__main__":

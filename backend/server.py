@@ -4,7 +4,7 @@ import logging
 import cv2 as cv
 from dds_utils import (Results, Region, calc_intersection_area,
                        compute_area_of_frame, calc_iou,
-                       calc_area, merge_images, extract_images_from_video)
+                       calc_area, merge_images_with_zeros, merge_images, extract_images_from_video)
 from .object_detector import Detector
 
 
@@ -28,6 +28,9 @@ class Server:
     def perform_detection(self, images_direc, resolution, fnames=None,
                           images=None):
         final_results = Results()
+        single_scan_final_results = Results()
+        multi_scan_final_results = []
+
         if fnames is None:
             fnames = sorted(os.listdir(images_direc))
         self.logger.info(f"Running inference on {len(fnames)} frames")
@@ -44,13 +47,16 @@ class Server:
             image = cv.cvtColor(image, cv.COLOR_BGR2RGB)
 
             self.logger.debug(f"Running detection for {fname}")
-            detection_results = self.detector.infer(image)
-
+            detection_results, multi_scan_results, offsets = self.detector.infer(image)
+            # if fid == 5:
+                # import pdb; pdb.set_trace()
+            self.logger.info(f"Running inference on {len(fnames)} frames")
             frame_with_no_results = True
+            print(fid)
             for label, conf, (x, y, w, h) in detection_results:
                 if (self.config.min_object_size and
-                        w * h < self.config.min_object_size):
-                    print("Continuing")
+                        w * h < self.config.min_object_size) or w*h ==0.:
+                    # print("Continuing")
                     continue
                 r = Region(fid, x, y, w, h, conf, label,
                            resolution, origin="mpeg")
@@ -61,7 +67,25 @@ class Server:
                 final_results.append(
                     Region(fid, 0, 0, 0, 0, 0.1, "no obj", resolution))
 
-        return final_results
+            if multi_scan_results and offsets:
+                for single_scan_results in  multi_scan_results:
+                    frame_with_no_results = True
+                    for label, conf, (x, y, w, h) in detection_results:
+                        if (self.config.min_object_size and
+                                w * h < self.config.min_object_size) or w*h ==0.:
+                            # print("Continuing")
+                            continue
+                        r = Region(fid, x, y, w, h, conf, label,
+                                   resolution, origin="mpeg")
+                        single_scan_final_results.append(r)
+                        frame_with_no_results = False
+
+                    if frame_with_no_results:
+                        single_scan_final_results.append(
+                            Region(fid, 0, 0, 0, 0, 0.1, "no obj", resolution))
+        multi_scan_final_results.append(single_scan_final_results)
+
+        return final_results, multi_scan_final_results, offsets
 
     def track(self, obj_to_track, accepted_results, frame_range,
               images_direc):
@@ -248,26 +272,33 @@ class Server:
                          f"{self.config.high_threshold}")
 
         for single_result in results.regions:
-            accepted_results.add_single_result(
-                single_result, self.config.intersection_threshold)
-
-            if single_result.conf < self.config.low_threshold:
-                continue
-
+            # if single_result.conf < :
+                # continue
+            # elif single_result.conf > self.config.high_threshold:
+            #     # these for sure
+            #     accepted_results.add_single_result(
+            #         single_result, self.config.intersection_threshold)
+            # else:
+                # not so sure
+            # if single_result.label == 'no obj':
+            #     continue
+            single_result.x = max(single_result.x-0.02, 0)
+            single_result.y = max(single_result.y-0.02, 0)
+            single_result.w = min(single_result.w+0.04, 1)
+            single_result.h = min(single_result.h+0.04, 1)
+            # single_result.x = 0.
+            # single_result.y = 0.
+            # single_result.w = 1.
+            # single_result.h = 1.
             results_for_regions.add_single_result(
                 single_result, self.config.intersection_threshold)
 
-        regions_to_query = self.get_regions_to_query(start_fid, end_fid,
-                                                     images_direc,
-                                                     results_for_regions,
-                                                     accepted_results,
-                                                     simulation)
-        self.logger.info(f"Returning {len(accepted_results)} "
-                         f"confirmed results and "
-                         f"{len(regions_to_query)} regions")
+        # self.logger.info(f"Returning {len(accepted_results)} "
+        #                  f"confirmed results and "
+        #                  f"{len(regions_to_query)} regions")
 
-        # Return results and regions
-        return accepted_results, regions_to_query
+        # all the regions for query
+        return results_for_regions
 
     def simulate_high_query(self, req_regions, high_results_dict):
         high_res_results = Results()
@@ -360,41 +391,39 @@ class Server:
         for img in fnames:
             shutil.copy(os.path.join(images_direc, img), merged_images_direc)
 
-        merged_images = merge_images(merged_images_direc, low_images_direc,
-                                     req_regions)
-
+        merged_images = merge_images(merged_images_direc, low_images_direc, req_regions)
         results = self.perform_detection(
             merged_images_direc, self.config.high_resolution, fnames,
             merged_images)
 
         results_with_detections_only = Results()
         for r in results.regions:
-            if r.label == "no obj":
-                continue
-            r.origin = "low-res"
+            # if r.label == "no obj" or r.w * r.h == 0.:
+            #     continue
+            # r.origin = "high-res"
             results_with_detections_only.add_single_result(
                 r, self.config.intersection_threshold)
 
-        high_only_results = Results()
-        area_dict = {}
-        for r in results_with_detections_only.regions:
-            # Get frame regions
-            frame_regions = [i for i in req_regions.regions
-                             if i.fid == r.fid]
-            regions_area = 0
-            if r.fid in area_dict:
-                regions_area = area_dict[r.fid]
-            else:
-                regions_area = compute_area_of_frame(frame_regions)
-                area_dict[r.fid] = regions_area
-            # Get area with added result
-            frame_regions += [r]
-            total_area = compute_area_of_frame(frame_regions)
-            extra_area = total_area - regions_area
-            if extra_area < 0.05 * calc_area(r):
-                r.origin = "high-res"
-                high_only_results.append(r)
-
+        # high_only_results = Results()
+        # area_dict = {}
+        # for r in results_with_detections_only.regions:
+        #     # Get frame regions
+        #     frame_regions = [i for i in req_regions.regions
+        #                      if i.fid == r.fid]
+        #     regions_area = 0
+        #     if r.fid in area_dict:
+        #         regions_area = area_dict[r.fid]
+        #     else:
+        #         regions_area = compute_area_of_frame(frame_regions)
+        #         area_dict[r.fid] = regions_area
+        #     # Get area with added result
+        #     frame_regions += [r]
+        #     total_area = compute_area_of_frame(frame_regions)
+        #     extra_area = total_area - regions_area
+        #     if extra_area < 0.05 * calc_area(r):
+        #         r.origin = "high-res"
+        #         high_only_results.append(r)
+        import pdb; pdb.set_trace()
         shutil.rmtree(merged_images_direc)
 
-        return high_only_results
+        return results_with_detections_only

@@ -71,30 +71,23 @@ class Detector:
             # filter the output_dict
             # y_min, x_min, y_max, x_max
             # normalize proposal boxes
-            # RPN_box_tensor = tf.compat.v1.convert_to_tensor(output_dict[key_tensor_map['RPN_box_no_normalized']])
-            # RPN_shape_tensor = tf.compat.v1.convert_to_tensor(output_dict[key_tensor_map['Resized_shape']])
-            # RPN_box_tensor = tf.expand_dims(RPN_box_tensor, 0)
-            # RPN_shape_tensor = tf.expand_dims(RPN_shape_tensor, 0)
+            RPN_box_tensor = tf.compat.v1.convert_to_tensor(output_dict[key_tensor_map['RPN_box_no_normalized']])
+            RPN_shape_tensor = tf.compat.v1.convert_to_tensor(output_dict[key_tensor_map['Resized_shape']])
+            RPN_box_tensor = tf.expand_dims(RPN_box_tensor, 0)
+            RPN_shape_tensor = tf.expand_dims(RPN_shape_tensor, 0)
 
-            # THIS is TOO SLOW!!!
-            # def normalize_boxes(args):
-            #     proposal_boxes_per_image = args[0]
-            #     image_shape = args[1]
-            #     normalized_boxes_per_image = box_list_ops.to_normalized_coordinates(
-            #         box_list.BoxList(proposal_boxes_per_image), image_shape[0],
-            #         image_shape[1], check_range=False).get()
-            #     return normalized_boxes_per_image
-            #
-            # normalized_proposal_boxes = shape_utils.static_or_dynamic_map_fn(
-            #     normalize_boxes, elems=[RPN_box_tensor, RPN_shape_tensor], \
-            #                             dtype=tf.float32)
+            def normalize_boxes(args):
+                proposal_boxes_per_image = args[0]
+                image_shape = args[1]
+                normalized_boxes_per_image = box_list_ops.to_normalized_coordinates(
+                    box_list.BoxList(proposal_boxes_per_image), image_shape[0],
+                    image_shape[1], check_range=False).get()
+                return normalized_boxes_per_image
 
-            # output_dict['RPN_box_normalized'] = tf.compat.v1.squeeze(normalized_proposal_boxes).eval(session = self.session)
-            w = output_dict[key_tensor_map['Resized_shape']][1]
-            h = output_dict[key_tensor_map['Resized_shape']][0]
-            input_shape_array = np.array([h, w, h, w])
-            # import pdb; pdb.set_trace()
-            output_dict['RPN_box_normalized'] = output_dict[key_tensor_map['RPN_box_no_normalized']]/input_shape_array[np.newaxis,:]
+            normalized_proposal_boxes = shape_utils.static_or_dynamic_map_fn(
+                normalize_boxes, elems=[RPN_box_tensor, RPN_shape_tensor], \
+                                        dtype=tf.float32)
+            output_dict['RPN_box_normalized'] = tf.compat.v1.squeeze(normalized_proposal_boxes).eval(session = self.session)
             output_dict['RPN_score'] = output_dict[key_tensor_map['RPN_score']]
             # inds = output_dict[key_tensor_map['RPN_score']] > 0.9
 
@@ -128,56 +121,50 @@ def main():
     # initial detector
     detector = Detector(PATH_TO_FROZEN_GRAPH)
     # ALL for (0.375, 40)
-    qp = 40
-    scale = 0.5
-    VIDEO_NAME = 'out10fps720p'
-    PATH_TO_GT_FILE = f'../results/{VIDEO_NAME}_gt'
-    PATH_TO_FINAL = f'../results/{VIDEO_NAME}_mpeg_{scale}_{qp}'
+    PATH_TO_GT_FILE = '/home/yuanx/dds-2.0/merged-bboxes/highway_0_00_00_00_gt'
+    PATH_TO_FINAL = '/home/yuanx/dds-2.0/merged-bboxes/highway_0_00_00_00_mpeg_0.375_40'
 
-    PATH_TO_TEST_IMAGES_DIR = f'/data/yuanx/{VIDEO_NAME}_{scale}_{qp}' #0.375, 40
-    PATH_TO_SAVE_IMAGES_DIR = '/data/yuanx/out10fps720p'
-    PATH_TO_ORIGIN_IMAGES_DIR = '/data/yuanx/new_dataset/out10fps720p/src/'
+    PATH_TO_TEST_IMAGES_DIR = '/data/yuanx/low480_40' #0.375, 40
+    PATH_TO_SAVE_IMAGES_DIR = '/data/yuanx/tf_rpn_vs_fs_480_40_thresh0.7'
+    PATH_TO_ORIGIN_IMAGES_DIR = '/data/yuanx/origin'
 
-    TEST_IMAGE_PATHS = [ os.path.join(PATH_TO_TEST_IMAGES_DIR, '{:010d}.png'.format(i)) for i in range(0, 661) ]
-    ORIGIN_IMAGE_PATH = [os.path.join(PATH_TO_ORIGIN_IMAGES_DIR, '{:010d}.png'.format(i)) for i in range(0, 661)]
-    SAVE_IMAGE_PATHS = [ os.path.join(PATH_TO_SAVE_IMAGES_DIR, '{:010d}.jpg'.format(i)) for i in range(0, 661) ]
-    VIS = True
+    TEST_IMAGE_PATHS = [ os.path.join(PATH_TO_TEST_IMAGES_DIR, '{:010d}.png'.format(i)) for i in range(0, 320) ]
+    ORIGIN_IMAGE_PATH = [os.path.join(PATH_TO_ORIGIN_IMAGES_DIR, '{:010d}.png'.format(i)) for i in range(0, 320)]
+    SAVE_IMAGE_PATHS = [ os.path.join(PATH_TO_SAVE_IMAGES_DIR, '{:010d}.jpg'.format(i)) for i in range(0, 320) ]
+    VIS = False
 
     result_dict_gt = read_results_txt_dict(PATH_TO_GT_FILE)
     result_dict_rcnn = read_results_txt_dict(PATH_TO_FINAL)
-    # dirty fix
-
     # Size, in inches, of the output images.
-    final_results = Results()
-    RCNN_results = Results()
     for idx, image_path in enumerate(TEST_IMAGE_PATHS):
-        # print(idx)
+        print(idx)
         image = cv2.imread(image_path)
         image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+        image_origin = cv2.imread(ORIGIN_IMAGE_PATH[idx])
         # rpn detection, return a dict
         result_rpn = detector.run_inference_rpn_for_single_image(image, detector.d_graph)
         # read_gt
 
-        # if VIS:
+        if VIS
         # draw gt, threshold=0.3
-        # for res in result_dict_gt[idx]:
-        #     x = int(np.round(res.x * image_origin.shape[1]))
-        #     y = int(np.round(res.y * image_origin.shape[0]))
-        #     w = int(np.round(res.w * image_origin.shape[1]))
-        #     h = int(np.round(res.h * image_origin.shape[0]))
-        #     score = res.conf
-        #     # if score > 0.3 and res.w*res.h <0.04:
-        #     # image_origin = cv2.rectangle(image_origin, (x,y), (x+w, y+h), (0, 255, 0), 1)
-        #         # cv2.putText(im, '%.3f' % (score), (bbox[0], bbox[1] + 15), cv2.FONT_HERSHEY_PLAIN,
-        #         #             1.0, (0, 0, 255), thickness=1)
-        # for res in result_dict_rcnn[idx]:
-        #     x = int(np.round(res.x * image_origin.shape[1]))
-        #     y = int(np.round(res.y * image_origin.shape[0]))
-        #     w = int(np.round(res.w * image_origin.shape[1]))
-        #     h = int(np.round(res.h * image_origin.shape[0]))
-        #     score = res.conf
+        for res in result_dict_gt[idx]:
+            x = int(np.round(res.x * image_origin.shape[1]))
+            y = int(np.round(res.y * image_origin.shape[0]))
+            w = int(np.round(res.w * image_origin.shape[1]))
+            h = int(np.round(res.h * image_origin.shape[0]))
+            score = res.conf
+            # if score > 0.3 and res.w*res.h <0.04:
+            image_origin = cv2.rectangle(image_origin, (x,y), (x+w, y+h), (0, 255, 0), 1)
+                # cv2.putText(im, '%.3f' % (score), (bbox[0], bbox[1] + 15), cv2.FONT_HERSHEY_PLAIN,
+                #             1.0, (0, 0, 255), thickness=1)
+        for res in result_dict_rcnn[idx]:
+            x = int(np.round(res.x * image_origin.shape[1]))
+            y = int(np.round(res.y * image_origin.shape[0]))
+            w = int(np.round(res.w * image_origin.shape[1]))
+            h = int(np.round(res.h * image_origin.shape[0]))
+            score = res.conf
             # if score > 0.3 and res.w*res.h < 0.04:
-            # image_origin = cv2.rectangle(image_origin, (x,y), (x+w, y+h), (255, 0 , 0), 1)
+            image_origin = cv2.rectangle(image_origin, (x,y), (x+w, y+h), (255, 0 , 0), 1)
                 # cv2.putText(im, '%.3f' % (score), (bbox[0], bbox[1] + 15), cv2.FONT_HERSHEY_PLAIN,
                 #             1.0, (0, 0, 255), thickness=1)
 
@@ -185,75 +172,35 @@ def main():
         #     res[]
         # y_min, x_min, y_max, x_max
         RPN_Regions = []
-        frame_with_no_results = True
         for idx_region, region in enumerate(result_rpn['RPN_box_normalized']):
             x = region[1]
             y = region[0]
             w = region[3] - region[1]
             h = region[2] - region[0]
             conf = result_rpn['RPN_score'][idx_region]
-            if conf < 0.5 or w*h > 0.04 or w*h == 0.:
+            if conf < 0.7 or w*h > 0.04:
                 continue
-            print((idx, idx_region))
             single_region = Region(idx, x, y, w, h, conf, 'object',
-                                   scale, 'generic')
+                                   0.375, 'generic')
             RPN_Regions.append(single_region)
-            frame_with_no_results = False
 
-        if frame_with_no_results:
-            RPN_Regions.append(
-                Region(idx, 0, 0, 0, 0, 0.1, "no obj", scale))
-        '''
         overlap_pairwise_list = pairwise_overlap_indexing_list(
             RPN_Regions, 0.3)
         overlap_graph = to_graph(overlap_pairwise_list)
         grouped_bbox_idx = [c for c in sorted(
             connected_components(overlap_graph), key=len, reverse=True)]
         merged_RPN_regions = simple_merge(RPN_Regions, grouped_bbox_idx)
-        '''
-        if VIS:
-            image_origin = cv2.imread(ORIGIN_IMAGE_PATH[idx])
-            draw_this_frame=False
-            for res in RPN_Regions:
-                x = int(np.round(res.x * image_origin.shape[1]))
-                y = int(np.round(res.y * image_origin.shape[0]))
-                w = int(np.round(res.w * image_origin.shape[1]))
-                h = int(np.round(res.h * image_origin.shape[0]))
-                score = res.conf
-                if w*h == 0:
-                    continue
-                image_origin = cv2.rectangle(image_origin, (x,y), (x+w, y+h), (0, 0 , 255), 1)
-                draw_this_frame = True
 
-            if draw_this_frame:
-                cv2.imwrite(SAVE_IMAGE_PATHS[idx], image_origin)
+        for res in merged_RPN_regions:
+            x = int(np.round(res.x * image_origin.shape[1]))
+            y = int(np.round(res.y * image_origin.shape[0]))
+            w = int(np.round(res.w * image_origin.shape[1]))
+            h = int(np.round(res.h * image_origin.shape[0]))
+            score = res.conf
 
-        # combine results_RPN and results_FastRCNN
-        # do box merging & save
-        # Fill gaps in results
-        # for r in merged_RPN_regions:
-        #     final_results.append(r)
+            image_origin = cv2.rectangle(image_origin, (x,y), (x+w, y+h), (0, 0 , 255), 1)
 
-        for r in RPN_Regions:
-            final_results.append(r)
-    # merge again
-    import pdb; pdb.set_trace()
-    for fid, rcnn_region in result_dict_rcnn.items():
-        for r in rcnn_region:
-            # if r.conf < 0.3 or r.w*r.h > 0.04 or r.w*r.h == 0.:
-            if r.conf < 0.3 or r.w*r.h > 0.04 or r.w*r.h == 0.:
-                continue
-            RCNN_results.append(r)
-    final_results.combine_results(RCNN_results, 0.5)
-    # write
-    final_results.fill_gaps(len(TEST_IMAGE_PATHS))
-    final_results.write(os.path.join("no_filter_combined_bboxes", f'{VIDEO_NAME}_mpeg_{scale}_{qp}'))
-    # read
-    rdict = read_results_txt_dict(os.path.join("no_filter_combined_bboxes", f'{VIDEO_NAME}_mpeg_{scale}_{qp}'))
-    results = merge_boxes_in_results(rdict, 0.3, 0.3)
-    results.fill_gaps(len(TEST_IMAGE_PATHS))
-    results.write(os.path.join("no_filter_combined_merged_bboxes", f'{VIDEO_NAME}_mpeg_{scale}_{qp}'))
-
+        cv2.imwrite(SAVE_IMAGE_PATHS[idx], image_origin)
 
 if __name__== "__main__":
     main()

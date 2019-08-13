@@ -129,7 +129,7 @@ if __name__ == "__main__":
                         "the simulator can use to calculate low bandwidth "
                         "without enoding images to low resolution")
     parser.add_argument("--batch-size", dest="bsize",
-                        type=int, default=15,
+                        type=int, default=661,
                         help="Segment size to use for DDS")
     parser.add_argument("--qp", dest="qp", nargs="+",
                         default=None, type=int,
