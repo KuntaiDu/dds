@@ -601,6 +601,8 @@ def evaluate(results, gt_dict, high_threshold, iou_threshold=0.5):
         for single_result in v:
             if single_result.conf < 0.3:
                 continue
+            if calc_area(single_result) <= 0.0:
+                continue
             single_result.conf = high_threshold
             gt_results.add_single_result(single_result)
 
@@ -611,6 +613,8 @@ def evaluate(results, gt_dict, high_threshold, iou_threshold=0.5):
 
     deduplicated_results = Results()
     for r in results.regions:
+        if calc_area(r) <= 0.0:
+            continue
         deduplicated_results.add_single_result(r)
     results = deduplicated_results
 
