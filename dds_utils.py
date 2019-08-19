@@ -73,6 +73,7 @@ class Region:
 class Results:
     def __init__(self):
         self.regions = []
+        self.regions_dict = []
 
     def __len__(self):
         return len(self.regions)
@@ -87,9 +88,12 @@ class Results:
     def is_dup(self, result_to_add, threshold=0.5):
         # return the regions with IOU greater than threshold
         # and maximum confidence
+        if result_to_add.fid not in self.regions_dict:
+            return None
+
         max_conf = -1
         max_conf_result = None
-        for existing_result in self.regions:
+        for existing_result in self.regions_dict[result_to_add.fid]:
             if existing_result.is_same(result_to_add, threshold):
                 if existing_result.conf > max_conf:
                     max_conf = existing_result.conf
@@ -108,7 +112,7 @@ class Results:
         if (not dup_region or
                 ("tracking" in region_to_add.origin and
                  "tracking" in dup_region.origin)):
-            self.regions.append(region_to_add)
+            self.append(region_to_add)
         else:
             final_object = None
             if dup_region.origin == region_to_add.origin:
@@ -132,7 +136,7 @@ class Results:
         while len(self.regions) > 0:
             max_conf_obj = max(self.regions, key=lambda e: e.conf)
             new_regions_list.append(max_conf_obj)
-            self.regions.remove(max_conf_obj)
+            self.remove(max_conf_obj)
             objs_to_remove = []
             for r in self.regions:
                 if r.fid != max_conf_obj.fid:
@@ -140,15 +144,20 @@ class Results:
                 if calc_iou(r, max_conf_obj) > threshold:
                     objs_to_remove.append(r)
             for r in objs_to_remove:
-                self.regions.remove(r)
-        self.regions = new_regions_list
-        self.regions.sort(key=lambda e: e.fid)
+                self.remove(r)
+        new_regions_list.sort(key=lambda e: e.fid)
+        for r in new_regions_list:
+            self.append(r)
 
     def append(self, region_to_add):
         self.regions.append(region_to_add)
+        if region_to_add.fid not in self.regions_dict:
+            self.regions_dict[region_to_add.fid] = []
+        self.regions_dict[region_to_add].append(region_to_add)
 
     def remove(self, region_to_remove):
         self.regions.remove(region_to_remove)
+        self.regions_dict[region_to_remove.fid].remove(region_to_remove)
 
     def fill_gaps(self, number_of_frames):
         if len(self.regions) == 0:
