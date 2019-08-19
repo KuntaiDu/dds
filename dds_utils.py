@@ -73,7 +73,7 @@ class Region:
 class Results:
     def __init__(self):
         self.regions = []
-        self.regions_dict = []
+        self.regions_dict = {}
 
     def __len__(self):
         return len(self.regions)
@@ -153,7 +153,7 @@ class Results:
         self.regions.append(region_to_add)
         if region_to_add.fid not in self.regions_dict:
             self.regions_dict[region_to_add.fid] = []
-        self.regions_dict[region_to_add].append(region_to_add)
+        self.regions_dict[region_to_add.fid].append(region_to_add)
 
     def remove(self, region_to_remove):
         self.regions.remove(region_to_remove)
