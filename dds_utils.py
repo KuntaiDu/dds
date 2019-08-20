@@ -446,7 +446,6 @@ def extract_images_from_video(images_path, req_regions):
     extacted_images_path = os.path.join(images_path, "%010d.png")
     decoding_result = subprocess.run(["ffmpeg", "-y",
                                       "-i", encoded_vid_path,
-                                      "-vcodec", "mjpeg",
                                       "-pix_fmt", "yuvj420p",
                                       "-g", "8", "-q:v", "2",
                                       "-vsync", "0", "-start_number", "0",
