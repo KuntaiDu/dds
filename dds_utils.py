@@ -580,71 +580,6 @@ def extract_images_from_video(images_path, req_regions):
         os.rename(os.path.join(f"{fname}_temp"),
                   os.path.join(images_path, f"{str(fid).zfill(10)}.png"))
 
-def squeeze_regions(results, vid_name, images_direc, resolution=None):
-    cached_image = None
-    cropped_images = {}
-
-    for region in results.regions:
-        if not (cached_image and
-                cached_image[0] == region.fid):
-            image_path = os.path.join(images_direc,
-                                      f"{str(region.fid).zfill(10)}.png")
-            cached_image = (region.fid, cv.imread(image_path))
-
-        # Just move the complete image
-        if region.x == 0 and region.y == 0 and region.w == 1 and region.h == 1:
-            cropped_images[region.fid] = cached_image[1]
-            continue
-
-        width = cached_image[1].shape[1]
-        height = cached_image[1].shape[0]
-        x0 = int(region.x * width)
-        y0 = int(region.y * height)
-        x1 = int((region.w * width) + x0 - 1)
-        y1 = int((region.h * height) + y0 - 1)
-
-        if region.fid not in cropped_images:
-            cropped_images[region.fid] = np.zeros_like(cached_image[1])
-
-        cropped_image = cropped_images[region.fid]
-        cropped_image[y0:y1, x0:x1, :] = cached_image[1][y0:y1, x0:x1, :]
-        cropped_images[region.fid] = cropped_image
-
-    os.makedirs(vid_name, exist_ok=True)
-    frames_count = len(cropped_images)
-    frames = sorted(cropped_images.items(), key=lambda e: e[0])
-    crops = []
-    max_w = 0.
-    max_h = 0.
-    for idx, (_, frame) in enumerate(frames):
-        if resolution:
-            w = int(frame.shape[1] * resolution)
-            h = int(frame.shape[0] * resolution)
-            im_to_write = cv.resize(frame, (w, h), fx=0, fy=0,
-                                    interpolation=cv.INTER_CUBIC)
-            frame = im_to_write
-            mask = frame == 0
-            all_black = mask.sum(axis=2) == 3
-            rows = np.flatnonzero((~all_black).sum(axis=1))
-            cols = np.flatnonzero((~all_black).sum(axis=0))
-            frame = frame[rows,:,:]
-            frame = frame[:,cols,:]
-            # cv.imwrite(os.path.join(vid_name, f"{str(idx).zfill(10)}.png"),
-            #         frame, )
-            # get the largest w,h in a batch
-            if len(cols) > max_w:
-                max_w = len(cols)
-            if len(rows) > max_h:
-                max_h = len(rows)
-            crops.append(frame)
-    for idx, crop in enumerate(crops):
-        black_canvas = np.zeros((max_h,max_w,3), np.uint8)
-        black_canvas[0:crop.shape[0],0:crop.shape[1],:] = crop
-        cv.imwrite(os.path.join(vid_name, f"{str(idx).zfill(10)}.png"),
-                    black_canvas, [cv.IMWRITE_PNG_COMPRESSION, 0])
-
-    # import pdb; pdb.set_trace()
-    return frames_count
 
 def crop_images(results, vid_name, images_direc, resolution=None):
     cached_image = None
@@ -686,135 +621,10 @@ def crop_images(results, vid_name, images_direc, resolution=None):
             im_to_write = cv.resize(frame, (w, h), fx=0, fy=0,
                                     interpolation=cv.INTER_CUBIC)
             frame = im_to_write
-        cv.imwrite(os.path.join(vid_name, f"{str(idx).zfill(10)}.png"),
-                   frame,[cv.IMWRITE_PNG_COMPRESSION, 0] )
+        cv.imwrite(os.path.join(vid_name, f"{str(idx).zfill(10)}.png"), frame,
+                   [cv.IMWRITE_PNG_COMPRESSION, 0])
 
     return frames_count
-
-def crop_images_cubic(results, vid_name, images_direc, resolution=None):
-    cached_image = None
-    cropped_images = {}
-    # get the max size
-    max_w = 0.
-    max_h = 0.
-    for region in results.regions:
-        max_w = max(region.w, max_w)
-        max_h = max(region.h, max_h)
-    frames_count = 0
-    for idx, region in enumerate(results.regions):
-        frames_count += 1
-        if not (cached_image and
-                cached_image[0] == region.fid):
-            image_path = os.path.join(images_direc,
-                                      f"{str(region.fid).zfill(10)}.png")
-            cached_image = (region.fid, cv.imread(image_path))
-            cropped_images[region.fid] = []
-
-
-        # # Just move the complete image
-        # if region.x == 0 and region.y == 0 and region.w == 1 and region.h == 1:
-        #     cropped_images[region.fid] = cached_image[1]
-        #     continue
-
-        width = cached_image[1].shape[1]
-        height = cached_image[1].shape[0]
-        x0 = int(region.x * width)
-        y0 = int(region.y * height)
-        x1 = int((region.w * width) + x0 - 1)
-        y1 = int((region.h * height) + y0 - 1)
-
-        # if region.fid not in cropped_images:
-        cropped_images[region.fid].append((np.zeros((int(max_h * height), int(max_w * width), 3), np.uint8), (x0,y0,x1,y1)))
-        cropped_image = cropped_images[region.fid][-1][0]
-        cropped_image[0:y1-y0, 0:x1-x0, :] = cached_image[1][y0:y1, x0:x1, :]
-        # import pdb; pdb.set_trace()
-        crop_images_list = list(cropped_images[region.fid][-1])
-        crop_images_list[0] = cropped_image
-        cropped_images[region.fid][-1] = tuple(crop_images_list)
-
-    os.makedirs(vid_name, exist_ok=True)
-    frames = sorted(cropped_images.items(), key=lambda e: e[0])
-    save_idx = 0
-    bbox_offset = {}
-    for idx, (_,frame) in enumerate(frames):
-        bbox_offset[idx] = []
-        for ridx, (region, loc) in enumerate(frame):
-            if resolution:
-                bbox_offset[idx] = loc
-                w = int(region.shape[1] * resolution)
-                h = int(region.shape[0] * resolution)
-                im_to_write = cv.resize(region, (w, h), fx=0, fy=0,
-                                        interpolation=cv.INTER_CUBIC)
-                frame = im_to_write
-            cv.imwrite(os.path.join(vid_name, f"{str(save_idx).zfill(10)}.png"),
-                       frame,[cv.IMWRITE_PNG_COMPRESSION, 0] )
-            save_idx = save_idx + 1
-
-    return frames_count, bbox_offset
-
-
-def padding_images(cropped_images_direc, req_regions):
-    images = {}
-    for fname in os.listdir(cropped_images_direc):
-        if "png" not in fname:
-            continue
-        fid = int(fname.split(".")[0])
-
-        # Read high resolution image
-        high_image = cv.imread(os.path.join(cropped_images_direc, fname))
-        width = high_image.shape[1]
-        height = high_image.shape[0]
-
-        # Read low resolution image
-        low_image = cv.imread(os.path.join(low_images_direc, fname))
-        # Enlarge low resolution image
-        enlarged_image = cv.resize(low_image, (width, height), fx=0, fy=0,
-                                   interpolation=cv.INTER_CUBIC)
-        # Put regions in place
-        for r in req_regions.regions:
-            if fid != r.fid:
-                continue
-            x0 = int(r.x * width)
-            y0 = int(r.y * height)
-            x1 = int((r.w * width) + x0 - 1)
-            y1 = int((r.h * height) + y0 - 1)
-            enlarged_image[y0:y1, x0:x1, :] = high_image[y0:y1, x0:x1, :]
-        cv.imwrite(os.path.join(cropped_images_direc, fname), enlarged_image,[cv.IMWRITE_PNG_COMPRESSION, 0] )
-        images[fid] = enlarged_image
-    return images
-
-
-def merge_images_with_zeros(cropped_images_direc, req_regions):
-    images = {}
-    for fname in os.listdir(cropped_images_direc):
-        if "png" not in fname:
-            continue
-        fid = int(fname.split(".")[0])
-
-        # Read high resolution image
-        high_image = cv.imread(os.path.join(cropped_images_direc, fname))
-        width = high_image.shape[1]
-        height = high_image.shape[0]
-
-        # Read low resolution image
-        # low_image = cv.imread(os.path.join(low_images_direc, fname))
-        # Enlarge low resolution image
-        # enlarged_image = cv.resize(low_image, (width, height), fx=0, fy=0,
-        #                            interpolation=cv.INTER_CUBIC)
-        # blank_image = np.zeros((height,width,3), np.uint8)
-        # Put regions in place
-        for r in req_regions.regions:
-            if fid != r.fid:
-                continue
-            x0 = int(r.x * width)
-            y0 = int(r.y * height)
-            x1 = int((r.w * width) + x0 - 1)
-            y1 = int((r.h * height) + y0 - 1)
-
-            blank_image[y0:y1, x0:x1, :] = high_image[y0:y1, x0:x1, :]
-        cv.imwrite(os.path.join(cropped_images_direc, fname), blank_image,[cv.IMWRITE_PNG_COMPRESSION, 0] )
-        images[fid] = blank_image
-    return images
 
 
 def merge_images(cropped_images_direc, low_images_direc, req_regions):
@@ -844,46 +654,26 @@ def merge_images(cropped_images_direc, low_images_direc, req_regions):
             y1 = int((r.h * height) + y0 - 1)
 
             enlarged_image[y0:y1, x0:x1, :] = high_image[y0:y1, x0:x1, :]
-        cv.imwrite(os.path.join(cropped_images_direc, fname), enlarged_image,[cv.IMWRITE_PNG_COMPRESSION, 0] )
+        cv.imwrite(os.path.join(cropped_images_direc, fname), enlarged_image,
+                   [cv.IMWRITE_PNG_COMPRESSION, 0])
         images[fid] = enlarged_image
     return images
 
 
 def compute_regions_size(results, vid_name, images_direc, resolution, qp,
-                         enforce_iframes, estimate_banwidth=True, mode = 1):
+                         enforce_iframes, estimate_banwidth=True):
     if estimate_banwidth:
         # If not simulation then compress and encode images
         # and get size
-        if mode == 1:
-            vid_name = f"{vid_name}-cropped"
-            frames_count = crop_images(results, vid_name, images_direc,
-                                       resolution)
-            # frames_count = crop_images(results, vid_name, images_direc,
-            #                            resolution)
-            size = compress_and_get_size(vid_name, 0, frames_count, qp=qp,
-                                         enforce_iframes=enforce_iframes,
-                                         resolution=1)
-            pixel_size = compute_area_of_regions(results)
-            return size, pixel_size
+        vid_name = f"{vid_name}-cropped"
+        frames_count = crop_images(results, vid_name, images_direc,
+                                   resolution)
 
-        elif mode == 2:
-            vid_name = f"{vid_name}-cropped"
-            frames_count, bbox_offset = crop_images_cubic(results, vid_name, images_direc,
-                                       resolution)
-            # print(frames_count)
-            size = compress_and_get_size(vid_name, 0, frames_count, qp=qp,
-                                         enforce_iframes=enforce_iframes,
-                                         resolution=1)
-            return size, bbox_offset
-        elif mode == 3:
-            vid_name = f"{vid_name}-cropped"
-            frames_count = squeeze_regions(results, vid_name, images_direc,
-                                       resolution)
-            # print(frames_count)
-            size = compress_and_get_size(vid_name, 0, frames_count, qp=qp,
-                                         enforce_iframes=enforce_iframes,
-                                         resolution=1)
-            return size
+        size = compress_and_get_size(vid_name, 0, frames_count, qp=qp,
+                                     enforce_iframes=enforce_iframes,
+                                     resolution=1)
+        pixel_size = compute_area_of_regions(results)
+        return size, pixel_size
     else:
         size = compute_area_of_regions(results)
 
@@ -925,16 +715,94 @@ def get_size_from_mpeg_results(results_log_path, images_path, resolution):
     return size
 
 
-def evaluate(results, gt_dict, high_threshold, iou_threshold=0.5, scale=None):
-    # DEPRECATED:
-    # We have a new evaluation protocol, this function is only for maintain
-    # the same format of stats with old dds protocol.
-    # Use examine.py on project root folder for evaluation.
-    f1 = 0.0
-    tp = 0.0
-    fp = 0.0
-    fn = 0.0
-    return f1, (tp, fp, fn)
+def filter(bboxes, gt_flag, gt_confid_thresh, mpeg_confid_thresh,
+           max_area_thresh_gt, max_area_thresh_mpeg):
+    if gt_flag:
+        confid_thresh = gt_confid_thresh
+        max_area_thresh = max_area_thresh_gt
+
+    else:
+        confid_thresh = mpeg_confid_thresh
+        max_area_thresh = max_area_thresh_mpeg
+
+    result = []
+    for b in bboxes:
+        (x, y, w, h, label, confid) = b
+        if (confid >= confid_thresh and w*h <= max_area_thresh and
+                label in relevant_classes):
+            result.append(b)
+    return result
+
+
+def iou(b1, b2):
+    (x1, y1, w1, h1, label1, confid1) = b1
+    (x2, y2, w2, h2, label2, confid2) = b2
+    x3 = max(x1, x2)
+    y3 = max(y1, y2)
+    x4 = min(x1+w1, x2+w2)
+    y4 = min(y1+h1, y2+h2)
+    if x3 > x4 or y3 > y4:
+        return 0
+    else:
+        overlap = (x4-x3)*(y4-y3)
+        return overlap/(w1*h1+w2*h2-overlap)
+
+
+def evaluate(max_fid, map_dd, map_gt, gt_confid_thresh, mpeg_confid_thresh,
+             max_area_thresh_gt, max_area_thresh_mpeg, iou_thresh=0.3):
+    tp_list = []
+    fp_list = []
+    fn_list = []
+    count_list = []
+    for fid in range(max_fid+1):
+        bboxes_dd = map_dd[fid]
+        bboxes_gt = map_gt[fid]
+        bboxes_dd = filter(
+            bboxes_dd, gt_flag=False, gt_confid_thresh=gt_confid_thresh,
+            mpeg_confid_thresh=mpeg_confid_thresh,
+            max_area_thresh_gt=max_area_thresh_gt,
+            max_area_thresh_mpeg=max_area_thresh_mpeg)
+        bboxes_gt = filter(
+            bboxes_gt, gt_flag=True, gt_confid_thresh=gt_confid_thresh,
+            mpeg_confid_thresh=mpeg_confid_thresh,
+            max_area_thresh_gt=max_area_thresh_gt,
+            max_area_thresh_mpeg=max_area_thresh_mpeg)
+        tp = 0
+        fp = 0
+        fn = 0
+        count = 0
+        for b_dd in bboxes_dd:
+            found = False
+            for b_gt in bboxes_gt:
+                if iou(b_dd, b_gt) >= iou_thresh:
+                    found = True
+                    break
+            if found:
+                tp += 1
+            else:
+                fp += 1
+        for b_gt in bboxes_gt:
+            found = False
+            for b_dd in bboxes_dd:
+                if iou(b_dd, b_gt) >= iou_thresh:
+                    found = True
+                    break
+            if not found:
+                fn += 1
+            else:
+                count += 1
+        tp_list.append(tp)
+        fp_list.append(fp)
+        fn_list.append(fn)
+        count_list.append(count)
+    tp = sum(tp_list)
+    fp = sum(fp_list)
+    fn = sum(fn_list)
+    count = sum(count_list)
+    return (tp, fp, fn, count,
+            round(tp/(tp+fp), 3),
+            round(tp/(tp+fn), 3),
+            round((2.0*tp/(2.0*tp+fp+fn)), 3))
 
 
 def write_stats_txt(fname, vid_name, config, f1, stats,
