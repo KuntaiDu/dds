@@ -1,4 +1,3 @@
-import math
 import re
 import os
 import csv
@@ -6,14 +5,16 @@ import shutil
 import subprocess
 import numpy as np
 import cv2 as cv
+import networkx
+from networkx.algorithms.components.connected import connected_components
 
 
 class ServerConfig:
     def __init__(self, low_res, high_res, low_qp, high_qp, bsize,
                  h_thres, l_thres, max_obj_size, min_obj_size,
                  tracker_length, boundary, intersection_threshold,
-                 tracking_threshold, suppression_threshold, simulation, rpn_enlarge_ratio,
-                 prune_score, objfilter_iou, size_obj):
+                 tracking_threshold, suppression_threshold, simulation,
+                 rpn_enlarge_ratio, prune_score, objfilter_iou, size_obj):
         self.low_resolution = low_res
         self.high_resolution = high_res
         self.low_qp = low_qp
@@ -208,36 +209,102 @@ class Results:
             self.write_results_txt(fname)
 
 
-def read_results_txt_dict(fname):
-    """Return a dictionary with fid mapped to
-       and array that contains all SingleResult objects
-       from that particular frame"""
-    results_dict = {}
+def to_graph(l):
+    G = networkx.Graph()
+    for part in l:
+        # each sublist is a bunch of nodes
+        G.add_nodes_from(part)
+        # it also imlies a number of edges:
+        G.add_edges_from(to_edges(part))
+    return G
 
-    with open(fname, "r") as f:
-        lines = f.readlines()
-        f.close()
 
-    for line in lines:
-        line = line.split(",")
-        fid = int(line[0])
-        x, y, w, h = [float(e) for e in line[1:5]]
-        conf = float(line[6])
-        label = line[5]
-        resolution = float(line[7])
-        origin = "generic"
-        if len(line) > 8:
-            origin = line[8].strip()
-        single_result = Region(fid, x, y, w, h, conf, label,
-                               resolution, origin.rstrip())
+def to_edges(l):
+    """
+        treat `l` as a Graph and returns it's edges
+        to_edges(['a','b','c','d']) -> [(a,b), (b,c),(c,d)]
+    """
+    it = iter(l)
+    last = next(it)
 
-        if fid not in results_dict:
-            results_dict[fid] = []
+    for current in it:
+        yield last, current
+        last = current
 
-        if label != "no obj":
-            results_dict[fid].append(single_result)
 
-    return results_dict
+def filter_bbox_group(bb1, bb2, iou_threshold):
+    if calc_iou(bb1, bb2) > iou_threshold and bb1.label == bb2.label:
+        return True
+    else:
+        return False
+
+
+def overlap(bb1, bb2):
+    # determine the coordinates of the intersection rectangle
+    x_left = max(bb1.x, bb2.x)
+    y_top = max(bb1.y, bb2.y)
+    x_right = min(bb1.x+bb1.w, bb2.x+bb2.w)
+    y_bottom = min(bb1.y+bb1.h, bb2.y+bb2.h)
+
+    # no overlap
+    if x_right < x_left or y_bottom < y_top:
+        return False
+    else:
+        return True
+
+
+def pairwise_overlap_indexing_list(single_result_frame, iou_threshold):
+    pointwise = [[i] for i in range(len(single_result_frame))]
+    pairwise = [[i, j] for i, x in enumerate(single_result_frame)
+                for j, y in enumerate(single_result_frame)
+                if i != j if filter_bbox_group(x, y, iou_threshold)]
+    return pointwise + pairwise
+
+
+def simple_merge(single_result_frame, index_to_merge):
+    # directly using the largest box
+    bbox_large = []
+    for i in index_to_merge:
+        i2np = np.array([j for j in i])
+        left = min(np.array(single_result_frame)[i2np], key=lambda x: x.x)
+        top = min(np.array(single_result_frame)[i2np], key=lambda x: x.y)
+        right = max(
+            np.array(single_result_frame)[i2np], key=lambda x: x.x + x.w)
+        bottom = max(
+            np.array(single_result_frame)[i2np], key=lambda x: x.y + x.h)
+
+        fid, x, y, w, h, conf, label, resolution, origin = (
+            left.fid, left.x, top.y, right.x + right.w - left.x,
+            bottom.y + bottom.h - top.y, left.conf, left.label,
+            left.resolution, left.origin)
+        single_merged_region = Region(fid, x, y, w, h, conf,
+                                      label, resolution, origin)
+        bbox_large.append(single_merged_region)
+    return bbox_large
+
+
+def merge_boxes_in_results(results_dict, min_conf_threshold, iou_threshold):
+    final_results = Results()
+
+    # Clean dict to remove min_conf_threshold
+    for _, regions in results_dict.items():
+        to_remove = []
+        for r in regions:
+            if r.conf < min_conf_threshold:
+                to_remove.append(r)
+        for r in to_remove:
+            regions.remove(r)
+
+    for fid, regions in results_dict.items():
+        overlap_pairwise_list = pairwise_overlap_indexing_list(
+            regions, iou_threshold)
+        overlap_graph = to_graph(overlap_pairwise_list)
+        grouped_bbox_idx = [c for c in sorted(
+            connected_components(overlap_graph), key=len, reverse=True)]
+        merged_regions = simple_merge(regions, grouped_bbox_idx)
+        for r in merged_regions:
+            final_results.append(r)
+    return final_results
 
 
 def read_results_csv_dict(fname):
@@ -266,6 +333,38 @@ def read_results_csv_dict(fname):
 
         if label != "no obj":
             results_dict[fid].append(region)
+
+    return results_dict
+
+
+def read_results_txt_dict(fname):
+    """Return a dictionary with fid mapped to
+       and array that contains all SingleResult objects
+       from that particular frame"""
+    results_dict = {}
+
+    with open(fname, "r") as f:
+        lines = f.readlines()
+        f.close()
+
+    for line in lines:
+        line = line.split(",")
+        fid = int(line[0])
+        x, y, w, h = [float(e) for e in line[1:5]]
+        conf = float(line[6])
+        label = line[5]
+        resolution = float(line[7])
+        origin = "generic"
+        if len(line) > 8:
+            origin = line[8].strip()
+        single_result = Region(fid, x, y, w, h, conf, label,
+                               resolution, origin.rstrip())
+
+        if fid not in results_dict:
+            results_dict[fid] = []
+
+        if label != "no obj":
+            results_dict[fid].append(single_result)
 
     return results_dict
 
@@ -653,6 +752,7 @@ def crop_images_cubic(results, vid_name, images_direc, resolution=None):
 
     return frames_count, bbox_offset
 
+
 def padding_images(cropped_images_direc, req_regions):
     images = {}
     for fname in os.listdir(cropped_images_direc):
@@ -682,6 +782,7 @@ def padding_images(cropped_images_direc, req_regions):
         cv.imwrite(os.path.join(cropped_images_direc, fname), enlarged_image,[cv.IMWRITE_PNG_COMPRESSION, 0] )
         images[fid] = enlarged_image
     return images
+
 
 def merge_images_with_zeros(cropped_images_direc, req_regions):
     images = {}
@@ -714,6 +815,7 @@ def merge_images_with_zeros(cropped_images_direc, req_regions):
         cv.imwrite(os.path.join(cropped_images_direc, fname), blank_image,[cv.IMWRITE_PNG_COMPRESSION, 0] )
         images[fid] = blank_image
     return images
+
 
 def merge_images(cropped_images_direc, low_images_direc, req_regions):
     images = {}
