@@ -12,7 +12,8 @@ class ServerConfig:
     def __init__(self, low_res, high_res, low_qp, high_qp, bsize,
                  h_thres, l_thres, max_obj_size, min_obj_size,
                  tracker_length, boundary, intersection_threshold,
-                 tracking_threshold, suppression_threshold, simulation):
+                 tracking_threshold, suppression_threshold, simulation, rpn_enlarge_ratio,
+                 prune_score, objfilter_iou, size_obj):
         self.low_resolution = low_res
         self.high_resolution = high_res
         self.low_qp = low_qp
@@ -28,7 +29,10 @@ class ServerConfig:
         self.simulation = simulation
         self.tracking_threshold = tracking_threshold
         self.suppression_threshold = suppression_threshold
-
+        self.rpn_enlarge_ratio = rpn_enlarge_ratio
+        self.prune_score = prune_score
+        self.objfilter_iou = objfilter_iou
+        self.size_obj = size_obj
 
 class Region:
     def __init__(self, fid, x, y, w, h, conf, label, resolution,
@@ -389,7 +393,8 @@ def compress_and_get_size(images_path, start_id, end_id, qp,
                                               "-loglevel", "error",
                                               "-start_number", str(start_id),
                                               '-i', f"{images_path}/%010d.png",
-                                              "-vcodec", "libx264", "-g", "15",
+                                              "-vcodec", "libx264",
+                                              "-g", "15",
                                               "-keyint_min", "15",
                                               "-qp", f"{qp}",
                                               "-pix_fmt", "yuv420p",
@@ -807,72 +812,15 @@ def get_size_from_mpeg_results(results_log_path, images_path, resolution):
     return size
 
 
-def evaluate(results, gt_dict, high_threshold, iou_threshold=0.4):
-    gt_results = Results()
-    for k, v in gt_dict.items():
-        for single_result in v:
-            if single_result.conf < 0.3 or (single_result.label != 'vehicle') or single_result.w * single_result.h > 0.01:
-            # if single_result.conf < 0.3:
-                # print(1)
-                # print(single_result.label)
-                continue
-            single_result.conf = high_threshold
-            gt_results.add_single_result(single_result)
-    # Save regions count because the regions that match
-    # will be removed from the gt_regions to ensure better
-    # search speed
-    gt_regions_count = len(gt_results)
-
-    deduplicated_results = Results()
-    for r in results.regions:
-        deduplicated_results.add_single_result(r)
-    results = deduplicated_results
-
-    fp = 0.0
+def evaluate(results, gt_dict, high_threshold, iou_threshold=0.5, scale=None):
+    # DEPRECATED:
+    # We have a new evaluation protocol, this function is only for maintain
+    # the same format of stats with old dds protocol.
+    # Use examine.py on project root folder for evaluation.
+    f1 = 0.0
     tp = 0.0
+    fp = 0.0
     fn = 0.0
-    for a in results.regions:
-        # Make sure that the region has a high confidence
-         # or (a.label != 'vehicle' and a.label != 'no obj')
-        if a.conf < high_threshold or (a.label != 'vehicle') or (a.w * a.h > 0.01):
-        # if a.conf < high_threshold:
-            continue
-
-        # Find match in gt_results
-        max_iou = -1
-        matching_region = None
-        for b in gt_results.regions:
-            if a.is_same(b, iou_threshold):
-                iou = calc_iou(a, b)
-                if iou > max_iou:
-                    max_iou = iou
-                    matching_region = b
-                break
-
-        if matching_region:
-            # Remove region from ground truth if
-            # it has already matched with a region in results
-            gt_results.remove(matching_region)
-            tp += 1.0
-        else:
-            fp += 1.0
-
-    fn = gt_regions_count - tp
-
-    if (fp + tp) == 0 or (fn + tp) == 0:
-        return 0, (tp, fp, fn)
-
-    precision = tp / (fp + tp)
-    recall = tp / (fn + tp)
-
-    if (precision + recall) == 0:
-        return 0, (tp, fp, fn)
-
-    f1 = 2.0 * precision * recall / (precision + recall)
-
-    if math.isnan(f1):
-        f1 = 0.0
-
     return f1, (tp, fp, fn)
 
 

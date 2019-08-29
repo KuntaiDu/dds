@@ -29,7 +29,11 @@ def main(args):
                           args.intersection_threshold,
                           args.tracking_threshold,
                           args.suppression_threshold,
-                          args.simulate)
+                          args.simulate,
+                          args.rpn_enlarge_ratio,
+                          args.prune_score,
+                          args.objfilter_iou,
+                          args.size_obj)
     server = Server(config)
 
     logger.info("Starting client")
@@ -89,7 +93,7 @@ def main(args):
         logger.info("No groundtruth given skipping evalution")
 
     # Write evaluation results to file
-    write_stats(args.outfile, args.video_name, config, f1,
+    write_stats(args.outfile, f"{args.video_name}", config, f1,
                 stats, bw, number_of_frames, mode)
 
 
@@ -129,7 +133,7 @@ if __name__ == "__main__":
                         "the simulator can use to calculate low bandwidth "
                         "without enoding images to low resolution")
     parser.add_argument("--batch-size", dest="bsize",
-                        type=int, default=661,
+                        type=int, default=15,
                         help="Segment size to use for DDS")
     parser.add_argument("--qp", dest="qp", nargs="+",
                         default=None, type=int,
@@ -172,7 +176,18 @@ if __name__ == "__main__":
                         dest="suppression_threshold", type=float, default=0.5,
                         help="The iou threshold to use during "
                         "non maximum suppression")
-
+    parser.add_argument("--rpn_enlarge_ratio",
+                        dest="rpn_enlarge_ratio", type=float, default=0.,
+                        help="rpn_enlarge_ratio")
+    parser.add_argument("--prune-score",
+                        dest="prune_score", type=float, default=1.1,
+                        help="prune_score")
+    parser.add_argument("--objfilter-iou",
+                        dest="objfilter_iou", type=float, default=1.1,
+                        help="objfilter_iou")
+    parser.add_argument("--size-obj",
+                        dest="size_obj", type=float, default=1.1,
+                        help="size_obj")
     # Simulation settings
     parser.add_argument("--verbosity",
                         default="warning", type=str,

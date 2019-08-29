@@ -28,8 +28,6 @@ class Server:
     def perform_detection(self, images_direc, resolution, fnames=None,
                           images=None):
         final_results = Results()
-        single_scan_final_results = Results()
-        multi_scan_final_results = []
 
         if fnames is None:
             fnames = sorted(os.listdir(images_direc))
@@ -52,7 +50,6 @@ class Server:
                 # import pdb; pdb.set_trace()
             self.logger.info(f"Running inference on {len(fnames)} frames")
             frame_with_no_results = True
-            print(fid)
             for label, conf, (x, y, w, h) in detection_results:
                 if (self.config.min_object_size and
                         w * h < self.config.min_object_size) or w*h ==0.:
@@ -66,195 +63,10 @@ class Server:
             if frame_with_no_results:
                 final_results.append(
                     Region(fid, 0, 0, 0, 0, 0.1, "no obj", resolution))
-
-            if multi_scan_results and offsets:
-                for single_scan_results in  multi_scan_results:
-                    frame_with_no_results = True
-                    for label, conf, (x, y, w, h) in detection_results:
-                        if (self.config.min_object_size and
-                                w * h < self.config.min_object_size) or w*h ==0.:
-                            # print("Continuing")
-                            continue
-                        r = Region(fid, x, y, w, h, conf, label,
-                                   resolution, origin="mpeg")
-                        single_scan_final_results.append(r)
-                        frame_with_no_results = False
-
-                    if frame_with_no_results:
-                        single_scan_final_results.append(
-                            Region(fid, 0, 0, 0, 0, 0.1, "no obj", resolution))
-        multi_scan_final_results.append(single_scan_final_results)
-
-        return final_results, multi_scan_final_results, offsets
-
-    def track(self, obj_to_track, accepted_results, frame_range,
-              images_direc):
-        regions = Results()
-
-        # Extract extra object properties to add to region
-        start_fid = obj_to_track.fid
-        conf = obj_to_track.conf
-        label = obj_to_track.label
-        resolution = obj_to_track.resolution
-
-        init_fname = os.path.join(images_direc,
-                                  f"{str(start_fid).zfill(10)}.png")
-        init_frame = cv.imread(init_fname)
-        im_width = init_frame.shape[1]
-        im_height = init_frame.shape[0]
-
-        # Initialize Tracker
-        x = obj_to_track.x * im_width
-        y = obj_to_track.y * im_height
-        w = obj_to_track.w * im_width
-        h = obj_to_track.h * im_height
-        bbox = (x, y, w, h)
-        tracker = cv.TrackerKCF_create()
-        tracker.init(init_frame, bbox)
-
-        for fid in frame_range:
-            curr_frame_fname = f"{str(fid).zfill(10)}.png"
-            curr_frame_path = os.path.join(images_direc, curr_frame_fname)
-            curr_frame = cv.imread(curr_frame_path)
-
-            status, bbox = tracker.update(curr_frame)
-            if status:
-                # Add bounding box to areas to be searched
-                x = bbox[0] / im_width
-                y = bbox[1] / im_height
-                w = bbox[2] / im_width
-                h = bbox[3] / im_height
-
-                region = Region(fid, x, y, w, h, conf, label, resolution,
-                                f"tracking-extension"
-                                f"[{min(frame_range)}-{max(frame_range)}]")
-
-                # Skip if object too large
-                if calc_area(region) > self.config.max_object_size:
-                    break
-
-                # Skip if the object has been found in accepted results
-                # no need to check for object labels here
-                in_pred = False
-                relevant_regions = Results()
-                for r in accepted_results.regions:
-                    if r.fid == fid and r.conf > self.config.high_threshold:
-                        relevant_regions.append(r)
-                for r in relevant_regions.regions:
-                    if calc_iou(r, region) > self.config.tracking_threshold:
-                        in_pred = True
-                        break
-                if in_pred:
-                    break
-                regions.append(region)
-            else:
-                break
-
-        return regions
-
-    def get_regions_to_query(self, start_fid, end_fid, images_direc,
-                             results_for_tracking, accepted_results,
-                             simulation=False):
-        non_tracking_regions = Results()
-        tracking_regions = Results()
-
-        for single_result in results_for_tracking.regions:
-            single_result = single_result.copy()
-
-            if (single_result.conf < self.config.low_threshold or
-                    ((single_result.w * single_result.h) >
-                     self.config.max_object_size)):
-                # Don't investivagte if the size is too large
-                # or if confidence is below low threshold
-                continue
-
-            if (single_result.conf < self.config.high_threshold):
-                # These are only those regions which are between thresholds
-                single_result.origin = f"tracking-origin[{single_result.fid}]"
-                non_tracking_regions.add_single_result(
-                    single_result, self.config.intersection_threshold)
-
-            # Even if the results is not between thresholds we still need to
-            # Track it across frames
-            self.logger.debug(f"Finding regions to query for "
-                              f"{single_result}")
-
-            # Forward tracking
-            start_frame = single_result.fid + 1
-            end_frame = min(single_result.fid + self.config.tracker_length,
-                            end_fid)
-            frame_range = range(start_frame, end_frame)
-            regions_from_tracking = self.track(single_result, accepted_results,
-                                               frame_range,
-                                               images_direc)
-            self.logger.debug(f"Found {len(regions_from_tracking)} "
-                              f"regions using forward tracking from"
-                              f" {start_frame} to {end_frame}")
-            tracking_regions.combine_results(
-                regions_from_tracking, self.config.intersection_threshold)
-
-            # Backward tracking
-            start_frame = max(single_result.fid - 1, 0)
-            end_frame = max(single_result.fid - self.config.tracker_length,
-                            start_fid - 1)
-            frame_range = range(start_frame, end_frame, -1)
-            regions_from_tracking = self.track(single_result, accepted_results,
-                                               frame_range,
-                                               images_direc)
-            self.logger.debug(f"Found {len(regions_from_tracking)} "
-                              f"regions using backward tracking from"
-                              f" {start_frame} to {end_frame}")
-            tracking_regions.combine_results(
-                regions_from_tracking, self.config.intersection_threshold)
-
-        self.logger.info(f"Found {len(non_tracking_regions)} "
-                         f"regions between {start_fid} and {end_fid} without "
-                         f"tracking")
-        self.logger.info(f"Found {len(tracking_regions)} regions "
-                         f"between {start_fid} and {end_fid} with tracking")
-
-        final_regions = Results()
-        # Combine all non-tracking and tracking regions
-        final_regions.combine_results(
-            non_tracking_regions, self.config.intersection_threshold)
-        final_regions.combine_results(
-            tracking_regions, self.config.intersection_threshold)
-
-        # Enlarge regions iff we are running a simulation
-        # Enlarging refrence to the object
-        if not simulation:
-            # Enlarge non-tracking boxes
-            for region in non_tracking_regions.regions:
-                new_x = max(region.x - self.config.boundary * region.w, 0)
-                new_y = max(region.y - self.config.boundary * region.h, 0)
-                new_w = min(region.w + self.config.boundary * region.w * 2,
-                            1 - region.x + self.config.boundary * region.w)
-                new_h = min(region.h + self.config.boundary * region.h * 2,
-                            1 - region.y + self.config.boundary * region.h)
-
-                region.x = new_x
-                region.y = new_y
-                region.w = new_w
-                region.h = new_h
-
-            # Enlarge tracking boxes
-            for region in tracking_regions.regions:
-                new_x = max(region.x - 2 * self.config.boundary * region.w, 0)
-                new_y = max(region.y - 2 * self.config.boundary * region.h, 0)
-                new_w = min(region.w + 2 * self.config.boundary * region.w * 2,
-                            1 - region.w + 2 * self.config.boundary * region.w)
-                new_h = min(region.h + 2 * self.config.boundary * region.h * 2,
-                            1 - region.h + 2 * self.config.boundary * region.h)
-
-                region.x = new_x
-                region.y = new_y
-                region.w = new_w
-                region.h = new_h
-
-        return final_regions
+        return final_results, None, None
 
     def simulate_low_query(self, start_fid, end_fid, images_direc,
-                           results_dict, simulation=True):
+                           results_dict, simulation=True, rpn_enlarge_ratio=0.):
         results = Results()
         accepted_results = Results()
         results_for_regions = Results()  # Results used for regions detection
@@ -272,24 +84,6 @@ class Server:
                          f"{self.config.high_threshold}")
 
         for single_result in results.regions:
-            # if single_result.conf < :
-                # continue
-            # elif single_result.conf > self.config.high_threshold:
-            #     # these for sure
-            #     accepted_results.add_single_result(
-            #         single_result, self.config.intersection_threshold)
-            # else:
-                # not so sure
-            # if single_result.label == 'no obj':
-            #     continue
-            single_result.x = max(single_result.x-0.02, 0)
-            single_result.y = max(single_result.y-0.02, 0)
-            single_result.w = min(single_result.w+0.04, 1)
-            single_result.h = min(single_result.h+0.04, 1)
-            # single_result.x = 0.
-            # single_result.y = 0.
-            # single_result.w = 1.
-            # single_result.h = 1.
             results_for_regions.add_single_result(
                 single_result, self.config.intersection_threshold)
 
@@ -299,79 +93,6 @@ class Server:
 
         # all the regions for query
         return results_for_regions
-
-    def simulate_high_query(self, req_regions, high_results_dict):
-        high_res_results = Results()
-
-        # Get all results that have confidence above the threshold and
-        # is in one of the frames in the queried regions
-        fids_in_queried_regions = [e.fid for e in req_regions.regions]
-        for fid in fids_in_queried_regions:
-            fid_results = high_results_dict[fid]
-            for single_result in fid_results:
-                single_result.origin = "high-res"
-                high_res_results.add_single_result(
-                    single_result, self.config.intersection_threshold)
-
-        # Iterate over high_res_results to ensure that all matching regions
-        # are added. Iterating over required regions would just add one
-        # high resolution region for a requested region
-        high_res_regions_to_del = []
-        selected_results = Results()
-        for single_result in high_res_results.regions:
-            dup_region = req_regions.is_dup(
-                single_result, self.config.intersection_threshold)
-            if dup_region:
-                self.logger.debug(f"Matched {single_result} with "
-                                  f"{dup_region} "
-                                  f"in requested regions from IOU")
-                single_result.origin = "high-res"
-                selected_results.add_single_result(
-                    single_result, self.config.intersection_threshold)
-                high_res_regions_to_del.append(single_result)
-        # Delete the high resolution regions that have already been added to
-        # selected_results
-        for region in high_res_regions_to_del:
-            high_res_results.remove(region)
-
-        # Add regions based on intersection alone
-        for high_region in high_res_results.regions:
-            for req_region in req_regions.regions:
-                intersection = calc_intersection_area(high_region, req_region)
-                if intersection > 0.8 * calc_area(high_region):
-                    self.logger.debug(f"Matched {high_region} with "
-                                      f"{req_region} "
-                                      f"in requested regions from "
-                                      f"intersection")
-                    high_region.origin = "high-res"
-                    selected_results.add_single_result(
-                        high_region, self.config.intersection_threshold)
-
-        return selected_results
-
-    def emulate_low_query(self, start_fid, end_fid, low_images_path,
-                          base_req_regions):
-        extract_images_from_video(low_images_path, base_req_regions)
-        batch_fnames = sorted([f"{str(i).zfill(10)}.png"
-                               for i in range(start_fid, end_fid)])
-        detection_results = self.perform_detection(
-            low_images_path, self.config.low_resolution, batch_fnames)
-
-        results_dict = {}
-        for region in detection_results.regions:
-            if region.fid not in results_dict:
-                results_dict[region.fid] = []
-            # Do not add no obj detections in the dictionary
-            if region.label == "no obj":
-                continue
-            region.origin = "low-res"
-            results_dict[region.fid].append(region)
-
-        accepted_results, final_regions_to_query = self.simulate_low_query(
-            start_fid, end_fid, low_images_path, results_dict,
-            simulation=False)
-
-        return accepted_results, final_regions_to_query
 
     def emulate_high_query(self, vid_name, low_images_direc, req_regions):
         images_direc = vid_name + "-cropped"
@@ -392,7 +113,7 @@ class Server:
             shutil.copy(os.path.join(images_direc, img), merged_images_direc)
 
         merged_images = merge_images(merged_images_direc, low_images_direc, req_regions)
-        results = self.perform_detection(
+        results, _, _= self.perform_detection(
             merged_images_direc, self.config.high_resolution, fnames,
             merged_images)
 
@@ -403,27 +124,6 @@ class Server:
             # r.origin = "high-res"
             results_with_detections_only.add_single_result(
                 r, self.config.intersection_threshold)
-
-        # high_only_results = Results()
-        # area_dict = {}
-        # for r in results_with_detections_only.regions:
-        #     # Get frame regions
-        #     frame_regions = [i for i in req_regions.regions
-        #                      if i.fid == r.fid]
-        #     regions_area = 0
-        #     if r.fid in area_dict:
-        #         regions_area = area_dict[r.fid]
-        #     else:
-        #         regions_area = compute_area_of_frame(frame_regions)
-        #         area_dict[r.fid] = regions_area
-        #     # Get area with added result
-        #     frame_regions += [r]
-        #     total_area = compute_area_of_frame(frame_regions)
-        #     extra_area = total_area - regions_area
-        #     if extra_area < 0.05 * calc_area(r):
-        #         r.origin = "high-res"
-        #         high_only_results.append(r)
-        import pdb; pdb.set_trace()
         shutil.rmtree(merged_images_direc)
 
         return results_with_detections_only

@@ -1,12 +1,13 @@
 #!/bin/bash
-src_dir_name=/new_dataset/out10fps720p/src
-vid_name=out10fps720p #no suffix
-qp=40
-res=0.375
-num_frames=661
+vid_name=$1
+res=$2
+qp=$3
+num_frames=$4
+scale=$5
+src_dir_name=new_dataset/${vid_name}/src/
+des_dir_name=new_dataset/${vid_name}_${res}_${qp}/src
 ROOT=/data/yuanx
 
-scale=480:270
 echo $ROOT
 
 image_src_path=${ROOT}/${src_dir_name}
@@ -20,9 +21,16 @@ ffmpeg -y \
 -g 15 \
 -keyint_min 15 \
 -qp ${qp} \
--pix_fmt yuv420p \
 -vf scale=${scale} \
+-pix_fmt yuv420p \
 -frames:v ${num_frames} \
 ${vid_des_path}
 
-echo ${image_src_path}
+image_des_path=${ROOT}/${des_dir_name}
+mkdir -p ${image_des_path}
+
+ffmpeg -y \
+-i ${vid_des_path} \
+-vsync 0 \
+-start_number 0 \
+${image_des_path}/%010d.png

@@ -34,6 +34,7 @@ class Client:
         for i in range(0, number_of_frames, self.config.batch_size):
             start_frame = i
             end_frame = min(number_of_frames, i + self.config.batch_size)
+            print(start_frame, end_frame)
 
             batch_fnames = sorted([f"{str(idx).zfill(10)}.png"
                                    for idx in range(start_frame, end_frame)])
@@ -51,7 +52,6 @@ class Client:
                              f"in base phase using {self.config.low_qp}QP")
             extract_images_from_video(f"{video_name}-base-phase-cropped",
                                       req_regions)
-
             results, multi_scan_final_results, offsets = self.server.perform_detection(
                 f"{video_name}-base-phase-cropped", self.config.low_resolution,
                 batch_fnames)
@@ -63,7 +63,7 @@ class Client:
             final_results.combine_results(
                 results, self.config.intersection_threshold)
             # Remove encoded video manually
-            shutil.rmtree(f"{video_name}-base-phase-cropped")
+            # shutil.rmtree(f"{video_name}-base-phase-cropped")
             total_size += batch_video_size
         stop = timeit.default_timer()
         print('video time: ', stop-start)
@@ -82,108 +82,8 @@ class Client:
         # print(len(final_results))
         final_results.write(video_name)
 
-        # write multi scan results
-        if len(multi_scan_final_results) > 0:
-            for idx, single_scan_final_results in enumerate(multi_scan_final_results):
-                single_scan_final_results.fill_gaps(number_of_frames)
-                single_scan_final_results.write(os.path.join('multiscan',f'{video_name}_{idx}'))
-                with open(os.path.join('multiscan',f'{video_name}_{idx}_offset'), 'w') as f:
-                    for offset in offsets:
-                        f.write(offset)
-
-
         return final_results, [total_size, 0]
 
-    def analyze_video_simulate(self, video_name, low_images_path,
-                               high_images_path, high_results_path,
-                               low_results_path, enforce_iframes,
-                               mpeg_results_path=None, estimate_banwidth=False,
-                               debug_mode=False,):
-        results = Results()
-        r1_results = Results()
-        r2_results = Results()
-
-        low_results_dict = read_results_dict(low_results_path)
-        self.logger.info("Reading low resolution results complete")
-        high_results_dict = read_results_dict(high_results_path)
-        self.logger.info("Reading high resolution results complete")
-
-        total_regions_count = 0
-        total_size = [0, 0]
-        number_of_frames = len(
-            [x for x in os.listdir(low_images_path) if "png" in x])
-        for i in range(0, number_of_frames, self.config.batch_size):
-            start_frame_id = i
-            end_frame_id = min(number_of_frames, i + self.config.batch_size)
-            self.logger.info(f"Processing batch from {start_frame_id} "
-                             f"to {end_frame_id}")
-
-            # Base (low resolution) phase
-            r1, req_regions = self.server.simulate_low_query(start_frame_id,
-                                                             end_frame_id,
-                                                             low_images_path,
-                                                             low_results_dict)
-            self.logger.info(f"Got {len(r1)} confirmed "
-                             f"results with {len(req_regions)} "
-                             f"regions to query in first phase of batch")
-            r1_results.combine_results(r1, self.config.intersection_threshold)
-
-            # Add the number of regions requested by the server
-            total_regions_count += len(req_regions)
-
-            encoded_batch_video_size = 0
-            if not mpeg_results_path and estimate_banwidth:
-                encoded_batch_video_size = compress_and_get_size(
-                    high_images_path, start_frame_id, end_frame_id,
-                    self.config.low_resolution, self.config.low_qp,
-                    enforce_iframes)
-                total_size[0] += encoded_batch_video_size
-
-            regions_size, _ = compute_regions_size(
-                req_regions, video_name, high_images_path,
-                self.config.high_resolution, enforce_iframes,
-                estimate_banwidth)
-            total_size[1] += regions_size
-            self.logger.info(f"{encoded_batch_video_size}KB sent in base "
-                             f"phase {len(req_regions)} regions have "
-                             f"{regions_size} units total size")
-
-            # Second (high resolution) phase
-            r2 = self.server.simulate_high_query(req_regions,
-                                                 high_results_dict)
-            self.logger.info(f"Got {len(r2)} results in "
-                             f"second phase of batch")
-            r2_results.combine_results(r2, self.config.intersection_threshold)
-
-            # Perform cleanup for the next phase
-            cleanup(video_name, debug_mode, start_frame_id, end_frame_id)
-
-        # Combine results
-        self.logger.info(f"Got {len(r1_results)} unique results "
-                         f"in base phase")
-        results.combine_results(r1_results, self.config.intersection_threshold)
-        self.logger.info(f"Got {len(r2_results)} positive "
-                         f"identifications out of {total_regions_count} "
-                         f"requests in second phase")
-        results.combine_results(r2_results, self.config.intersection_threshold)
-
-        # Fill gaps in results
-        results.fill_gaps(number_of_frames)
-
-        # Write results
-        results.write(video_name)
-
-        # Get results from summary file if given
-        if mpeg_results_path and estimate_banwidth:
-            total_size[0] = get_size_from_mpeg_results(
-                mpeg_results_path, low_images_path, self.config.low_resolution)
-
-        self.logger.info(f"Writing results for {video_name}")
-        self.logger.info(f"{len(results)} objects detected "
-                         f"and {total_size[1]} total size "
-                         f"of regions sent in high resolution")
-
-        return results, total_size
 
     def analyze_video_emulate(self, video_name, high_images_path,
                               enforce_iframes, low_results_path=None,
@@ -203,9 +103,9 @@ class Client:
         total_size = [0, 0]
         total_pixel_size = 0
         total_regions_count = 0
-
+        results_catched_last_batch = None
         for i in range(0, number_of_frames, self.config.batch_size):
-            print(i)
+            # print(i)
             start_fid = i
             end_fid = min(number_of_frames, i + self.config.batch_size)
             self.logger.info(f"Processing batch from {start_fid} to {end_fid}")
@@ -235,9 +135,9 @@ class Client:
                 req_regions = (
                     self.server.simulate_low_query(start_fid, end_fid,
                                                    low_images_path,
-                                                   low_results_dict, False))
-                for r in req_regions.regions:
-                    all_req_regions.append(r)
+                                                   low_results_dict, False, self.config.rpn_enlarge_ratio))
+                # for r in req_regions.regions:
+                #     all_req_regions.append(r)
             else:
                 # # If results dict is not present then actually
                 # # emulate first phase
@@ -258,36 +158,145 @@ class Client:
             # import pdb; pdb.set_trace()
             total_regions_count += len(req_regions)
 
-            '''
-            filtered_req_regions = Results()
+            # with cache
+            # '''
+            # filtered_req_regions = Results()
             # get fid list
-            fid_req_regions = set(sorted([r.fid for r in req_regions.regions]))
+            # fid_req_regions = set(sorted([r.fid for r in req_regions.regions]))
             # create dict of req_regions
-            req_regions_dict = {}
+            # if self.config.batch_size == 1000:
+            # print('req_regions_origin', len(req_regions))
+            #
+            # if results_catched_last_batch:
+            #     # compare according last 15 frames
+            #     for r in req_regions.regions:
+            #         cnt = 0
+            #         for single_cached_region in results_catched_last_batch.regions:
+            #             if calc_iou(r, single_cached_region) > 0.5:
+            #                 cnt += 1
+            #         if cnt == 0:
+            #             # print('remove')
+            #             req_regions.remove(r)
+            # print('req_regions_after_removing', len(req_regions))
+            #
+            # req_regions_dict = {}
+            #
+            # for rr in req_regions.regions:
+            #     if rr.fid not in req_regions_dict:
+            #         req_regions_dict[rr.fid] = []
+            #         # import pdb; pdb.set_trace()
+            #     req_regions_dict[rr.fid].append(rr)
+            #
+            # for fid in range(start_fid, end_fid):
+            #     if fid > 0 and fid < end_fid - 1:
+            #         # has overlap with prev and curr
+            #         if fid-1 in req_regions_dict and fid+1 in req_regions_dict:
+            #             # create pairwise list
+            #             for r_fid_prev in req_regions_dict[fid-1]:
+            #                 for r_fid_post in req_regions_dict[fid+1]:
+            #                     if calc_iou(r_fid_prev, r_fid_post) > 0:
+            #                         cnt = 0
+            #                         if fid in req_regions_dict:
+            #                             for r_fid_curr in req_regions_dict[fid]:
+            #                                 if calc_iou(r_fid_prev, r_fid_curr) > 0.4 or calc_iou(r_fid_post, r_fid_curr) > 0.4:
+            #                                     cnt += 1
+            #                         else:
+            #                             req_regions_dict[fid] = []
+            #                         if cnt == 0:
+            #                             # smooth r_prev and r_post
+            #                             # import pdb; pdb.set_trace()
+            #                             x_ave = min(r_fid_prev.x, r_fid_post.x)
+            #                             y_ave = min(r_fid_prev.y, r_fid_post.y)
+            #                             w_ave = max(r_fid_prev.x + r_fid_prev.w, r_fid_post.x + r_fid_post.w) - x_ave
+            #                             h_ave = max(r_fid_prev.y + r_fid_prev.h, r_fid_post.y + r_fid_post.h) - y_ave
+            #                             req_regions.append(
+            #                                 Region(fid,
+            #                                        x_ave,
+            #                                        y_ave,
+            #                                        w_ave,
+            #                                        h_ave,
+            #                                        1.0, 'object', self.config.low_resolution))
+            #
+            #                             req_regions_dict[fid].append(
+            #                                 Region(fid,
+            #                                        x_ave,
+            #                                        y_ave,
+            #                                        w_ave,
+            #                                        h_ave,
+            #                                        1.0, 'object', self.config.low_resolution)
+            #                             )
+            results_for_regions = Results()
+            results_for_pruning = Results()
+            accepted_results = Results() #already recieve
+            # get highly confidence area:
+            for single_result in req_regions.regions:
+                # if self.config.pruning:
+                if single_result.conf > self.config.prune_score and single_result.label == 'vehicle':
+                    # these for sure
+                    accepted_results.add_single_result(
+                        single_result, self.config.intersection_threshold)
 
-            for rr in req_regions.regions:
-                if rr.fid not in req_regions_dict:
-                    req_regions_dict[rr.fid] = []
+                    continue
+                results_for_pruning.add_single_result(single_result, self.config.intersection_threshold)
 
-                req_regions_dict[rr.fid].append(rr)
+            print('results_for_pruning', len(results_for_pruning))
+            print('accepted_results', len(accepted_results))
 
-            for rr in req_regions.regions:
-                if set([rr.fid -1, rr.fid, rr.fid+1]).issubset(fid_req_regions):
-                    rr_prev, rr_post = req_regions_dict[rr.fid -1], req_regions_dict[rr.fid+1]
-                    for r_prev in rr_prev:
-                        if calc_iou(r_prev, rr) > 0.:
-                            filtered_req_regions.add_single_result(rr)
-                            continue
-                    for r_post in rr_post:
-                        if calc_iou(r_post, rr) > 0.:
-                            filtered_req_regions.add_single_result(rr)
-                            continue
+            for single_result in results_for_pruning.regions:
+                # find bbox to do pruning:
+                if len(accepted_results) > 0:
+                    cnt = 0
+                    for single_accept_result in accepted_results.regions:
+                        if calc_iou(single_accept_result, single_result) > self.config.objfilter_iou \
+                            and single_accept_result.fid == single_result.fid \
+                            and single_result.label == 'object':
+                            cnt += 1
+                    if cnt > 0:
+                        continue
+                if single_result.w * single_result.h > self.config.size_obj:
+                    continue
+                x_min = max(single_result.x - single_result.w * self.config.rpn_enlarge_ratio, 0.)
+                y_min = max(single_result.y - single_result.h * self.config.rpn_enlarge_ratio, 0.)
+                x_max = min(single_result.x + single_result.w * (1 + self.config.rpn_enlarge_ratio), 1.)
+                y_max = min(single_result.y + single_result.h * (1 + self.config.rpn_enlarge_ratio), 1.)
+                single_result.x = x_min
+                single_result.y = y_min
+                single_result.w = x_max - x_min
+                single_result.h = y_max - y_min
+                results_for_regions.add_single_result(
+                    single_result, self.config.intersection_threshold)
+                        # filter req_region
+            req_regions = results_for_regions
+            print('req_regions', len(req_regions))
+
+                    # else:
+
+            # for rr in req_regions.regions:
+            #     import pdb; pdb.set_trace()
+            #     if set([rr.fid -1, rr.fid, rr.fid+1]).issubset(fid_req_regions):
+            #         rr_prev, rr_post = req_regions_dict[rr.fid -1], req_regions_dict[rr.fid+1]
+            #         for r_prev in rr_prev:
+            #             if calc_iou(r_prev, rr) > 0.:
+            #                 filtered_req_regions.add_single_result(rr)
+            #                 r_perv_to_add = r_prev.copy()
+            #                 r_perv_to_add.fid = rr.fid
+            #                 filtered_req_regions.add_single_result(r_perv_to_add)
+            #                 continue
+            #         for r_post in rr_post:
+            #             if calc_iou(r_post, rr) > 0.:
+            #                 r_post_to_add = r_post.copy()
+            #                 r_post_to_add.fid = rr.fid
+            #                 filtered_req_regions.add_single_result(rr)
+            #                 filtered_req_regions.add_single_result(r_post_to_add)
+            #                 continue
             # import pdb; pdb.set_trace()
 
                 # fid_for_merge, +3
-            req_regions = filtered_req_regions
-            '''
+            # req_regions = filtered_req_regions
+            # '''
             # remove bbox not in RPN results
+            for r in req_regions.regions:
+                all_req_regions.append(r)
 
             if len(req_regions) > 0:
                 # Crop, compress and get size
@@ -305,17 +314,24 @@ class Client:
                 # every three filter
                 r2 = self.server.emulate_high_query(
                     video_name, low_images_path, req_regions)
+                results_catched_last_batch = r2
                 self.logger.info(f"Get {len(r2)} results in second phase "
                                  f"of batch")
                 high_phase_results.combine_results(
                     r2, self.config.intersection_threshold)
+                # if self.config.pruning:
+                if len(accepted_results) > 0:
+                    final_results.combine_results(
+                        accepted_results, self.config.intersection_threshold)
                 final_results.combine_results(
                     r2, self.config.intersection_threshold)
+
+
 
             # import pdb; pdb.set_trace()
             # Cleanup for the next batch
             cleanup(video_name, debug_mode, start_fid, end_fid)
-            shutil.rmtree(low_images_path)
+            # shutil.rmtree(low_images_path)
         # import pdb; pdb.set_trace()
 
         self.logger.info(f"Got {len(low_phase_results)} unique results "
@@ -328,10 +344,10 @@ class Client:
         final_results.fill_gaps(number_of_frames)
 
         # Write results
-        final_results.write(video_name)
+        final_results.write(f"{video_name}")
         all_req_regions.write(
             f"{video_name}_req_regions_"
-            f"{self.config.low_threshold}_{self.config.high_threshold}")
+            f"{self.config.low_threshold}_{self.config.high_threshold}_{self.config.rpn_enlarge_ratio}")
 
         self.logger.info(f"Writing results for {video_name}")
         self.logger.info(f"{len(final_results)} objects detected "
@@ -340,11 +356,13 @@ class Client:
 
         # # do simple merge here
         # # import pdb; pdb.set_trace()
-        # # print(len(final_results))
-        # rdict = read_results_dict(video_name)
-        # final_results = merge_boxes_in_results(rdict, 0.3, 0.3)
-        # final_results.fill_gaps(number_of_frames)
-        # # print(len(final_results))
-        # final_results.write(video_name)
+        # print(len(final_results))
+        rdict = read_results_dict(f"{video_name}")
+        # MONKEY CODE
+        final_results = merge_boxes_in_results(rdict, 0.3, 0.3)
+        # MONKEY CODE
 
+        final_results.fill_gaps(number_of_frames)
+        # print(len(final_results))
+        final_results.write(f"{video_name}")
         return final_results, total_size

@@ -18,7 +18,7 @@ os.environ['TF_CPP_MIN_VLOG_LEVEL'] = '3'
 import six.moves.urllib as urllib
 import sys
 import tarfile
-
+PROJ_ROOT_DIR = '/home/yuanx/dds-simulation/'
 class Detector:
     classes = {
         "vehicle": [3, 6, 7, 8],
@@ -105,7 +105,7 @@ class Detector:
 
         return output_dict
 
-def main():
+def run_rpn_inference(video, threshold_RPN, threshold_RCNN, threshold_GT, low_scale, low_qp, high_scale, high_qp, results_dir):
     # download models
     MODEL_NAME = 'faster_rcnn_resnet101_coco_2018_01_28'
     MODEL_FILE = MODEL_NAME + '.tar.gz'
@@ -128,19 +128,25 @@ def main():
     # PATH_TO_LABELS = os.path.join('data', 'mscoco_label_map.pbtxt')
     # initial detector
     detector = Detector(PATH_TO_FROZEN_GRAPH)
-    threshold_RPN = 0.5
+
+    VIDEO_NAME = video
+    threshold_RPN = threshold_RPN
     threshold_RCNN = 0.3
     threshold_GT = 0.3
-    # ALL for (0.375, 40)
-    qp = 30
-    scale = 0.3
-    VIDEO_NAME = 'highway_0_00_00_00'
-    PATH_TO_HIGH_FILE = f'../results_{VIDEO_NAME}/{VIDEO_NAME}_mpeg_0.9_30'
-    PATH_TO_FINAL = f'../results_{VIDEO_NAME}/{VIDEO_NAME}_mpeg_{scale}_{qp}'
+    scale = low_scale
+    qp = low_qp
+    high_scale = high_scale
+    high_qp = high_qp
+    RESULT_DIR = results_dir
+
+    # print("PROJ_ROOT_DIR:", PROJ_ROOT_DIR)
+
+    PATH_TO_HIGH_FILE = f'{RESULT_DIR}/{VIDEO_NAME}_mpeg_{high_scale}_{high_qp}'
+    PATH_TO_FINAL = f'{RESULT_DIR}/{VIDEO_NAME}_mpeg_{scale}_{qp}'
 
     PATH_TO_TEST_IMAGES_DIR = f'/data/yuanx/new_dataset/{VIDEO_NAME}_{scale}_{qp}/src/' #0.375, 40
 
-    PATH_TO_SAVE_IMAGES_DIR = f'/data/yuanx/{VIDEO_NAME}_RPN_{threshold_RPN}'
+    PATH_TO_SAVE_IMAGES_DIR = f'/data/yuanx/visualization/{VIDEO_NAME}_RPN_{threshold_RPN}'
     os.makedirs(PATH_TO_SAVE_IMAGES_DIR, exist_ok=True)
 
     PATH_TO_ORIGIN_IMAGES_DIR = f'/data/yuanx/new_dataset/{VIDEO_NAME}/src/'
@@ -161,7 +167,6 @@ def main():
     final_results = Results()
     RCNN_results = Results()
     for idx, image_path in enumerate(TEST_IMAGE_PATHS):
-        print(idx)
         image = cv2.imread(image_path)
         image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
         # rpn detection, return a dict
@@ -281,13 +286,10 @@ def main():
     final_results.combine_results(RCNN_results, 0.5)
     # write
     final_results.fill_gaps(len(TEST_IMAGE_PATHS))
-    final_results.write(os.path.join("no_filter_combined_bboxes", f'{VIDEO_NAME}_mpeg_{scale}_{qp}'))
+    final_results.write(os.path.join(f"{PROJ_ROOT_DIR}/backend/no_filter_combined_bboxes", f'{VIDEO_NAME}_mpeg_{scale}_{qp}'))
     # read
-    rdict = read_results_txt_dict(os.path.join("no_filter_combined_bboxes", f'{VIDEO_NAME}_mpeg_{scale}_{qp}'))
+    rdict = read_results_txt_dict(os.path.join(f"{PROJ_ROOT_DIR}/backend/no_filter_combined_bboxes", f'{VIDEO_NAME}_mpeg_{scale}_{qp}'))
     results = merge_boxes_in_results(rdict, 0.3, 0.3)
     results.fill_gaps(len(TEST_IMAGE_PATHS))
-    results.write(os.path.join("no_filter_combined_merged_bboxes", f'{VIDEO_NAME}_mpeg_{scale}_{qp}'))
-
-
-if __name__== "__main__":
-    main()
+    results.write(os.path.join(f"{PROJ_ROOT_DIR}/backend/no_filter_combined_merged_bboxes", f'{VIDEO_NAME}_mpeg_{scale}_{qp}'))
+    print("RPN Done")
