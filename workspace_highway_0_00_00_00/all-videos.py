@@ -10,7 +10,7 @@ mpeg_qps = {
 }
 dds_config = {
     "highway_0_00_00_00": [
-                            (0.9,40,0.9,30,0.,15,'no_filter_combined_bboxes',0.5, 0., 0.02),
+                            (0.9,40,0.9,26,0.,15,'no_filter_combined_bboxes',0.5, 0., 0.0025),
                            ],
 }
 vid_names = sorted(gt_qps.keys())
