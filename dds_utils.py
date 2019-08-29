@@ -34,6 +34,7 @@ class ServerConfig:
         self.objfilter_iou = objfilter_iou
         self.size_obj = size_obj
 
+
 class Region:
     def __init__(self, fid, x, y, w, h, conf, label, resolution,
                  origin="generic"):
@@ -77,6 +78,7 @@ class Region:
 class Results:
     def __init__(self):
         self.regions = []
+        self.regions_dict = {}
 
     def __len__(self):
         return len(self.regions)
@@ -91,9 +93,11 @@ class Results:
     def is_dup(self, result_to_add, threshold=0.5):
         # return the regions with IOU greater than threshold
         # and maximum confidence
+        if result_to_add.fid not in self.regions_dict:
+            return None
         max_conf = -1
         max_conf_result = None
-        for existing_result in self.regions:
+        for existing_result in self.regions_dict[result_to_add.fid]:
             if existing_result.is_same(result_to_add, threshold):
                 if existing_result.conf > max_conf:
                     max_conf = existing_result.conf
@@ -113,6 +117,9 @@ class Results:
                 ("tracking" in region_to_add.origin and
                  "tracking" in dup_region.origin)):
             self.regions.append(region_to_add)
+            if region_to_add.fid not in self.regions_dict:
+                self.regions_dict[region_to_add.fid] = []
+            self.regions_dict[region_to_add.fid].append(region_to_add)
         else:
             final_object = None
             if dup_region.origin == region_to_add.origin:
@@ -150,8 +157,12 @@ class Results:
 
     def append(self, region_to_add):
         self.regions.append(region_to_add)
+        if region_to_add.fid not in self.regions_dict:
+            self.regions_dict[region_to_add.fid] = []
+        self.regions_dict[region_to_add.fid].append(region_to_add)
 
     def remove(self, region_to_remove):
+        self.regions_dict[region_to_remove.fid].remove(region_to_remove)
         self.regions.remove(region_to_remove)
 
     def fill_gaps(self, number_of_frames):
