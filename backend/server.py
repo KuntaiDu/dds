@@ -45,12 +45,13 @@ class Server:
             image = cv.cvtColor(image, cv.COLOR_BGR2RGB)
 
             self.logger.debug(f"Running detection for {fname}")
-            detection_results, multi_scan_results, offsets = self.detector.infer(image)
+            detection_results, multi_scan_results, offsets = (
+                self.detector.infer(image))
             self.logger.info(f"Running inference on {len(fnames)} frames")
             frame_with_no_results = True
             for label, conf, (x, y, w, h) in detection_results:
                 if (self.config.min_object_size and
-                        w * h < self.config.min_object_size) or w*h ==0.:
+                        w * h < self.config.min_object_size) or w * h == 0.0:
                     continue
                 r = Region(fid, x, y, w, h, conf, label,
                            resolution, origin="mpeg")
@@ -62,31 +63,63 @@ class Server:
                     Region(fid, 0, 0, 0, 0, 0.1, "no obj", resolution))
         return final_results, None, None
 
+    def get_regions_to_query(self, rpn_regions, detections):
+        req_regions = Results()
+        for region in rpn_regions.regions:
+            # Continue if the size of region is too large
+            if region.w * region.h > self.config.size_obj:
+                continue
+
+            # If there are positive detections and they match a region
+            # skip that region
+            if len(detections) > 0:
+                matches = 0
+                for detection in detections.regions:
+                    if (calc_iou(detection, region) >
+                            self.config.objfilter_iou and
+                            detection.fid == region.fid and
+                            region.label == 'object'):
+                        matches += 1
+                if matches > 0:
+                    continue
+
+            # Enlarge and add to regions to be queried
+            region.enlarge(self.config.rpn_enlarge_ratio)
+            req_regions.add_single_result(
+                region, self.config.intersection_threshold)
+        return req_regions
+
     def simulate_low_query(self, start_fid, end_fid, images_direc,
                            results_dict, simulation=True,
                            rpn_enlarge_ratio=0.0):
-        results = Results()
-        accepted_results = Results()
-        results_for_regions = Results()  # Results used for regions detection
+        batch_results = Results()
 
+        self.logger.info(f"Getting results with threshold "
+                         f"{self.config.low_threshold} and "
+                         f"{self.config.high_threshold}")
         # Extract relevant results
         for fid in range(start_fid, end_fid):
             fid_results = results_dict[fid]
             for single_result in fid_results:
                 single_result.origin = "low-res"
-                results.add_single_result(single_result,
-                                          self.config.intersection_threshold)
+                batch_results.add_single_result(
+                    single_result, self.config.intersection_threshold)
 
-        self.logger.info(f"Getting results with threshold "
-                         f"{self.config.low_threshold} and "
-                         f"{self.config.high_threshold}")
+        detections = Results()
+        rpn_regions = Results()
+        # Divide RPN results into detections and RPN regions
+        for single_result in batch_results.regions:
+            if (single_result.conf > self.config.prune_score and
+                    single_result.label == 'vehicle'):
+                detections.add_single_result(
+                    single_result, self.config.intersection_threshold)
+            else:
+                rpn_regions.add_single_result(
+                    single_result, self.config.intersection_threshold)
 
-        for single_result in results.regions:
-            results_for_regions.add_single_result(
-                single_result, self.config.intersection_threshold)
+        regions_to_query = self.get_regions_to_query(rpn_regions, detections)
 
-        # Regions include the results and regions to be sent in the second iteration
-        return results_for_regions
+        return detections, regions_to_query
 
     def emulate_high_query(self, vid_name, low_images_direc, req_regions):
         images_direc = vid_name + "-cropped"
@@ -95,7 +128,7 @@ class Server:
 
         if not os.path.isdir(images_direc):
             self.logger.error("Images directory was not found but the "
-                              "second iteration was call anyway")
+                              "second iteration was called anyway")
             return Results()
 
         fnames = sorted([f for f in os.listdir(images_direc) if "png" in f])

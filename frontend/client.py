@@ -3,7 +3,7 @@ import os
 import shutil
 from dds_utils import (Results, read_results_dict, cleanup, Region,
                        compute_regions_size, extract_images_from_video,
-                       merge_boxes_in_results)
+                       merge_boxes_in_results, calc_iou)
 
 
 class Client:
@@ -32,7 +32,6 @@ class Client:
         for i in range(0, number_of_frames, self.config.batch_size):
             start_frame = i
             end_frame = min(number_of_frames, i + self.config.batch_size)
-            print(start_frame, end_frame)
 
             batch_fnames = sorted([f"{str(idx).zfill(10)}.png"
                                    for idx in range(start_frame, end_frame)])
@@ -78,7 +77,6 @@ class Client:
         final_results = Results()
         low_phase_results = Results()
         high_phase_results = Results()
-        all_req_regions = Results()
 
         number_of_frames = len(
             [x for x in os.listdir(high_images_path) if "png" in x])
@@ -88,11 +86,8 @@ class Client:
             low_results_dict = read_results_dict(low_results_path)
 
         total_size = [0, 0]
-        total_pixel_size = 0
         total_regions_count = 0
-        results_catched_last_batch = None
         for i in range(0, number_of_frames, self.config.batch_size):
-            # print(i)
             start_fid = i
             end_fid = min(number_of_frames, i + self.config.batch_size)
             self.logger.info(f"Processing batch from {start_fid} to {end_fid}")
@@ -112,92 +107,42 @@ class Client:
 
             # Low resolution phase
             low_images_path = f"{video_name}-base-phase-cropped"
-            req_regions = None
-            # If results dict is present then just simulate the first phase
-            extract_images_from_video(low_images_path, base_req_regions)
-            req_regions = (
-                self.server.simulate_low_query(start_fid, end_fid,
-                                               low_images_path,
-                                               low_results_dict, False,
-                                               self.config.rpn_enlarge_ratio))
-            low_phase_results.combine_results(
-                all_req_regions, self.config.intersection_threshold)
+            r1, req_regions = self.server.simulate_low_query(
+                start_fid, end_fid, low_images_path, low_results_dict, False,
+                self.config.rpn_enlarge_ratio)
             total_regions_count += len(req_regions)
 
-            results_for_regions = Results()
-            results_for_pruning = Results()
-            accepted_results = Results()
-            # Get high confidence area
-            for single_result in req_regions.regions:
-                if (single_result.conf > self.config.prune_score and
-                        single_result.label == 'vehicle'):
-                    accepted_results.add_single_result(
-                        single_result, self.config.intersection_threshold)
-                    continue
-                results_for_pruning.add_single_result(single_result, self.config.intersection_threshold)
+            low_phase_results.combine_results(
+                r1, self.config.intersection_threshold)
+            final_results.combine_results(
+                r1, self.config.intersection_threshold)
 
-            print('results_for_pruning', len(results_for_pruning))
-            print('accepted_results', len(accepted_results))
-
-            for single_result in results_for_pruning.regions:
-                # find bbox to do pruning:
-                if len(accepted_results) > 0:
-                    cnt = 0
-                    for single_accept_result in accepted_results.regions:
-                        if calc_iou(single_accept_result, single_result) > self.config.objfilter_iou \
-                            and single_accept_result.fid == single_result.fid \
-                            and single_result.label == 'object':
-                            cnt += 1
-                    if cnt > 0:
-                        continue
-                if single_result.w * single_result.h > self.config.size_obj:
-                    continue
-                x_min = max(single_result.x - single_result.w * self.config.rpn_enlarge_ratio, 0.)
-                y_min = max(single_result.y - single_result.h * self.config.rpn_enlarge_ratio, 0.)
-                x_max = min(single_result.x + single_result.w * (1 + self.config.rpn_enlarge_ratio), 1.)
-                y_max = min(single_result.y + single_result.h * (1 + self.config.rpn_enlarge_ratio), 1.)
-                single_result.x = x_min
-                single_result.y = y_min
-                single_result.w = x_max - x_min
-                single_result.h = y_max - y_min
-                results_for_regions.add_single_result(
-                    single_result, self.config.intersection_threshold)
-            req_regions = results_for_regions
-            print('req_regions', len(req_regions))
-
-            for r in req_regions.regions:
-                all_req_regions.append(r)
-
+            # High resolution phase
             if len(req_regions) > 0:
                 # Crop, compress and get size
-                regions_size, pixel_size = compute_regions_size(
+                regions_size, _ = compute_regions_size(
                     req_regions, video_name, high_images_path,
                     self.config.high_resolution, self.config.high_qp,
-                    enforce_iframes, True, 1)
+                    enforce_iframes, True)
                 self.logger.info(f"Sent {len(req_regions)} regions which have "
                                  f"{regions_size / 1024}KB in second phase "
                                  f"using {self.config.high_qp}")
                 total_size[1] += regions_size
-                total_pixel_size += pixel_size
 
                 # High resolution phase every three filter
                 r2 = self.server.emulate_high_query(
                     video_name, low_images_path, req_regions)
-                results_catched_last_batch = r2
                 self.logger.info(f"Get {len(r2)} results in second phase "
                                  f"of batch")
+
                 high_phase_results.combine_results(
                     r2, self.config.intersection_threshold)
-                # if self.config.pruning:
-                if len(accepted_results) > 0:
-                    final_results.combine_results(
-                        accepted_results, self.config.intersection_threshold)
                 final_results.combine_results(
                     r2, self.config.intersection_threshold)
 
             # Cleanup for the next batch
             cleanup(video_name, debug_mode, start_fid, end_fid)
-            
+
         self.logger.info(f"Got {len(low_phase_results)} unique results "
                          f"in base phase")
         self.logger.info(f"Got {len(high_phase_results)} positive "
@@ -209,9 +154,6 @@ class Client:
 
         # Write results
         final_results.write(f"{video_name}")
-        all_req_regions.write(
-            f"{video_name}_req_regions_"
-            f"{self.config.low_threshold}_{self.config.high_threshold}_{self.config.rpn_enlarge_ratio}")
 
         self.logger.info(f"Writing results for {video_name}")
         self.logger.info(f"{len(final_results)} objects detected "

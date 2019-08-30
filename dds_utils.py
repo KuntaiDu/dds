@@ -71,6 +71,16 @@ class Region:
         else:
             return False
 
+    def enlarge(self, ratio):
+        x_min = max(self.x - self.w * ratio, 0.0)
+        y_min = max(self.y - self.h * ratio, 0.0)
+        x_max = min(self.x + self.w * (1 + ratio), 1.0)
+        y_max = min(self.y + self.h * (1 + ratio), 1.0)
+        self.x = x_min
+        self.y = y_min
+        self.w = x_max - x_min
+        self.h = y_max - y_min
+
     def copy(self):
         return Region(self.fid, self.x, self.y, self.w, self.h, self.conf,
                       self.label, self.resolution, self.origin)
