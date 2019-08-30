@@ -3,8 +3,8 @@ import shutil
 import logging
 import cv2 as cv
 from dds_utils import (Results, Region, calc_intersection_area,
-                       compute_area_of_frame, calc_iou,
-                       calc_area, merge_images_with_zeros, merge_images, extract_images_from_video)
+                       calc_iou, calc_area, merge_images,
+                       extract_images_from_video)
 from .object_detector import Detector
 
 
@@ -46,14 +46,11 @@ class Server:
 
             self.logger.debug(f"Running detection for {fname}")
             detection_results, multi_scan_results, offsets = self.detector.infer(image)
-            # if fid == 5:
-                # import pdb; pdb.set_trace()
             self.logger.info(f"Running inference on {len(fnames)} frames")
             frame_with_no_results = True
             for label, conf, (x, y, w, h) in detection_results:
                 if (self.config.min_object_size and
                         w * h < self.config.min_object_size) or w*h ==0.:
-                    # print("Continuing")
                     continue
                 r = Region(fid, x, y, w, h, conf, label,
                            resolution, origin="mpeg")
@@ -66,7 +63,8 @@ class Server:
         return final_results, None, None
 
     def simulate_low_query(self, start_fid, end_fid, images_direc,
-                           results_dict, simulation=True, rpn_enlarge_ratio=0.):
+                           results_dict, simulation=True,
+                           rpn_enlarge_ratio=0.0):
         results = Results()
         accepted_results = Results()
         results_for_regions = Results()  # Results used for regions detection
@@ -87,11 +85,7 @@ class Server:
             results_for_regions.add_single_result(
                 single_result, self.config.intersection_threshold)
 
-        # self.logger.info(f"Returning {len(accepted_results)} "
-        #                  f"confirmed results and "
-        #                  f"{len(regions_to_query)} regions")
-
-        # all the regions for query
+        # Regions include the results and regions to be sent in the second iteration
         return results_for_regions
 
     def emulate_high_query(self, vid_name, low_images_direc, req_regions):
@@ -112,16 +106,14 @@ class Server:
         for img in fnames:
             shutil.copy(os.path.join(images_direc, img), merged_images_direc)
 
-        merged_images = merge_images(merged_images_direc, low_images_direc, req_regions)
-        results, _, _= self.perform_detection(
+        merged_images = merge_images(
+            merged_images_direc, low_images_direc, req_regions)
+        results, _, _ = self.perform_detection(
             merged_images_direc, self.config.high_resolution, fnames,
             merged_images)
 
         results_with_detections_only = Results()
         for r in results.regions:
-            # if r.label == "no obj" or r.w * r.h == 0.:
-            #     continue
-            # r.origin = "high-res"
             results_with_detections_only.add_single_result(
                 r, self.config.intersection_threshold)
         shutil.rmtree(merged_images_direc)
