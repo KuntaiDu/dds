@@ -2,8 +2,7 @@ import os
 import shutil
 import logging
 import cv2 as cv
-from dds_utils import (Results, Region, calc_intersection_area,
-                       calc_iou, calc_area, merge_images,
+from dds_utils import (Results, Region, calc_iou, merge_images,
                        extract_images_from_video)
 from .object_detector import Detector
 
@@ -45,7 +44,7 @@ class Server:
             image = cv.cvtColor(image, cv.COLOR_BGR2RGB)
 
             self.logger.debug(f"Running detection for {fname}")
-            detection_results, multi_scan_results, offsets = (
+            detection_results = (
                 self.detector.infer(image))
             self.logger.info(f"Running inference on {len(fnames)} frames")
             frame_with_no_results = True
