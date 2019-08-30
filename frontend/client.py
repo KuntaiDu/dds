@@ -179,9 +179,8 @@ class Client:
                                  f"using {self.config.high_qp}")
                 total_size[1] += regions_size
                 total_pixel_size += pixel_size
-                # import pdb; pdb.set_trace()
-                # High resolution phase
-                # every three filter
+
+                # High resolution phase every three filter
                 r2 = self.server.emulate_high_query(
                     video_name, low_images_path, req_regions)
                 results_catched_last_batch = r2
@@ -196,14 +195,9 @@ class Client:
                 final_results.combine_results(
                     r2, self.config.intersection_threshold)
 
-
-
-            # import pdb; pdb.set_trace()
             # Cleanup for the next batch
             cleanup(video_name, debug_mode, start_fid, end_fid)
-            # shutil.rmtree(low_images_path)
-        # import pdb; pdb.set_trace()
-
+            
         self.logger.info(f"Got {len(low_phase_results)} unique results "
                          f"in base phase")
         self.logger.info(f"Got {len(high_phase_results)} positive "
@@ -224,15 +218,9 @@ class Client:
                          f"and {total_size[1]} total size "
                          f"of regions sent in high resolution")
 
-        # # do simple merge here
-        # # import pdb; pdb.set_trace()
-        # print(len(final_results))
         rdict = read_results_dict(f"{video_name}")
-        # MONKEY CODE
         final_results = merge_boxes_in_results(rdict, 0.3, 0.3)
-        # MONKEY CODE
 
         final_results.fill_gaps(number_of_frames)
-        # print(len(final_results))
         final_results.write(f"{video_name}")
         return final_results, total_size
