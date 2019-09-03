@@ -725,8 +725,9 @@ def get_size_from_mpeg_results(results_log_path, images_path, resolution):
     return size
 
 
-def filter(bboxes, gt_flag, gt_confid_thresh, mpeg_confid_thresh,
-           max_area_thresh_gt, max_area_thresh_mpeg):
+def filter_results(bboxes, gt_flag, gt_confid_thresh, mpeg_confid_thresh,
+                   max_area_thresh_gt, max_area_thresh_mpeg):
+    relevant_classes = ["vehicles"]
     if gt_flag:
         confid_thresh = gt_confid_thresh
         max_area_thresh = max_area_thresh_gt
@@ -767,12 +768,12 @@ def evaluate(max_fid, map_dd, map_gt, gt_confid_thresh, mpeg_confid_thresh,
     for fid in range(max_fid+1):
         bboxes_dd = map_dd[fid]
         bboxes_gt = map_gt[fid]
-        bboxes_dd = filter(
+        bboxes_dd = filter_results(
             bboxes_dd, gt_flag=False, gt_confid_thresh=gt_confid_thresh,
             mpeg_confid_thresh=mpeg_confid_thresh,
             max_area_thresh_gt=max_area_thresh_gt,
             max_area_thresh_mpeg=max_area_thresh_mpeg)
-        bboxes_gt = filter(
+        bboxes_gt = filter_results(
             bboxes_gt, gt_flag=True, gt_confid_thresh=gt_confid_thresh,
             mpeg_confid_thresh=mpeg_confid_thresh,
             max_area_thresh_gt=max_area_thresh_gt,

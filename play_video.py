@@ -84,7 +84,9 @@ def main(args):
     if args.ground_truth:
         ground_truth_dict = read_results_dict(args.ground_truth)
         logger.info("Reading ground truth results complete")
-        f1, stats = evaluate(results, ground_truth_dict, args.high_threshold)
+        tp, fp, fn, _, _, _, f1 = evaluate(
+            results, ground_truth_dict, args.high_threshold)
+        stats = (tp, fp, fn)
         logger.info(f"Got an f1 score of {f1} "
                     f"for this experiment {mode} with "
                     f"tp {stats[0]} fp {stats[1]} fn {stats[2]} "
