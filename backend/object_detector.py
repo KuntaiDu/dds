@@ -12,6 +12,7 @@ class Detector:
         "persons": [1, 2, 4],
         "roadside-objects": [10, 11, 13, 14]
     }
+    rpn_threshold = 0.5
 
     def __init__(self, model_path='frozen_inference_graph.pb'):
         self.logger = logging.getLogger("object_detector")
@@ -54,9 +55,16 @@ class Detector:
 
             # FOR RPN intermedia results
             key_tensor_map = {
-                'RPN_box_no_normalized' : 'BatchMultiClassNonMaxSuppression/map/while/MultiClassNonMaxSuppression/Gather/Gather:0',
-                'RPN_score' : 'BatchMultiClassNonMaxSuppression/map/while/MultiClassNonMaxSuppression/Gather/Gather_2:0',
-                'Resized_shape' : 'Preprocessor/map/while/ResizeToRange/stack_1:0',
+                'RPN_box_no_normalized': ("BatchMultiClassNonMaxSuppression"
+                                          "/map/while/"
+                                          "MultiClassNonMaxSuppression/"
+                                          "Gather/Gather:0"),
+                'RPN_score': ("BatchMultiClassNonMaxSuppression/"
+                              "map/while/"
+                              "MultiClassNonMaxSuppression"
+                              "/Gather/Gather_2:0"),
+                'Resized_shape': ("Preprocessor/map/while"
+                                  "/ResizeToRange/stack_1:0"),
             }
 
             for key, tensor_name in key_tensor_map.items():
@@ -75,7 +83,8 @@ class Detector:
             w = output_dict[key_tensor_map['Resized_shape']][1]
             h = output_dict[key_tensor_map['Resized_shape']][0]
             input_shape_array = np.array([h, w, h, w])
-            output_dict['RPN_box_normalized'] = output_dict[key_tensor_map['RPN_box_no_normalized']]/input_shape_array[np.newaxis,:]
+            output_dict['RPN_box_normalized'] = output_dict[key_tensor_map[
+                'RPN_box_no_normalized']]/input_shape_array[np.newaxis, :]
             output_dict['RPN_score'] = output_dict[key_tensor_map['RPN_score']]
 
             # FOR RCNN final layer results
@@ -116,31 +125,17 @@ class Detector:
             box_tuple = (xmin, ymin, xmax - xmin, ymax - ymin)
             results.append((object_class, confidence, box_tuple))
 
-
-        # threshold hard coding here
-        threshold_RPN = 0.5
-
-        results_only_RPN = []
-        # results_RPN_RCNN contains only RPN results, NO low_config results!
-        # low_config results is in Variable: results
-
-        frame_with_no_results = True
+        # Get RPN regions along with classification results
+        # rpn results array will have (class, (xmin, xmax, ymin, ymax)) typles
+        results_rpn = []
         for idx_region, region in enumerate(output_dict['RPN_box_normalized']):
             x = region[1]
             y = region[0]
             w = region[3] - region[1]
             h = region[2] - region[0]
             conf = output_dict['RPN_score'][idx_region]
-            if conf < threshold_RPN or w*h == 0. or w*h > 0.04:
+            if conf < Detector.rpn_threshold or w * h == 0.0 or w * h > 0.04:
                 continue
-            # print((idx, idx_region))
-            single_region = Region(idx, x, y, w, h, conf, 'object',
-                                   scale, 'generic')
-            RPN_Regions.append(single_region)
-            frame_with_no_results = False
+            results_rpn.append(("object", conf, (x, y, w, h)))
 
-        if frame_with_no_results:
-            RPN_Regions.append(
-                Region(idx, 0, 0, 0, 0, 0.1, "no obj", scale))
-
-        return results, results_only_RPN
+        return results, results_rpn

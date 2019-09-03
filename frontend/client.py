@@ -49,7 +49,7 @@ class Client:
                              f"in base phase using {self.config.low_qp}QP")
             extract_images_from_video(f"{video_name}-base-phase-cropped",
                                       req_regions)
-            results, multi_scan_final_results, offsets = (
+            results, rpn_results = (
                 self.server.perform_detection(
                     f"{video_name}-base-phase-cropped",
                     self.config.low_resolution, batch_fnames))
@@ -68,6 +68,8 @@ class Client:
             final_results.regions_dict, 0.3, 0.3)
         final_results.fill_gaps(number_of_frames)
         final_results.write(video_name)
+
+        final_results.combine_results(rpn_results, 1.0)
 
         return final_results, [total_size, 0]
 

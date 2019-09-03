@@ -27,6 +27,7 @@ class Server:
     def perform_detection(self, images_direc, resolution, fnames=None,
                           images=None):
         final_results = Results()
+        rpn_results = Results()
 
         if fnames is None:
             fnames = sorted(os.listdir(images_direc))
@@ -44,7 +45,7 @@ class Server:
             image = cv.cvtColor(image, cv.COLOR_BGR2RGB)
 
             self.logger.debug(f"Running detection for {fname}")
-            detection_results = (
+            detection_results, rpn_results = (
                 self.detector.infer(image))
             self.logger.info(f"Running inference on {len(fnames)} frames")
             frame_with_no_results = True
@@ -56,11 +57,17 @@ class Server:
                            resolution, origin="mpeg")
                 final_results.append(r)
                 frame_with_no_results = False
+            for label, conf, (x, y, w, h) in rpn_results:
+                r = Region(fid, x, y, w, h, conf, label,
+                           resolution, origin="generic")
+                rpn_results.append(r)
+                frame_with_no_results = False
 
             if frame_with_no_results:
                 final_results.append(
                     Region(fid, 0, 0, 0, 0, 0.1, "no obj", resolution))
-        return final_results, None, None
+
+        return final_results, rpn_results
 
     def get_regions_to_query(self, rpn_regions, detections):
         req_regions = Results()
@@ -109,7 +116,7 @@ class Server:
         # Divide RPN results into detections and RPN regions
         for single_result in batch_results.regions:
             if (single_result.conf > self.config.prune_score and
-                    single_result.label == 'vehicle'):
+                    single_result.label == "vehicle"):
                 detections.add_single_result(
                     single_result, self.config.intersection_threshold)
             else:
