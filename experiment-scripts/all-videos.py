@@ -1,7 +1,7 @@
 import os
 
 
-data_dir = "/data/yuanx/new_dataset"
+data_dir = "../new_dataset"
 gt_qps = {
     "manhattan_021_00_00_00": 34,
     "flyover_4_00_00_00": 32,
