@@ -106,6 +106,7 @@ class Results:
         # and maximum confidence
         if result_to_add.fid not in self.regions_dict:
             return None
+
         max_conf = -1
         max_conf_result = None
         for existing_result in self.regions_dict[result_to_add.fid]:
@@ -154,7 +155,7 @@ class Results:
         while len(self.regions) > 0:
             max_conf_obj = max(self.regions, key=lambda e: e.conf)
             new_regions_list.append(max_conf_obj)
-            self.regions.remove(max_conf_obj)
+            self.remove(max_conf_obj)
             objs_to_remove = []
             for r in self.regions:
                 if r.fid != max_conf_obj.fid:
@@ -162,9 +163,10 @@ class Results:
                 if calc_iou(r, max_conf_obj) > threshold:
                     objs_to_remove.append(r)
             for r in objs_to_remove:
-                self.regions.remove(r)
-        self.regions = new_regions_list
-        self.regions.sort(key=lambda e: e.fid)
+                self.remove(r)
+        new_regions_list.sort(key=lambda e: e.fid)
+        for r in new_regions_list:
+            self.append(r)
 
     def append(self, region_to_add):
         self.regions.append(region_to_add)
@@ -175,6 +177,7 @@ class Results:
     def remove(self, region_to_remove):
         self.regions_dict[region_to_remove.fid].remove(region_to_remove)
         self.regions.remove(region_to_remove)
+        self.regions_dict[region_to_remove.fid].remove(region_to_remove)
 
     def fill_gaps(self, number_of_frames):
         if len(self.regions) == 0:
@@ -563,7 +566,6 @@ def extract_images_from_video(images_path, req_regions):
     extacted_images_path = os.path.join(images_path, "%010d.png")
     decoding_result = subprocess.run(["ffmpeg", "-y",
                                       "-i", encoded_vid_path,
-                                      # "-vcodec", "mjpeg",
                                       "-pix_fmt", "yuvj420p",
                                       "-g", "8", "-q:v", "2",
                                       "-vsync", "0", "-start_number", "0",
