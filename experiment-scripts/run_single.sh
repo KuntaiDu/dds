@@ -46,7 +46,7 @@ then
            --ground-truth results/${video}_gt --max-size 0.3 \
            --low-threshold 0.3 --high-threshold 0.3 --enforce-iframes \
            --batch-size ${batch_size} --prune-score ${prune_score} \
-           --objfilter-iou ${objfilter_iou} --size-obj ${size_obj}
+           --objfilter-iou ${objfilter_iou} --size-obj ${size_obj} \
            --qp ${low_qp} ${high_qp} --verbosity info --rpn_enlarge_ratio ${rpn_enlarge_ratio} \
 
  fi

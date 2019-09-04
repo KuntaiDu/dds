@@ -27,7 +27,7 @@ class Server:
     def perform_detection(self, images_direc, resolution, fnames=None,
                           images=None):
         final_results = Results()
-        rpn_results = Results()
+        rpn_regions = Results()
 
         if fnames is None:
             fnames = sorted(os.listdir(images_direc))
@@ -60,14 +60,14 @@ class Server:
             for label, conf, (x, y, w, h) in rpn_results:
                 r = Region(fid, x, y, w, h, conf, label,
                            resolution, origin="generic")
-                rpn_results.append(r)
+                rpn_regions.append(r)
                 frame_with_no_results = False
 
             if frame_with_no_results:
                 final_results.append(
                     Region(fid, 0, 0, 0, 0, 0.1, "no obj", resolution))
 
-        return final_results, rpn_results
+        return final_results, rpn_regions
 
     def get_regions_to_query(self, rpn_regions, detections):
         req_regions = Results()

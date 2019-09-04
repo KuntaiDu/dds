@@ -58,7 +58,6 @@ for video in vid_names:
     # Run MPEG
     for res in mpeg_resolutions:
         for qp in mpeg_qps[video]:
-            print(str(res) + '/' + str(qp))
             vname = f"{video}_mpeg_{res}_{qp}"
             if not os.path.exists(os.path.join("results", vname)):
                 os.system(f"bash run_single.sh mpeg {video} {vname} {qp} {res}")

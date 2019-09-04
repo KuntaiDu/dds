@@ -55,22 +55,23 @@ class Detector:
 
             # FOR RPN intermedia results
             key_tensor_map = {
-                'RPN_box_no_normalized': ("BatchMultiClassNonMaxSuppression"
+                "RPN_box_no_normalized": ("BatchMultiClassNonMaxSuppression"
                                           "/map/while/"
                                           "MultiClassNonMaxSuppression/"
                                           "Gather/Gather:0"),
-                'RPN_score': ("BatchMultiClassNonMaxSuppression/"
+                "RPN_score": ("BatchMultiClassNonMaxSuppression/"
                               "map/while/"
                               "MultiClassNonMaxSuppression"
                               "/Gather/Gather_2:0"),
-                'Resized_shape': ("Preprocessor/map/while"
+                "Resized_shape": ("Preprocessor/map/while"
                                   "/ResizeToRange/stack_1:0"),
             }
 
             for key, tensor_name in key_tensor_map.items():
                 if tensor_name in all_tensor_names:
-                    tensor_dict[tensor_name] = (tf.compat.v1.get_default_graph()
-                                        .get_tensor_by_name(tensor_name))
+                    tensor_dict[tensor_name] = (
+                        tf.compat.v1.get_default_graph()
+                        .get_tensor_by_name(tensor_name))
 
             image_tensor = (tf.compat.v1.get_default_graph()
                             .get_tensor_by_name('image_tensor:0'))
