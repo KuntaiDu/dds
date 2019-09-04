@@ -28,6 +28,7 @@ class Client:
             [f for f in os.listdir(raw_images_path) if ".png" in f])
 
         final_results = Results()
+        final_rpn_results = Results()
         total_size = 0
         for i in range(0, number_of_frames, self.config.batch_size):
             start_frame = i
@@ -57,9 +58,11 @@ class Client:
             self.logger.info(f"Detection {len(results)} regions for "
                              f"batch {start_frame} to {end_frame} with a "
                              f"total size of {batch_video_size / 1024}KB")
-
             final_results.combine_results(
                 results, self.config.intersection_threshold)
+            final_rpn_results.combine_results(
+                rpn_results, self.config.intersection_threshold)
+
             # Remove encoded video manually
             shutil.rmtree(f"{video_name}-base-phase-cropped")
             total_size += batch_video_size
@@ -67,9 +70,12 @@ class Client:
         final_results = merge_boxes_in_results(
             final_results.regions_dict, 0.3, 0.3)
         final_results.fill_gaps(number_of_frames)
-        final_results.write(video_name)
 
-        final_results.combine_results(rpn_results, 1.0)
+        # Add RPN regions
+        final_results.combine_results(
+            rpn_results, self.config.intersection_threshold)
+
+        final_results.write(video_name)
 
         return final_results, [total_size, 0]
 
