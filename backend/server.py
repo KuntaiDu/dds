@@ -47,7 +47,6 @@ class Server:
             self.logger.debug(f"Running detection for {fname}")
             detection_results, rpn_results = (
                 self.detector.infer(image))
-            self.logger.info(f"Running inference on {len(fnames)} frames")
             frame_with_no_results = True
             for label, conf, (x, y, w, h) in detection_results:
                 if (self.config.min_object_size and

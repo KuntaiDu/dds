@@ -9,8 +9,9 @@ from dds_utils import (ServerConfig, read_results_dict,
 
 
 def main(args):
-    logging.basicConfig(format="%(name)s -- %(levelname)s -- %(message)s",
-                        level=args.verbosity.upper())
+    logging.basicConfig(
+        format="%(name)s -- %(levelname)s -- %(lineno)s -- %(message)s",
+        level=args.verbosity.upper())
 
     logger = logging.getLogger("dds")
     logger.addHandler(logging.NullHandler())
