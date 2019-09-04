@@ -729,7 +729,7 @@ def get_size_from_mpeg_results(results_log_path, images_path, resolution):
 
 def filter_results(bboxes, gt_flag, gt_confid_thresh, mpeg_confid_thresh,
                    max_area_thresh_gt, max_area_thresh_mpeg):
-    relevant_classes = ["vehicles"]
+    relevant_classes = ["vehicle"]
     if gt_flag:
         confid_thresh = gt_confid_thresh
         max_area_thresh = max_area_thresh_gt
