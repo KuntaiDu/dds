@@ -86,7 +86,8 @@ def main(args):
         ground_truth_dict = read_results_dict(args.ground_truth)
         logger.info("Reading ground truth results complete")
         tp, fp, fn, _, _, _, f1 = evaluate(
-            results, ground_truth_dict, args.high_threshold)
+            number_of_frames - 1, results.regions_dict, ground_truth_dict,
+            args.low_threshold, args.low_threshold, 0.4, 0.4)
         stats = (tp, fp, fn)
         logger.info(f"Got an f1 score of {f1} "
                     f"for this experiment {mode} with "

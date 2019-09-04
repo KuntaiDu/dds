@@ -740,6 +740,7 @@ def filter_results(bboxes, gt_flag, gt_confid_thresh, mpeg_confid_thresh,
 
     result = []
     for b in bboxes:
+        b = b.x, b.y, b.w, b.h, b.label, b.conf
         (x, y, w, h, label, confid) = b
         if (confid >= confid_thresh and w*h <= max_area_thresh and
                 label in relevant_classes):
