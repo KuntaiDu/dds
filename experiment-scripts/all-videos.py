@@ -69,12 +69,12 @@ for video in vid_names:
          rpn_enlarge_ratio, batch_size, prune_score,
          objfilter_iou, size_obj) in dds_config[video]:
         vname = (f"{video}_dds_{low_res}_{high_res}_{low_qp}_{high_qp}_"
-                 "{rpn_enlarge_ratio}_twosides_batch_{batch_size}_"
-                 "{prune_score}_{objfilter_iou}_{size_obj}")
+                 f"{rpn_enlarge_ratio}_twosides_batch_{batch_size}_"
+                 f"{prune_score}_{objfilter_iou}_{size_obj}")
         if not os.path.exists(os.path.join("results", vname)):
             os.system(f"bash run_single.sh dds {video} {vname} {low_qp} "
-                      "{high_qp} {low_res} {high_res} {rpn_enlarge_ratio} "
-                      "{batch_size} {prune_score} "
-                      "{objfilter_iou} {size_obj}")
+                      f"{high_qp} {low_res} {high_res} {rpn_enlarge_ratio} "
+                      f"{batch_size} {prune_score} "
+                      f"{objfilter_iou} {size_obj}")
         else:
             print(f"Skipping {vname}")

@@ -37,11 +37,11 @@ then
     high=$7
     rpn_enlarge_ratio=$8
     batch_size=$9
-    prune_score=$10
-    objfilter_iou=$11
-    size_obj=$12
+    prune_score=${10}
+    objfilter_iou=${11}
+    size_obj=${12}
     low_results=results/${video}_mpeg_${low}_${low_qp}
-    python play_video.py --vid-name ${RESULTS_DIR}/${vname} --high-src ${original_images} \
+    python play_video.py --vid-name results/${vname} --high-src ${original_images} \
            --resolutions ${low} ${high} --low-results ${low_results} --output-file ${OUTPUT_FILE} \
            --ground-truth results/${video}_gt --max-size 0.3 \
            --low-threshold 0.3 --high-threshold 0.3 --enforce-iframes \
