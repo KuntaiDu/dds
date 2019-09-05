@@ -3,7 +3,7 @@ import os
 import shutil
 from dds_utils import (Results, read_results_dict, cleanup, Region,
                        compute_regions_size, extract_images_from_video,
-                       merge_boxes_in_results, calc_iou)
+                       merge_boxes_in_results)
 
 
 class Client:
@@ -110,7 +110,9 @@ class Client:
             encoded_batch_video_size, batch_pixel_size = compute_regions_size(
                 base_req_regions, f"{video_name}-base-phase", high_images_path,
                 self.config.low_resolution, self.config.low_qp,
-                enforce_iframes, True, 1)
+                enforce_iframes, True)
+            self.logger.info(f"Sent {encoded_batch_video_size / 1024} "
+                             f"in base phase")
             total_size[0] += encoded_batch_video_size
 
             # Low resolution phase
@@ -140,7 +142,7 @@ class Client:
                 # High resolution phase every three filter
                 r2 = self.server.emulate_high_query(
                     video_name, low_images_path, req_regions)
-                self.logger.info(f"Get {len(r2)} results in second phase "
+                self.logger.info(f"Got {len(r2)} results in second phase "
                                  f"of batch")
 
                 high_phase_results.combine_results(

@@ -97,6 +97,13 @@ class Server:
     def simulate_low_query(self, start_fid, end_fid, images_direc,
                            results_dict, simulation=True,
                            rpn_enlarge_ratio=0.0):
+        base_req_regions = Results()
+        for fid in range(start_fid, end_fid):
+            base_req_regions.append(
+                Region(fid, 0, 0, 1, 1, 1.0, 2,
+                       self.config.high_resolution))
+        extract_images_from_video(images_direc, base_req_regions)
+
         batch_results = Results()
 
         self.logger.info(f"Getting results with threshold "
@@ -146,7 +153,7 @@ class Server:
 
         merged_images = merge_images(
             merged_images_direc, low_images_direc, req_regions)
-        results, _, _ = self.perform_detection(
+        results, _ = self.perform_detection(
             merged_images_direc, self.config.high_resolution, fnames,
             merged_images)
 

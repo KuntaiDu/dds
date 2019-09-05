@@ -511,7 +511,6 @@ def compress_and_get_size(images_path, start_id, end_id, qp,
                                              stderr=subprocess.PIPE,
                                              universal_newlines=True)
         else:
-            # import pdb; pdb.set_trace()
             encoding_result = subprocess.run(["ffmpeg", "-y",
                                               "-loglevel", "error",
                                               "-start_number", str(start_id),
@@ -675,7 +674,7 @@ def merge_images(cropped_images_direc, low_images_direc, req_regions):
 def compute_regions_size(results, vid_name, images_direc, resolution, qp,
                          enforce_iframes, estimate_banwidth=True):
     if estimate_banwidth:
-        # If not simulation then compress and encode images
+        # If not simulation, compress and encode images
         # and get size
         vid_name = f"{vid_name}-cropped"
         frames_count = crop_images(results, vid_name, images_direc,
@@ -697,6 +696,7 @@ def cleanup(vid_name, debug_mode=False, start_id=None, end_id=None):
         return
 
     if not debug_mode:
+        shutil.rmtree(vid_name + "-base-phase-cropped")
         shutil.rmtree(vid_name + "-cropped")
     else:
         if start_id is None or end_id is None:
