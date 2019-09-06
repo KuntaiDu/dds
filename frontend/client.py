@@ -73,7 +73,7 @@ class Client:
 
         # Add RPN regions
         final_results.combine_results(
-            rpn_results, self.config.intersection_threshold)
+            final_rpn_results, self.config.intersection_threshold)
 
         final_results.write(video_name)
 

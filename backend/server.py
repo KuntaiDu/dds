@@ -3,7 +3,8 @@ import shutil
 import logging
 import cv2 as cv
 from dds_utils import (Results, Region, calc_iou, merge_images,
-                       extract_images_from_video)
+                       extract_images_from_video,
+                       compute_area_of_frame, calc_area)
 from .object_detector import Detector
 
 
@@ -159,8 +160,28 @@ class Server:
 
         results_with_detections_only = Results()
         for r in results.regions:
+            if r.label == "no obj":
+                continue
             results_with_detections_only.add_single_result(
                 r, self.config.intersection_threshold)
+
+        # high_only_results = Results()
+        # area_dict = {}
+        # for r in results_with_detections_only.regions:
+        #     frame_regions = req_regions.regions_dict[r.fid]
+        #     regions_area = 0
+        #     if r.fid in area_dict:
+        #         regions_area = area_dict[r.fid]
+        #     else:
+        #         regions_area = compute_area_of_frame(frame_regions)
+        #         area_dict[r.fid] = regions_area
+        #     regions_with_result = frame_regions + [r]
+        #     total_area = compute_area_of_frame(regions_with_result)
+        #     extra_area = total_area - regions_area
+        #     if extra_area < 0.05 * calc_area(r):
+        #         r.origin = "high-res"
+        #         high_only_results.append(r)
+
         shutil.rmtree(merged_images_direc)
 
         return results_with_detections_only
