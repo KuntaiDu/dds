@@ -6,14 +6,14 @@ num_frames=$4
 scale=$5
 src_dir_name=new_dataset/${vid_name}/src/
 des_dir_name=new_dataset/${vid_name}_${res}_${qp}/src
-ROOT=/data/yuanx
+ROOT=/data2/kuntai-gpuc/kuntai
 
 echo $ROOT
 
 image_src_path=${ROOT}/${src_dir_name}
 vid_des_path=${ROOT}/${vid_name}_${res}_${qp}.mp4
 
-ffmpeg -y \
+/usr/bin/ffmpeg -y \
 -loglevel error \
 -start_number 0 \
 -i ${image_src_path}/%010d.png \
@@ -29,7 +29,7 @@ ${vid_des_path}
 image_des_path=${ROOT}/${des_dir_name}
 mkdir -p ${image_des_path}
 
-ffmpeg -y \
+/usr/bin/ffmpeg -y \
 -i ${vid_des_path} \
 -vsync 0 \
 -start_number 0 \
