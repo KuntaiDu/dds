@@ -10,7 +10,7 @@ from merger import *
 import os
 
 
-data_dir = "/data/yuanx/new_dataset"
+data_dir = "/data/kuntai/new_dataset"
 mpeg_resolutions = [0.2, 0.375, 0.5, 0.75, 0.8, 0.9]
 mpeg_qps = [30]
 

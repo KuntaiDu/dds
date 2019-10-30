@@ -4,9 +4,6 @@ import numpy as np
 import tensorflow as tf
 import cv2
 from tensorflow.compat.v1 import ConfigProto
-from object_detection.core import box_list
-from object_detection.core import box_list_ops
-from object_detection.utils import shape_utils
 import glob
 import sys
 sys.path.append("../")
@@ -15,10 +12,19 @@ from dds_utils import read_results_txt_dict
 # from object_detection.utils import ops as utils_ops
 os.environ['TF_CPP_MIN_VLOG_LEVEL'] = '3'
 
+# load dds environment variables
+import yaml
+assert os.path.exists('dds_env.yaml')
+with open('dds_env.yaml', 'r') as f:
+    dds_env = yaml.load(f.read())
+
+relevant_classes = dds_env['relevant_classes']
+print(relevant_classes)
+
 import six.moves.urllib as urllib
 import sys
 import tarfile
-PROJ_ROOT_DIR = '/home/yuanx/dds-simulation/'
+PROJ_ROOT_DIR = dds_env['root']
 class Detector:
     classes = {
         "vehicle": [3, 6, 7, 8],
@@ -107,12 +113,14 @@ class Detector:
 
 def run_rpn_inference(video, threshold_RPN, threshold_RCNN, threshold_GT, low_scale, low_qp, high_scale, high_qp, results_dir):
     # download models
-    MODEL_NAME = 'faster_rcnn_resnet101_coco_2018_01_28'
-    MODEL_FILE = MODEL_NAME + '.tar.gz'
-    DOWNLOAD_BASE = 'http://download.tensorflow.org/models/object_detection/'
-    SAVE_BASE = '/data/yuanx/'
+    # MODEL_NAME = 'faster_rcnn_resnet101_coco_2018_01_28'
+    # MODEL_FILE = MODEL_NAME + '.tar.gz'
+    # DOWNLOAD_BASE = 'http://download.tensorflow.org/models/object_detection/'
+    # SAVE_BASE = '/data/kuntai/model/'
     # Path to frozen detection graph. This is the actual model that is used for the object detection.
-    PATH_TO_FROZEN_GRAPH = SAVE_BASE + MODEL_NAME + '/frozen_inference_graph.pb'
+    # PATH_TO_FROZEN_GRAPH = SAVE_BASE + MODEL_NAME + '/frozen_inference_graph.pb'
+
+    PATH_TO_FROZEN_GRAPH = dds_env['resnet_101_coco']
 
     # download the model
     # if not os.path.isfile(SAVE_BASE + MODEL_FILE):
@@ -144,12 +152,12 @@ def run_rpn_inference(video, threshold_RPN, threshold_RCNN, threshold_GT, low_sc
     PATH_TO_HIGH_FILE = f'{RESULT_DIR}/{VIDEO_NAME}_mpeg_{high_scale}_{high_qp}'
     PATH_TO_FINAL = f'{RESULT_DIR}/{VIDEO_NAME}_mpeg_{scale}_{qp}'
 
-    PATH_TO_TEST_IMAGES_DIR = f'/data/yuanx/new_dataset/{VIDEO_NAME}_{scale}_{qp}/src/' #0.375, 40
+    PATH_TO_TEST_IMAGES_DIR = f'{dds_env["dataset"]}/{VIDEO_NAME}_{scale}_{qp}/src/' #0.375, 40
 
-    PATH_TO_SAVE_IMAGES_DIR = f'/data/yuanx/visualization/{VIDEO_NAME}_RPN_{threshold_RPN}'
+    PATH_TO_SAVE_IMAGES_DIR = f'{dds_env["dataset"]}{VIDEO_NAME}_RPN_{threshold_RPN}'
     os.makedirs(PATH_TO_SAVE_IMAGES_DIR, exist_ok=True)
 
-    PATH_TO_ORIGIN_IMAGES_DIR = f'/data/yuanx/new_dataset/{VIDEO_NAME}/src/'
+    PATH_TO_ORIGIN_IMAGES_DIR = f'{dds_env["dataset"]}/{VIDEO_NAME}/src'
     number_of_frames = len(glob.glob1(PATH_TO_ORIGIN_IMAGES_DIR,"*.png"))
     print(number_of_frames)
 
@@ -242,7 +250,7 @@ def run_rpn_inference(video, threshold_RPN, threshold_RCNN, threshold_GT, low_sc
             draw_this_frame = True
         if idx in result_dict_rcnn:
             for res in result_dict_rcnn[idx]:
-                if res.conf < threshold_RCNN or res.w*res.h == 0. or res.w*res.h >0.04 or res.label != 'vehicle':
+                if res.conf < threshold_RCNN or res.w*res.h == 0. or res.w*res.h >0.04 or res.label not in relevant_classes:
                     continue
                 # import pdb; pdb.set_trace()
                 x = int(np.round(res.x * image_origin.shape[1]))
@@ -254,7 +262,7 @@ def run_rpn_inference(video, threshold_RPN, threshold_RCNN, threshold_GT, low_sc
                 draw_this_frame = True
         if idx in result_dict_gt:
             for res in result_dict_gt[idx]:
-                if res.conf < threshold_GT or res.w*res.h == 0. or res.w*res.h >0.04 or res.label != 'vehicle':
+                if res.conf < threshold_GT or res.w*res.h == 0. or res.w*res.h >0.04 or res.label not in relevant_classes:
                     continue
                 # import pdb; pdb.set_trace()
                 x = int(np.round(res.x * image_origin.shape[1]))
@@ -280,7 +288,7 @@ def run_rpn_inference(video, threshold_RPN, threshold_RCNN, threshold_GT, low_sc
     for fid, rcnn_region in result_dict_rcnn.items():
         for r in rcnn_region:
             # if r.conf < 0.3 or r.w*r.h > 0.04 or r.w*r.h == 0.:
-            if r.conf < threshold_RCNN or r.w*r.h == 0. or r.w*r.h >0.04 or r.label != 'vehicle':
+            if r.conf < threshold_RCNN or r.w*r.h == 0. or r.w*r.h >0.04 or r.label not in relevant_classes:
                 continue
             RCNN_results.append(r)
     final_results.combine_results(RCNN_results, 0.5)

@@ -18,7 +18,10 @@ max_area_thresh_gt_list = [0.04]
 max_area_thresh_mpeg_list = [0.04]
 iou_thresh = 0.3
 
-relevant_classes = ['vehicle']
+
+env_2_relevant_classes = {0: ['vehicle'], 1: ['persons'], 2: ['vehicle', 'persons']}
+relevant_classes = env_2_relevant_classes[int(os.environ['RELEVANT_CLASSES'])]
+print(relevant_classes)
 
 def parse_stats(stats_path):
 	fname_to_size = {}
@@ -157,8 +160,7 @@ MAX_FID = -1
 fid_to_bboxes_dict = {}
 for file in dirs:
 	# Dont parse req regions
-	if "req_regions" in file or os.path.isdir(os.path.join(results_direc,file)):
-		continue
+	if "req_regions" in file or "jpg" in file or "segment_size" in file or os.path.isdir(os.path.join(results_direc,file)): continue
 	max_fid, fid_to_bboxes = parse(os.path.join(results_direc,file), gt_flag = ("gt" in file))
 	if max_fid > MAX_FID:
 		MAX_FID = max_fid

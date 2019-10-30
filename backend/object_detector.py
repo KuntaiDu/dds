@@ -7,6 +7,12 @@ from tensorflow.compat.v1 import ConfigProto
 os.environ['TF_CPP_MIN_VLOG_LEVEL'] = '3'
 
 
+import yaml
+with open('dds_env.yaml', 'r') as f:
+    dds_env = yaml.load(f.read())
+relevant_classes = dds_env['relevant_classes']
+print(relevant_classes)
+
 class Detector:
     classes = {
         "vehicle": [3, 6, 7, 8],
@@ -17,12 +23,12 @@ class Detector:
     def __init__(self, model_path='frozen_inference_graph.pb'):
 
         # dirty fix
-        MODEL_NAME = 'faster_rcnn_resnet101_coco_2018_01_28'
-        MODEL_FILE = MODEL_NAME + '.tar.gz'
-        DOWNLOAD_BASE = 'http://download.tensorflow.org/models/object_detection/'
-        SAVE_BASE = '/data/yuanx/'
+        # MODEL_NAME = 'faster_rcnn_resnet101_coco_2018_01_28'
+        # MODEL_FILE = MODEL_NAME + '.tar.gz'
+        # DOWNLOAD_BASE = 'http://download.tensorflow.org/models/object_detection/'
+        # SAVE_BASE = '/data/kuntai/model/'
         # Path to frozen detection graph. This is the actual model that is used for the object detection.
-        model_path = os.path.join(SAVE_BASE+MODEL_NAME, model_path)
+        model_path = dds_env['resnet_101_coco']
 
         self.logger = logging.getLogger("object_detector")
         handler = logging.NullHandler()

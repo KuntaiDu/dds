@@ -15,6 +15,10 @@ from dds_utils import read_results_txt_dict
 # from object_detection.utils import ops as utils_ops
 os.environ['TF_CPP_MIN_VLOG_LEVEL'] = '3'
 
+env_2_relevant_classes = {0: ['vehicle'], 1: ['persons'], 2: ['vehicle', 'persons']}
+relevant_classes = env_2_relevant_classes[int(os.environ['RELEVANT_CLASSES'])]
+print(relevant_classes)
+
 import six.moves.urllib as urllib
 import sys
 import tarfile
@@ -110,7 +114,7 @@ def main():
     MODEL_NAME = 'faster_rcnn_resnet101_coco_2018_01_28'
     MODEL_FILE = MODEL_NAME + '.tar.gz'
     DOWNLOAD_BASE = 'http://download.tensorflow.org/models/object_detection/'
-    SAVE_BASE = '/data/yuanx/'
+    SAVE_BASE = '/data/kuntai/model/'
     # Path to frozen detection graph. This is the actual model that is used for the object detection.
     PATH_TO_FROZEN_GRAPH = SAVE_BASE + MODEL_NAME + '/frozen_inference_graph.pb'
 
@@ -138,12 +142,12 @@ def main():
     PATH_TO_HIGH_FILE = f'../results_{VIDEO_NAME}/{VIDEO_NAME}_mpeg_0.9_30'
     PATH_TO_FINAL = f'../results_{VIDEO_NAME}/{VIDEO_NAME}_mpeg_{scale}_{qp}'
 
-    PATH_TO_TEST_IMAGES_DIR = f'/data/yuanx/new_dataset/{VIDEO_NAME}_{scale}_{qp}/src/' #0.375, 40
+    PATH_TO_TEST_IMAGES_DIR = f'/data/kuntai/new_dataset/{VIDEO_NAME}_{scale}_{qp}/src/' #0.375, 40
 
-    PATH_TO_SAVE_IMAGES_DIR = f'/data/yuanx/{VIDEO_NAME}_RPN_{threshold_RPN}'
+    PATH_TO_SAVE_IMAGES_DIR = f'/data/kuntai/{VIDEO_NAME}_RPN_{threshold_RPN}'
     os.makedirs(PATH_TO_SAVE_IMAGES_DIR, exist_ok=True)
 
-    PATH_TO_ORIGIN_IMAGES_DIR = f'/data/yuanx/new_dataset/{VIDEO_NAME}/src/'
+    PATH_TO_ORIGIN_IMAGES_DIR = f'/data/kuntai/new_dataset/{VIDEO_NAME}/src/'
     number_of_frames = len(glob.glob1(PATH_TO_ORIGIN_IMAGES_DIR,"*.png"))
     print(number_of_frames)
 
@@ -237,7 +241,7 @@ def main():
             draw_this_frame = True
         if idx in result_dict_rcnn:
             for res in result_dict_rcnn[idx]:
-                if res.conf < threshold_RCNN or res.w*res.h == 0. or res.w*res.h >0.04 or res.label != 'vehicle':
+                if res.conf < threshold_RCNN or res.w*res.h == 0. or res.w*res.h >0.04 or res.label not in relevant_classes:
                     continue
                 # import pdb; pdb.set_trace()
                 x = int(np.round(res.x * image_origin.shape[1]))
@@ -249,7 +253,7 @@ def main():
                 draw_this_frame = True
         if idx in result_dict_gt:
             for res in result_dict_gt[idx]:
-                if res.conf < threshold_GT or res.w*res.h == 0. or res.w*res.h >0.04 or res.label != 'vehicle':
+                if res.conf < threshold_GT or res.w*res.h == 0. or res.w*res.h >0.04 or res.label not in relevant_classes:
                     continue
                 # import pdb; pdb.set_trace()
                 x = int(np.round(res.x * image_origin.shape[1]))
@@ -275,7 +279,7 @@ def main():
     for fid, rcnn_region in result_dict_rcnn.items():
         for r in rcnn_region:
             # if r.conf < 0.3 or r.w*r.h > 0.04 or r.w*r.h == 0.:
-            if r.conf < threshold_RCNN or r.w*r.h == 0. or r.w*r.h >0.04 or r.label != 'vehicle':
+            if r.conf < threshold_RCNN or r.w*r.h == 0. or r.w*r.h >0.04 or r.label not in relevant_classes:
                 continue
             RCNN_results.append(r)
     final_results.combine_results(RCNN_results, 0.5)

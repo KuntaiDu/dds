@@ -21,7 +21,7 @@ from merger import *
 import os
 
 
-data_dir = "/data/yuanx/new_dataset"
+data_dir = "/data/kuntai/new_dataset"
 # mpeg_resolutions = [0.15, 0.2, 0.25, 0.375, 0.5, 0.625, 0.75]
 mpeg_resolutions = [0.95, 0.9, 0.85, 0.8, 0.75, 0.7, 0.65, 0.6, 0.55, 0.5, 0.45, 0.4, 0.375, 0.35, 0.3, 0.25, 0.2, 0.1]
 mpeg_qps = [30]

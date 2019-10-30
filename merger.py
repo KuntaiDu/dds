@@ -4,16 +4,19 @@ import networkx
 from networkx.algorithms.components.connected import connected_components
 from dds_utils import calc_iou, Region, Results
 
+import yaml
+with open('dds_env.yaml', 'r') as f:
+    dds_env = yaml.load(f.read())
 
 VIDEO_WIDTH = 1
 VIDEO_HEIGHT = 1
 PATH_TO_GT_file = 'gt_bbox.txt'
 PATH_TO_LOW_file = 'low_bbox.txt'
-PATH_TO_FRAMES = '/data/yuanx/origin'
-PATH_TO_SAVE_GT_ORIGIN = '/data/yuanx/gt_origin'
-PATH_TO_SAVE_GT_MERGE = '/data/yuanx/gt_merge'
-PATH_TO_SAVE_LOW_ORIGIN = '/data/yuanx/low_origin'
-PATH_TO_SAVE_LOW_MERGE = '/data/yuanx/low_merge'
+PATH_TO_FRAMES = f'{dds_env["root"]}/origin'
+PATH_TO_SAVE_GT_ORIGIN = f'{dds_env["root"]}/gt_origin'
+PATH_TO_SAVE_GT_MERGE = f'{dds_env["root"]}gt_merge'
+PATH_TO_SAVE_LOW_ORIGIN = f'{dds_env["root"]}low_origin'
+PATH_TO_SAVE_LOW_MERGE = f'{dds_env["root"]}/low_merge'
 THRESHOLD_CONF_SCORE = 0.3
 THRESHOLD_MERGE = 0.3
 
