@@ -16,7 +16,7 @@ parser.add_argument('CODE', type=int)
 args = parser.parse_args()
 CODE = args.CODE
 
-names, mpeg_configs, dds_config = dds_config_generator.load()
+names, mpeg_configs, dds_config, gt_config = dds_config_generator.load()
 
 data_dir = dds_env['dataset']
 vid_names = names
@@ -30,8 +30,11 @@ not_list = []
 for video_target in vid_names:
     result_target = f"results_{video_target}"
     # Generate gt
-    res = 1.0
     video = video_target
+    res, qp = gt_config[video]
+    vname = f'{video}_gt'
+    if not os.path.exists(os.path.join(result_target, vname)):
+        os.system(f"python ./workspace/run_single.py gt {video} {vname} {qp} {res}")
 
     # import pdb; pdb.set_trace()
     # import pdb; pdb.set_trace()

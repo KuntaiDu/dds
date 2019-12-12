@@ -20,7 +20,7 @@ output_file = Path(f'stats_{video}')
 results_dir = Path(f'results_{video}')
 original_images = dataset/video/'src'
 
-os.system(f"mkdir -p f{results_dir}")
+os.system(f"mkdir -p {results_dir}")
 
 if mode == 'gt':
 
@@ -28,8 +28,8 @@ if mode == 'gt':
     qp = args[4]
     res = args[5]
 
-    os.system(f"python play_video.py --vid-name {results_dir/vname} --high-src ${original_images} "\
-    f"--resolutions 1.0 --output-file {output_file} --max-size 0.3 --low-threshold 0.3 "\
+    os.system(f"python play_video.py --vid-name {results_dir/vname} --high-src {original_images} "\
+    f"--resolutions {res} --output-file {output_file} --max-size 0.3 --low-threshold 0.3 "\
     f"--high-threshold 0.8 --enforce-iframes --qp {qp} --verbosity info")
 
 elif mode == 'mpeg':
@@ -38,10 +38,10 @@ elif mode == 'mpeg':
     qp = args[4]
     res = args[5]
 
-    os.system(f"python play_video.py --vid-name {results_dir/vname} --resolutions ${res} "\
+    os.system(f"python play_video.py --vid-name {results_dir/vname} --resolutions {res} "\
     f"--high-src {original_images} --output-file {output_file} "\
     f"--ground-truth {results_dir / (video + '_gt')} --max-size 0.3 --low-threshold 0.3 "\
-    f"--high-threshold 0.3 --enforce-iframes --qp ${qp} --verbosity info")
+    f"--high-threshold 0.3 --enforce-iframes --qp {qp} --verbosity info")
 
 elif mode == 'dds':
 

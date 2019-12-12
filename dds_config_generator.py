@@ -11,10 +11,12 @@ def load():
 
     mpeg_configs = {}
     dds_config = {}
+    gt_config = {}
     names = video_list
 
     for name in names:
         mpeg_configs[name] = [[0.8, 36], [0.8, 26]]
         dds_config[name] = [[0.8,36,0.8,26,0.,15,'no_filter_combined_bboxes',0.5, 0., 0.01]]
+        gt_config[name] = [1.0, 24]
 
-    return names, mpeg_configs, dds_config
+    return names, mpeg_configs, dds_config, gt_config
