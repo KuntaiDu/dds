@@ -2,6 +2,11 @@
 # python examine.py video_name results_fold stats_file gt
 import sys
 import os
+import yaml
+
+with open('dds_env.yaml', 'r') as f:
+	dds_env = yaml.load(f.read())
+
 video_name = sys.argv[1]
 results_direc = sys.argv[2]
 stats_file = sys.argv[3]
@@ -18,10 +23,7 @@ max_area_thresh_gt_list = [0.04]
 max_area_thresh_mpeg_list = [0.04]
 iou_thresh = 0.3
 
-
-env_2_relevant_classes = {0: ['vehicle'], 1: ['persons'], 2: ['vehicle', 'persons']}
-relevant_classes = env_2_relevant_classes[int(os.environ['RELEVANT_CLASSES'])]
-print(relevant_classes)
+relevant_classes = dds_env['relevant_classes']
 
 def parse_stats(stats_path):
 	fname_to_size = {}
