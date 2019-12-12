@@ -9,7 +9,7 @@ import yaml
 with open('dds_env.yaml', 'r') as f:
     dds_env = yaml.load(f.read())
 
-vid_name, res, qp, num_frames, scale = sys.argv
+_, vid_name, res, qp, num_frames, scale = sys.argv
 
 dataset_path = Path(dds_env['dataset'])
 
