@@ -294,10 +294,12 @@ def run_rpn_inference(video, threshold_RPN, threshold_RCNN, threshold_GT, low_sc
     final_results.combine_results(RCNN_results, 0.5)
     # write
     final_results.fill_gaps(len(TEST_IMAGE_PATHS))
-    final_results.write(os.path.join(f"{PROJ_ROOT_DIR}/backend/no_filter_combined_bboxes", f'{VIDEO_NAME}_mpeg_{scale}_{qp}'))
+    os.system(f"mkdir -p {PROJ_ROOT_DIR}/results_{VIDEO_NAME}/no_filter_combined_bboxes")
+    final_results.write(os.path.join(f"{PROJ_ROOT_DIR}/results_{VIDEO_NAME}/no_filter_combined_bboxes", f'{VIDEO_NAME}_mpeg_{scale}_{qp}'))
     # read
-    rdict = read_results_txt_dict(os.path.join(f"{PROJ_ROOT_DIR}/backend/no_filter_combined_bboxes", f'{VIDEO_NAME}_mpeg_{scale}_{qp}'))
+    rdict = read_results_txt_dict(os.path.join(f"{PROJ_ROOT_DIR}/results_{VIDEO_NAME}/no_filter_combined_bboxes", f'{VIDEO_NAME}_mpeg_{scale}_{qp}'))
     results = merge_boxes_in_results(rdict, 0.3, 0.3)
     results.fill_gaps(len(TEST_IMAGE_PATHS))
-    results.write(os.path.join(f"{PROJ_ROOT_DIR}/backend/no_filter_combined_merged_bboxes", f'{VIDEO_NAME}_mpeg_{scale}_{qp}'))
+    os.system(f"mkdir -p {PROJ_ROOT_DIR}/results_{VIDEO_NAME}/no_filter_combined_merged_bboxes")
+    results.write(os.path.join(f"{PROJ_ROOT_DIR}/results_{VIDEO_NAME}/no_filter_combined_merged_bboxes", f'{VIDEO_NAME}_mpeg_{scale}_{qp}'))
     print("RPN Done")

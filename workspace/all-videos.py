@@ -61,10 +61,8 @@ for video_target in vid_names:
                 scale=f"{1280*low_res}:{int(720*low_res)}"
                 os.system(f"python ./experiment-scripts-xin/prepare_data_for_RPN.py {video} {low_res} {low_qp} {num_frames} {scale}" )
              # run RPN
-            if not os.path.exists(f"backend/${rpn_box_source}/${video}_mpeg_${low_res}_${low_qp}"):
-                print(f"DO {video}_{low_res}_{low_qp}_{high_res}_{high_qp} RPN")
-                run_rpn_inference(video, 0.5, 0.3, 0.3, low_res, low_qp, high_res, high_qp, result_target)
-     #
+            print(f"DO {video}_{low_res}_{low_qp}_{high_res}_{high_qp} RPN")
+            run_rpn_inference(video, 0.5, 0.3, 0.3, low_res, low_qp, high_res, high_qp, result_target)
 
     if CODE==2:
         for low_res, low_qp, high_res, high_qp, rpn_enlarge_ratio, batch_size, rpn_box_source, prune_score, objfilter_iou, size_obj in dds_config[video]:

@@ -47,7 +47,7 @@ elif mode == 'dds':
 
     _, _, vid_name, vname, low_qp, high_qp, low, high, rpn_enlarge_ratio,\
         rpn_box_source, batch_size, prune_score, objfilter_iou, size_obj = args
-    low_results = Path('backend')/rpn_box_source/f'{video}_mpeg_{low}_{low_qp}'
+    low_results = Path(f'results_{video}')/rpn_box_source/f'{video}_mpeg_{low}_{low_qp}'
 
     os.system(f"python play_video.py --vid-name {results_dir/vname} --high-src {original_images} "\
     f"--resolutions {low} {high} --low-results {low_results} --output-file {output_file} "\

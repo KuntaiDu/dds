@@ -15,7 +15,7 @@ dataset_path = Path(dds_env['dataset'])
 
 images_src_path = dataset_path / f'{vid_name}' / 'src'
 vid_des_path = dataset_path / f'{vid_name}_{res}_{qp}.mp4'
-images_des_path = dataset_path / f'{vid_name}_{res}_{qp}'
+images_des_path = dataset_path / f'{vid_name}_{res}_{qp}' / 'src'
 
 
 subprocess.run([
@@ -23,7 +23,7 @@ subprocess.run([
     '-y',
     '-loglevel', 'error',
     '-start_number', '0',
-    '-i', f'{images_src_path}',
+    '-i', f'{images_src_path}/%010d.png',
     '-vcodec', 'libx264',
     '-g', '15',
     '-keyint_min', '15',
