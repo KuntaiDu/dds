@@ -1,0 +1,7 @@
+{
+    "python.pythonPath": "/data2/kuntai/envs/pytorch/bin/python",
+    "python.linting.pylintArgs": [
+        "--disable=C0103"
+    ],
+    "files.trimTrailingWhitespace": true
+}
