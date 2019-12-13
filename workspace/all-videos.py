@@ -31,7 +31,7 @@ for video_target in vid_names:
     result_target = f"results_{video_target}"
     # Generate gt
     video = video_target
-    res, qp = gt_config[video]
+    res, qp = gt_config[video][0]
     vname = f'{video}_gt'
     if not os.path.exists(os.path.join(result_target, vname)):
         os.system(f"python ./workspace/run_single.py gt {video} {vname} {qp} {res}")
