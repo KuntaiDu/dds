@@ -20,6 +20,7 @@ mpeg_configs:
   - 26
 relevant_classes:
 - vehicle
+  pass
 resnet_101_coco: /data2/kuntai/code/dds/model/frozen_inference_graph.pb
 root: /data2/kuntai/code/dds
 video_list: /data2/kuntai/code/dds/video_list.yaml

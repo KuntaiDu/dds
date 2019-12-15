@@ -155,8 +155,32 @@ class Client:
 
         return results, [total_size, 0]
 
+    def analyze_video_emulate(
+        self,
+        video_name,
+        high_images_path,
+        enforce_iframes,
+        low_results_path = None,
+        debug_mode = None):
 
-    def analyze_video_emulate(self, video_name, high_images_path,
+        if dds_env['application'] == 'detection':
+            self.analyze_video_emulate_detection(
+                video_name,
+                high_images_path,
+                enforce_iframes,
+                low_results_path,
+                debug_mode)
+        elif dds_env['application'] == 'classification':
+            self.analyze_video_emulate_classification(
+                video_name,
+                high_images_path,
+                enforce_iframes,
+                low_results_path,
+                debug_mode
+            )
+
+
+    def analyze_video_emulate_detection(self, video_name, high_images_path,
                               enforce_iframes, low_results_path=None,
                               debug_mode=False):
         final_results = Results()
@@ -369,3 +393,29 @@ class Client:
         # print(len(final_results))
         final_results.write(f"{video_name}")
         return final_results, total_size
+
+    def analyze_video_emulate_classification(self, video_name, high_images_path,
+                              enforce_iframes, low_results_path=None,
+                              debug_mode=False):
+
+        segment_size_file = open(f'{video_name}_segment_size', 'w')
+
+        number_of_frames = len(
+            [x for x in os.listdir(high_images_path) if "png" in x])
+        low_results_dict = read_results_dict(low_results_path)
+
+        for i in range(0, number_of_frames, self.config.batch_size):
+
+            start_fid = i
+            end_fid = min(number_of_frames, i + self.config.batch_size)
+            self.logger.info(f'Processing batch from {start_fid} to {end_fid}')
+
+            base_req_regions = Results()
+            for fid in range(start_fid, end_fid):
+                base_req_regions.append(
+                    Region(fid, 0, 0, 1, 1, 1.0, 2,
+                           self.config.high_resolution))
+            encoded_batch_video_size, batch_pixel_size = compute_regions_size(
+                base_req_regions, f"{video_name}-base-phase", high_images_path,
+                self.config.low_resolution, self.config.low_qp,
+                enforce_iframes, True, 1)

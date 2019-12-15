@@ -52,17 +52,22 @@ for video_target in vid_names:
     # Run DDS
     # before running DDS, you must have rpn results for 2nd iteration
     if CODE==1:
-        from backend.rpn_inference_func import run_rpn_inference
+
         for low_res, low_qp, high_res, high_qp, rpn_enlarge_ratio, batch_size, rpn_box_source, prune_score, objfilter_iou, size_obj in dds_config[video]:
             low_cofig_src = os.path.join(dataset_root, f"{video}_{low_res}_{low_qp}/src")
             if (not os.path.exists(low_cofig_src)) or (os.path.exists(low_cofig_src) and len(os.listdir(low_cofig_src))!=num_frames):
-             # create dataset
+            # create dataset
                 print(f"create {video}_{low_res}_{low_qp} for RPN")
                 scale=f"{1280*low_res}:{int(720*low_res)}"
                 os.system(f"python ./experiment-scripts-xin/prepare_data_for_RPN.py {video} {low_res} {low_qp} {num_frames} {scale}" )
-             # run RPN
+            # run RPN
             print(f"DO {video}_{low_res}_{low_qp}_{high_res}_{high_qp} RPN")
+            if dds_env['application'] == 'detection':
+                from backend.rpn_inference_func import run_rpn_inference
+            elif dds_env['application'] == 'classification':
+                from backend.classifier import run_rpn_inference
             run_rpn_inference(video, 0.5, 0.3, 0.3, low_res, low_qp, high_res, high_qp, result_target)
+
 
     if CODE==2:
         for low_res, low_qp, high_res, high_qp, rpn_enlarge_ratio, batch_size, rpn_box_source, prune_score, objfilter_iou, size_obj in dds_config[video]:
