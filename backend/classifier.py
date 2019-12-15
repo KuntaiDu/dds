@@ -25,7 +25,7 @@ class Classifier():
             return result.cpu().data.numpy()
 
 
-    def region_proposal(self, image, ksize = 31):
+    def region_proposal(self, image, fid, resolution, k = 63, topk = 3):
 
         def unravel_index(index, shape):
             out = []
@@ -34,35 +34,36 @@ class Classifier():
                 index = index // dim
             return tuple(reversed(out))
 
-        def generate_regions(grad, k, results):
-            for i in range(k):
+        def generate_regions(grad, results):
+            x, y = grad.shape
+
+            def set_zero(tensor, i, j):
+                tensor[max(0, i+1-k) : min(x, i+k), max(0, j+1-k):min(y, j+k)] = 0
+
+            for i in range(topk):
                 index = unravel_index(torch.argmax(grad), grad.shape)
-                index = [int(index[0], index[1])]
-                results.append(Region(
+                index = [index[0].item(), index[1].item()]
+                results.append(Region(fid, (index[1] - k + 1) / y, (index[0] - k + 1) / x, k / y, k / x, 1.0, 'region proposal', resolution))
+                set_zero(grad, index[0], index[1])
 
+        assert k % 2 == 1
 
-                ))
-                grad[index[0]-15:index[0]+16, index[1]-15:index[1]+16] = 0
-
-        assert ksize % 2 == 1
-
-        with torch.enable_grad():
-
-            image = self.transform(image)
-            image.requires_grad = True
-            image = image.cuda()
-
-            loss = F.softmax(self.model(image[None,:,:,:])).norm(2)
-            loss.backward()
+        image = self.transform(image)
+        image = image.cuda()
+        image.requires_grad = True
+        loss = F.softmax(self.model(image[None,:,:,:]), dim=1).norm(2)
+        loss.backward()
+        grad = image.grad
 
         with torch.no_grad():
-
-            grad = torch.abs(image.grad)
-            grad = F.unfold(grad[None,:,:,:], ksize, padding = ksize//2)
-            grad = torch.sum(grad, dim=1)
-            grad = F.fold(grad[:, None, :], (720, 1280), 1)
-            grad = grad[0,0,:,:]
+            grad = torch.abs(grad)
+            grad = grad.sum(dim = 0).type(torch.DoubleTensor)
+            grad = torch.cumsum(torch.cumsum(grad, axis = 0), axis = 1)
+            grad_pad = F.pad(grad, (k,k,k,k))
+            x, y = grad.shape
+            grad_sum = grad[:, :] + grad_pad[0: x, 0:y] - grad_pad[k:x+k, 0:y] - grad_pad[0:x, k:y+k]
 
             results = []
+            generate_regions(grad_sum, results)
 
-
+        return results
