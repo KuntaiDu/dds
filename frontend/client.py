@@ -7,6 +7,7 @@ from dds_utils import (Results, read_results_dict, cleanup, Region,
 from merger import *
 
 import yaml
+import pickle
 with open('dds_env.yaml', 'r') as f:
     dds_env = yaml.load(f.read())
 relevant_classes = dds_env['relevant_classes']
@@ -30,6 +31,12 @@ class Client:
         self.logger.info(f"Client initialized")
 
     def analyze_video_mpeg(self, video_name, raw_images_path, enforce_iframes):
+        if dds_env['application'] == 'detection':
+            return self.analyze_video_mpeg_detection(video_name, raw_images_path, enforce_iframes)
+        elif dds_env['application'] == 'classification':
+            return self.analyze_video_mpeg_classification(video_name, raw_images_path, enforce_iframes)
+
+    def analyze_video_mpeg_detection(self, video_name, raw_images_path, enforce_iframes):
         number_of_frames = len(
             [f for f in os.listdir(raw_images_path) if ".png" in f])
 
@@ -92,6 +99,61 @@ class Client:
         final_results.write(video_name)
 
         return final_results, [total_size, 0]
+
+    def analyze_video_mpeg_classification(self, video_name, raw_images_path, enforce_iframes):
+        number_of_frames = len(
+            [f for f in os.listdir(raw_images_path) if ".png" in f])
+
+        total_size = 0
+        segment_size_file = open(f'{video_name}_segment_size', 'w')
+
+        results = {}
+
+        for i in range(0, number_of_frames, self.config.batch_size):
+            import timeit
+            start = timeit.default_timer()
+            start_frame = i
+            end_frame = min(number_of_frames, i + self.config.batch_size)
+            print(start_frame, end_frame)
+
+            batch_fnames = sorted([f"{str(idx).zfill(10)}.png"
+                                   for idx in range(start_frame, end_frame)])
+
+            req_regions = Results()
+            for fid in range(start_frame, end_frame):
+                req_regions.append(
+                    Region(fid, 0, 0, 1, 1, 1.0, 2,
+                           self.config.low_resolution))
+            batch_video_size, _ = compute_regions_size(
+                req_regions, f"{video_name}-base-phase", raw_images_path,
+                self.config.low_resolution, self.config.low_qp,
+                enforce_iframes, True)
+            self.logger.info(f"{batch_video_size / 1024}KB sent "
+                             f"in base phase using {self.config.low_qp}QP")
+            extract_images_from_video(f"{video_name}-base-phase-cropped",
+                                      req_regions)
+            self.server.perform_classification(
+                f"{video_name}-base-phase-cropped", self.config.low_resolution,
+                batch_fnames, results = results)
+            stop = timeit.default_timer()
+            batch_time = stop-start
+
+            self.logger.info(f"Perform classification for "
+                             f"batch {start_frame} to {end_frame} with a "
+                             f"total size of {batch_video_size / 1024}KB")
+
+            # Remove encoded video manually
+            shutil.rmtree(f"{video_name}-base-phase-cropped")
+            total_size += batch_video_size
+            segment_size_file.write(f"{batch_video_size}, {batch_time}\n")
+        segment_size_file.close()
+
+
+
+        with open(video_name, 'wb') as f:
+            pickle.dump(results, f)
+
+        return results, [total_size, 0]
 
 
     def analyze_video_emulate(self, video_name, high_images_path,

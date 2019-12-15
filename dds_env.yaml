@@ -1,8 +1,8 @@
-dataset: /tank/new_dataset/
+dataset: /tank/kuntai/DAVIS/JPEGImages/720p/
 dds_config:
-- - 0.8
+- - 1.0
   - 36
-  - 0.8
+  - 1.0
   - 26
   - 0.0
   - 15
@@ -14,12 +14,13 @@ gt_config:
 - - 1.0
   - 24
 mpeg_configs:
-- - 0.8
+- - 1.0
   - 36
-- - 0.8
+- - 1.0
   - 26
 relevant_classes:
 - vehicle
 resnet_101_coco: /data2/kuntai/code/dds/model/frozen_inference_graph.pb
 root: /data2/kuntai/code/dds
 video_list: /data2/kuntai/code/dds/video_list.yaml
+application: classification

@@ -6,6 +6,10 @@ from dds_utils import (Results, Region, calc_intersection_area,
                        compute_area_of_frame, calc_iou,
                        calc_area, merge_images_with_zeros, merge_images, extract_images_from_video)
 from .object_detector import Detector
+from .classifier import Classifier
+import matplotlib.pyplot as plt
+
+
 
 
 class Server:
@@ -15,18 +19,16 @@ class Server:
 
     def __init__(self, config):
         self.config = config
-
         self.logger = logging.getLogger("server")
         handler = logging.NullHandler()
         self.logger.addHandler(handler)
-
-        if not self.config.simulation:
-            self.detector = Detector()
-
         self.logger.info("Server started")
 
     def perform_detection(self, images_direc, resolution, fnames=None,
                           images=None):
+
+        if not hasattr(self, 'detector'):
+            self.detector = Detector()
         final_results = Results()
 
         if fnames is None:
@@ -64,6 +66,33 @@ class Server:
                 final_results.append(
                     Region(fid, 0, 0, 0, 0, 0.1, "no obj", resolution))
         return final_results, None, None
+
+    def perform_classification(self, images_direc, resolution, fnames=None, images=None, results=None):
+
+        assert results is not None
+
+        if not hasattr(self, 'classifier'):
+            self.classifier = Classifier()
+
+
+        if fnames is None:
+            fnames = sorted(os.listdir(images_direc))
+        self.logger.info(f"Running inference on {len(fnames)} frames")
+        for fname in fnames:
+            if "png" not in fname:
+                continue
+            fid = int(fname.split(".")[0])
+            image = None
+            if images:
+                image = images[fid]
+            else:
+                image_path = os.path.join(images_direc, fname)
+                image = plt.imread(image_path)
+
+            self.logger.debug(f"Running classification for {fname}")
+            classification_results = self.classifier.infer(image)
+            results[fid] = classification_results
+
 
     def simulate_low_query(self, start_fid, end_fid, images_direc,
                            results_dict, simulation=True, rpn_enlarge_ratio=0.):

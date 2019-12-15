@@ -19,7 +19,6 @@ with open('dds_env.yaml', 'r') as f:
     dds_env = yaml.load(f.read())
 
 relevant_classes = dds_env['relevant_classes']
-print(relevant_classes)
 
 import six.moves.urllib as urllib
 import sys
