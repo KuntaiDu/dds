@@ -129,9 +129,9 @@ class Server:
 
     def emulate_high_query(self, vid_name, low_images_direc, req_regions):
         if dds_env['application'] == 'detection':
-            self.emulate_high_query_detection(vid_name, low_images_direc, req_regions)
+            return self.emulate_high_query_detection(vid_name, low_images_direc, req_regions)
         elif dds_env['application'] == 'classification':
-            self.emulate_high_query_classification(vid_name, low_images_direc, req_regions)
+            return self.emulate_high_query_classification(vid_name, low_images_direc, req_regions)
 
     def emulate_high_query_detection(self, vid_name, low_images_direc, req_regions):
         images_direc = vid_name + "-cropped"

@@ -18,17 +18,16 @@ with open('dds_env.yaml', 'r') as f:
 class Classifier():
 
     def __init__(self):
-
+        self.logger = logging.getLogger("Classifier")
+        handler = logging.NullHandler()
+        self.logger.addHandler(handler)
+        self.logger.info('Placing network to gpu.')
         self.model = vgg19_bn(pretrained=True)
         self.model.eval().cuda()
         self.transform = T.Compose([
             T.ToTensor(),
             T.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
         ])
-
-        self.logger = logging.getLogger("Classifier")
-        handler = logging.NullHandler()
-        self.logger.addHandler(handler)
         self.logger.info(f'Classifier initialized on gpu.')
 
     def infer(self, image):

@@ -402,8 +402,8 @@ class Client:
         low_results_dict = read_results_dict(low_results_path)
         total_size = [0, 0]
 
+        classification_results = {}
 
-        # count size for low config
         for i in range(0, number_of_frames, self.config.batch_size):
 
             start_fid = i
@@ -451,14 +451,17 @@ class Client:
             total_size[1] += regions_size
 
             # calculate performance
-            classification_results = self.server.emulate_high_query(
+            batch_results = self.server.emulate_high_query(
                 video_name,
                 low_images_path,
                 high_req_regions
             )
+            for fid in batch_results.keys():
+                classification_results[fid + start_fid] = batch_results[fid]
 
             cleanup(video_name, debug_mode, start_fid, end_fid)
             shutil.rmtree(low_images_path)
+
 
         # save the result
         with open(f"{video_name}", 'wb') as f:
