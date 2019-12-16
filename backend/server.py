@@ -8,7 +8,10 @@ from dds_utils import (Results, Region, calc_intersection_area,
 from .object_detector import Detector
 from .classifier import Classifier
 import matplotlib.pyplot as plt
+import yaml
 
+with open('dds_env.yaml', 'r') as f:
+    dds_env = yaml.load(f.read())
 
 
 
@@ -67,10 +70,9 @@ class Server:
                     Region(fid, 0, 0, 0, 0, 0.1, "no obj", resolution))
         return final_results, None, None
 
-    def perform_classification(self, images_direc, resolution, fnames=None, images=None, results=None):
+    def perform_classification(self, images_direc, resolution, fnames=None, images=None, results = None):
 
         assert results is not None
-
         if not hasattr(self, 'classifier'):
             self.classifier = Classifier()
 
@@ -92,6 +94,8 @@ class Server:
             self.logger.debug(f"Running classification for {fname}")
             classification_results = self.classifier.infer(image)
             results[fid] = classification_results
+
+        return results
 
 
     def simulate_low_query(self, start_fid, end_fid, images_direc,
@@ -124,6 +128,12 @@ class Server:
         return results_for_regions
 
     def emulate_high_query(self, vid_name, low_images_direc, req_regions):
+        if dds_env['application'] == 'detection':
+            self.emulate_high_query_detection(vid_name, low_images_direc, req_regions)
+        elif dds_env['application'] == 'classification':
+            self.emulate_high_query_classification(vid_name, low_images_direc, req_regions)
+
+    def emulate_high_query_detection(self, vid_name, low_images_direc, req_regions):
         images_direc = vid_name + "-cropped"
         # Extract images from encoded video
         extract_images_from_video(images_direc, req_regions)
@@ -156,3 +166,30 @@ class Server:
         shutil.rmtree(merged_images_direc)
 
         return results_with_detections_only
+
+    def emulate_high_query_classification(self, vid_name, low_images_direc, req_regions):
+        images_direc = vid_name + "-cropped"
+        # Extract images from encoded video
+        extract_images_from_video(images_direc, req_regions)
+
+        if not os.path.isdir(images_direc):
+            self.logger.error("Images directory was not found but the "
+                              "second iteration was call anyway")
+            return None
+
+        fnames = sorted([f for f in os.listdir(images_direc) if "png" in f])
+
+        # Make seperate directory and copy all images to that directory
+        merged_images_direc = os.path.join(images_direc, "merged")
+        os.makedirs(merged_images_direc, exist_ok=True)
+        for img in fnames:
+            shutil.copy(os.path.join(images_direc, img), merged_images_direc)
+        merged_images = merge_images(merged_images_direc, low_images_direc, req_regions)
+
+        # get the final result
+        results = {}
+        self.perform_classification(
+            merged_images_direc, self.config.high_resolution, fnames,
+            merged_images, results = results)
+
+        return results

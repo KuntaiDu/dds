@@ -11,7 +11,6 @@ import pickle
 with open('dds_env.yaml', 'r') as f:
     dds_env = yaml.load(f.read())
 relevant_classes = dds_env['relevant_classes']
-print(relevant_classes)
 
 class Client:
     """The client of the DDS protocol
@@ -146,9 +145,6 @@ class Client:
             shutil.rmtree(f"{video_name}-base-phase-cropped")
             total_size += batch_video_size
             segment_size_file.write(f"{batch_video_size}, {batch_time}\n")
-        segment_size_file.close()
-
-
 
         with open(video_name, 'wb') as f:
             pickle.dump(results, f)
@@ -164,14 +160,14 @@ class Client:
         debug_mode = None):
 
         if dds_env['application'] == 'detection':
-            self.analyze_video_emulate_detection(
+            return self.analyze_video_emulate_detection(
                 video_name,
                 high_images_path,
                 enforce_iframes,
                 low_results_path,
                 debug_mode)
         elif dds_env['application'] == 'classification':
-            self.analyze_video_emulate_classification(
+            return self.analyze_video_emulate_classification(
                 video_name,
                 high_images_path,
                 enforce_iframes,
@@ -394,28 +390,79 @@ class Client:
         final_results.write(f"{video_name}")
         return final_results, total_size
 
+
     def analyze_video_emulate_classification(self, video_name, high_images_path,
                               enforce_iframes, low_results_path=None,
                               debug_mode=False):
 
-        segment_size_file = open(f'{video_name}_segment_size', 'w')
+        # segment_size_file = open(f'{video_name}_segment_size', 'w')
 
         number_of_frames = len(
             [x for x in os.listdir(high_images_path) if "png" in x])
         low_results_dict = read_results_dict(low_results_path)
+        total_size = [0, 0]
 
+
+        # count size for low config
         for i in range(0, number_of_frames, self.config.batch_size):
 
             start_fid = i
             end_fid = min(number_of_frames, i + self.config.batch_size)
             self.logger.info(f'Processing batch from {start_fid} to {end_fid}')
 
+            # config paths
+            low_images_path = f"{video_name}-base-phase-cropped"
+
+            # encode low quality
             base_req_regions = Results()
             for fid in range(start_fid, end_fid):
                 base_req_regions.append(
-                    Region(fid, 0, 0, 1, 1, 1.0, 2,
-                           self.config.high_resolution))
-            encoded_batch_video_size, batch_pixel_size = compute_regions_size(
+                    Region(fid - start_fid, 0, 0, 1, 1, 1.0, "pass",
+                           self.config.low_resolution))
+            encoded_batch_video_size, _ = compute_regions_size(
                 base_req_regions, f"{video_name}-base-phase", high_images_path,
                 self.config.low_resolution, self.config.low_qp,
                 enforce_iframes, True, 1)
+            total_size[0] += encoded_batch_video_size
+
+            # encode mixed quality
+            high_req_regions = Results()
+            for fid in range(start_fid, end_fid):
+                for region in low_results_dict[fid]:
+                    high_req_regions.append(Region(
+                            fid - start_fid,
+                            region.x,
+                            region.y,
+                            region.w,
+                            region.h,
+                            1.0,
+                            "pass",
+                            self.config.high_resolution))
+            regions_size, _ = compute_regions_size(
+                high_req_regions,
+                video_name,
+                high_images_path,
+                self.config.high_resolution,
+                self.config.high_qp,
+                enforce_iframes,
+                True,
+                1
+            )
+            total_size[1] += regions_size
+
+            # calculate performance
+            classification_results = self.server.emulate_high_query(
+                video_name,
+                low_images_path,
+                high_req_regions
+            )
+
+            cleanup(video_name, debug_mode, start_fid, end_fid)
+            shutil.rmtree(low_images_path)
+
+        # save the result
+        with open(f"{video_name}", 'wb') as f:
+            pickle.dump(classification_results, f)
+
+        return classification_results, total_size
+

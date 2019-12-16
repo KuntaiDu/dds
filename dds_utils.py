@@ -717,7 +717,9 @@ def merge_images(cropped_images_direc, low_images_direc, req_regions):
         height = high_image.shape[0]
 
         # Read low resolution image
+        assert os.path.exists(os.path.join(low_images_direc, fname))
         low_image = cv.imread(os.path.join(low_images_direc, fname))
+        #import pdb; pdb.set_trace()
         # Enlarge low resolution image
         enlarged_image = cv.resize(low_image, (width, height), fx=0, fy=0,
                                    interpolation=cv.INTER_CUBIC)
