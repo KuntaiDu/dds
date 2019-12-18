@@ -29,23 +29,9 @@ Then we download the pre-trained model. Use
 
 to download a tar ball. Then unzip it and copy the ```frozen_inference_graph.pb``` to ```PATH/TO/DDS/model/```
 
-After that, please edit the ```dds_env.yaml```.
+After that, please edit the ```dds_env.yaml``` to specify your own dds configuration, application, dataset root, dds root, etc.
 
 ## Run our code
-
-We first create some new folders. At ```PATH/TO/DDS```, run
-
-```
-mkdir backend/no_filter_combined_bboxes
-```
-
-and
-
-```
-mkdir backend/no_filter_combined_merged_bboxes
-```
-
-to create temporal folders for dds to save its region proposal results.
 
 At ```PATH/TO/DDS```, run
 
@@ -60,3 +46,4 @@ and run
 ``` python workspace/all-videos.py 2 ```
 
 to run our code.
+

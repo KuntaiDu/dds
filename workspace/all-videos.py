@@ -29,24 +29,24 @@ not_list = []
 # simulate mpeg
 for video_target in vid_names:
     result_target = f"results_{video_target}"
-    # Generate gt
     video = video_target
-    res, qp = gt_config[video][0]
-    vname = f'{video}_gt'
-    if not os.path.exists(os.path.join(result_target, vname)):
-        os.system(f"python ./workspace/run_single.py gt {video} {vname} {qp} {res}")
 
     # import pdb; pdb.set_trace()
     # import pdb; pdb.set_trace()
     # Run MPEG
     if CODE==0:
-        for res, qp in mpeg_configs[video]:
-            print(str(res) + '/' + str(qp))
-            vname = f"{video}_mpeg_{res}_{qp}"
-            if True:
-                os.system(f"python ./workspace/run_single.py mpeg {video} {vname} {qp} {res}")
-            else:
-                print(f"Skipping {vname}")
+        # Generate gt
+        res, qp = gt_config[video][0]
+        vname = f'{video}_gt'
+        os.system(f"python ./workspace/run_single.py gt {video} {vname} {qp} {res}")
+        # Generate mpeg
+        #for res, qp in mpeg_configs[video]:
+        #    print(str(res) + '/' + str(qp))
+        #    vname = f"{video}_mpeg_{res}_{qp}"
+        #    if True:
+        #        os.system(f"python ./workspace/run_single.py mpeg {video} {vname} {qp} {res}")
+        #    else:
+        #        print(f"Skipping {vname}")
     num_frames = len(os.listdir(os.path.join(dataset_root, f"{video}/src")))
     print("num_frames:", num_frames)
     # Run DDS
@@ -59,7 +59,7 @@ for video_target in vid_names:
             # create dataset
                 print(f"create {video}_{low_res}_{low_qp} for RPN")
                 scale=f"{1280*low_res}:{int(720*low_res)}"
-                os.system(f"python ./experiment-scripts-xin/prepare_data_for_RPN.py {video} {low_res} {low_qp} {num_frames} {scale}" )
+                os.system(f"python ./experiment-scripts-xin/prepare_data_for_RPN.py {video} {low_res} {low_qp} {num_frames} {scale}")
             # run RPN
             print(f"DO {video}_{low_res}_{low_qp}_{high_res}_{high_qp} RPN")
             if dds_env['application'] == 'detection':

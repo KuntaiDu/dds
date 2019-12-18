@@ -1,6 +1,6 @@
 
 import torch
-from torchvision.models import vgg19_bn
+from torchvision.models import vgg19
 import torchvision.transforms as T
 import torch.nn.functional as F
 from dds_utils import Region, Results
@@ -22,7 +22,7 @@ class Classifier():
         handler = logging.NullHandler()
         self.logger.addHandler(handler)
         self.logger.info('Placing network to gpu.')
-        self.model = vgg19_bn(pretrained=True)
+        self.model = vgg19(pretrained=True)
         self.model.eval().cuda()
         self.transform = T.Compose([
             T.ToTensor(),
@@ -65,7 +65,9 @@ class Classifier():
         image = self.transform(image)
         image = image.cuda()
         image.requires_grad = True
-        loss = F.softmax(self.model(image[None,:,:,:]), dim=1).norm(2)
+        logit = F.softmax(self.model(image[None,:,:,:]), dim=1)[0]
+        loss = logit.norm(2)
+        #loss = torch.max(logit)
         loss.backward()
         grad = image.grad
 

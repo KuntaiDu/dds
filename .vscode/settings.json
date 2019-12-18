@@ -3,5 +3,6 @@
     "python.linting.pylintArgs": [
         "--disable=C0103"
     ],
-    "files.trimTrailingWhitespace": true
+    "files.trimTrailingWhitespace": true,
+    "python.formatting.provider": "black"
 }
