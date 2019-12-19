@@ -28,6 +28,7 @@ relevant_classes:
 - vehicle
 - pass
 resnet_101_coco: /data2/kuntai/code/dds/model/frozen_inference_graph.pb
+classifier_rpn: /data2/kuntai/code/dds/model/rpn.pth
 root: /data2/kuntai/code/dds
 video_list: /data2/kuntai/code/dds/video_list.yaml
 application: classification

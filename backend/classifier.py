@@ -3,6 +3,7 @@ import torch
 from torchvision.models import vgg19
 import torchvision.transforms as T
 import torch.nn.functional as F
+import torch.nn as nn
 from dds_utils import Region, Results
 from pathlib import Path
 import yaml
@@ -15,28 +16,84 @@ import yaml
 with open('dds_env.yaml', 'r') as f:
     dds_env = yaml.load(f.read())
 
+network = None
+
+class RPN(nn.Module):
+
+    def __init__(self, classifier):
+
+        super(RPN, self).__init__()
+        self.classifier = classifier
+        self.upscale = [
+            nn.PixelShuffle(1),
+            nn.PixelShuffle(2),
+            nn.PixelShuffle(4),
+            nn.PixelShuffle(8),
+            nn.PixelShuffle(16)
+        ]
+        self.conv1 = nn.Conv2d(122, 64, 3, padding=3//2)
+        self.conv2 = nn.Conv2d(64, 64, 3, padding=3//2)
+        self.conv3 = nn.Conv2d(64, 1, 3, padding=3//2)
+
+    def forward(self, features):
+
+        x = [self.upscale[i](features[i]) for i in range(len(features))]
+        x = torch.cat(x, dim=1)
+
+        x = F.leaky_relu(self.conv1(x))
+        x = F.leaky_relu(self.conv2(x))
+        x = F.leaky_relu(self.conv3(x))
+        # normalize to [0, 1]
+        x = x - torch.min(x)
+        x = x / torch.max(x)
+
+        return x
+
+
 class Classifier():
 
     def __init__(self):
-        self.logger = logging.getLogger("Classifier")
+
+        self.logger = logging.getLogger("classifier")
         handler = logging.NullHandler()
         self.logger.addHandler(handler)
-        self.logger.info('Placing network to gpu.')
+
+        self.logger.info("loading vgg19")
         self.model = vgg19(pretrained=True)
         self.model.eval().cuda()
-        self.transform = T.Compose([
+        self.logger.info("vgg19 loaded to gpu")
+
+        self.im2tensor = T.Compose([
             T.ToTensor(),
             T.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
         ])
-        self.logger.info(f'Classifier initialized on gpu.')
 
-    def infer(self, image):
 
-        with torch.no_grad():
+    def transform(self, images):
+        if not isinstance(images, torch.Tensor):
+            return torch.cat([self.im2tensor(i)[None,:,:,:].cuda() for i in images], dim=0)
+        else:
+            return images
 
-            image = self.transform(image).cuda()
-            result = F.softmax(self.model(image[None,:,:,:]), dim=1)[0]
-            return result.cpu().data.numpy()
+    def infer(self, images, requires_grad = False):
+
+        x = self.transform(images)
+        features = []
+
+        if not requires_grad:
+            func = torch.no_grad
+        else:
+            func = torch.enable_grad
+        with func():
+            for module in self.model.features:
+                if isinstance(module, torch.nn.MaxPool2d):
+                    features.append(x)
+                x = module(x)
+            x = self.model.avgpool(x)
+            x = torch.flatten(x, 1)
+            x = self.model.classifier(x)
+            x = F.softmax(x, dim = 1)[0]
+        return x, features
 
 
     def region_proposal(self, image, fid, resolution, k = 63, topk = 3):
@@ -62,18 +119,14 @@ class Classifier():
 
         assert k % 2 == 1
 
-        image = self.transform(image)
-        image = image.cuda()
-        image.requires_grad = True
-        logit = F.softmax(self.model(image[None,:,:,:]), dim=1)[0]
-        loss = logit.norm(2)
-        #loss = torch.max(logit)
-        loss.backward()
-        grad = image.grad
+        assert len(image) == 1
+
 
         with torch.no_grad():
-            grad = torch.abs(grad)
-            grad = grad.sum(dim = 0).type(torch.DoubleTensor)
+            _, features = self.infer(image)
+            grad = self.rpn(features)
+            grad = grad[0,0,:,:]
+            grad = torch.abs(grad).type(torch.DoubleTensor)
             grad = torch.cumsum(torch.cumsum(grad, axis = 0), axis = 1)
             grad_pad = F.pad(grad, (k,k,k,k))
             x, y = grad.shape
@@ -87,8 +140,14 @@ class Classifier():
 
 def run_rpn_inference(video, _,__,___, low_scale, low_qp, high_scale, high_qp, results_dir):
 
-
-    classifier = Classifier()
+    if network is None:
+        network = Classifier()
+        network.logger.info("loading rpn")
+        network.rpn = RPN(network)
+        network.rpn.load_state_dict(torch.load(dds_env['classifier_rpn']))
+        network.rpn.eval()
+        network.rpn.cuda()
+        network.logger.info("rpn loaded to gpu")
     final_results = Results()
 
     dataset_root = Path(dds_env['dataset'])
@@ -104,13 +163,13 @@ def run_rpn_inference(video, _,__,___, low_scale, low_qp, high_scale, high_qp, r
 
         image = plt.imread(str(image_path))
 
-        regions = classifier.region_proposal(image, idx, low_scale)
+        regions = network.region_proposal([image], idx, low_scale)
 
         for region in regions:
             final_results.append(region)
 
 
-        classifier.logger.info(f'Region proposal for {image_path} completed.')
+        network.logger.info(f'Region proposal for {image_path} completed.')
 
     os.system(f"mkdir -p {project_root / f'results_{video}'/ 'no_filter_combined_merged_bboxes'}")
     final_results.write(str(

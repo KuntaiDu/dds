@@ -92,7 +92,7 @@ class Server:
                 image = plt.imread(image_path)
 
             self.logger.debug(f"Running classification for {fname}")
-            classification_results = self.classifier.infer(image)
+            classification_results = self.classifier.infer([image])[0].cpu().numpy()
             results[fid] = classification_results
 
         return results

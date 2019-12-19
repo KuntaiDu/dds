@@ -8,6 +8,7 @@ import numpy
 import torch
 import torch.nn.functional as F
 from pathlib import Path
+import numpy as np
 
 key2label = {0: 'tench, Tinca tinca',
  1: 'goldfish, Carassius auratus',
@@ -1058,12 +1059,12 @@ for name in dirs:
 
 	mse = 0
 	for key in target.keys():
-		if key == 1:
-			target_max, target_key = torch.max(torch.from_numpy(target[key]), 0)
-			#print(f'{key2label[target_key.item()]} : {target_max}')
-
-		target_max, target_key = torch.max(torch.from_numpy(target[key]), 0)
-		gt_max, gt_key = torch.max(torch.from_numpy(gt[key]), 0)
+		if isinstance(target[key], numpy.ndarray):
+			target[key] = torch.from_numpy(target[key])
+		if isinstance(gt[key], numpy.ndarray):
+			gt[key] = torch.from_numpy(gt[key])
+		target_max, target_key = torch.max(target[key], 0)
+		gt_max, gt_key = torch.max(gt[key], 0)
 		#p = torch.from_numpy(gt[key])
 		#q = torch.from_numpy(target[key])
 		#mse += int()
