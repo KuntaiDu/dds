@@ -40,13 +40,13 @@ for video_target in vid_names:
         vname = f'{video}_gt'
         os.system(f"python ./workspace/run_single.py gt {video} {vname} {qp} {res}")
         # Generate mpeg
-        #for res, qp in mpeg_configs[video]:
-        #    print(str(res) + '/' + str(qp))
-        #    vname = f"{video}_mpeg_{res}_{qp}"
-        #    if True:
-        #        os.system(f"python ./workspace/run_single.py mpeg {video} {vname} {qp} {res}")
-        #    else:
-        #        print(f"Skipping {vname}")
+        for res, qp in mpeg_configs[video]:
+            print(str(res) + '/' + str(qp))
+            vname = f"{video}_mpeg_{res}_{qp}"
+            if True:
+                os.system(f"python ./workspace/run_single.py mpeg {video} {vname} {qp} {res}")
+            else:
+                print(f"Skipping {vname}")
     num_frames = len(os.listdir(os.path.join(dataset_root, f"{video}/src")))
     print("num_frames:", num_frames)
     # Run DDS
