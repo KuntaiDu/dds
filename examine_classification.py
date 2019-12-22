@@ -1050,25 +1050,40 @@ for name in dirs:
 		continue
 
 	with open(f'{results_direc / name}', 'rb') as f:
-		target = pickle.load(f)
+		x = pickle.load(f)
 
 	with open(f'{results_direc / video_name}_gt', 'rb') as f:
 		gt = pickle.load(f)
 
-	assert target.keys() == gt.keys()
+	assert x.keys() == gt.keys()
 
-	mse = 0
-	for key in target.keys():
-		if isinstance(target[key], numpy.ndarray):
-			target[key] = torch.from_numpy(target[key])
+	F1 = 0
+	k = 1
+	for key in x.keys():
+		if isinstance(x[key], numpy.ndarray):
+			x[key] = torch.from_numpy(x[key])
 		if isinstance(gt[key], numpy.ndarray):
 			gt[key] = torch.from_numpy(gt[key])
-		target_max, target_key = torch.max(target[key], 0)
-		gt_max, gt_key = torch.max(gt[key], 0)
+		_, x_ind = x[key].topk(k)
+		x_set = {i.item() for i in x_ind}
+		_, gt_ind = gt[key].topk(k)
+		gt_ind_i = [i.item() for i in gt_ind]
+		'''
+		print(key2label[gt_ind_i[0]])
+		print(_[0])
+		print(key2label[gt_ind_i[1]])
+		print(_[1])
+		print(key2label[gt_ind_i[2]])
+		print(_[2])
+		print(key2label[gt_ind_i[3]])
+		print(_[3])
+		print(key2label[gt_ind_i[4]])
+		print(_[4])
+		'''
+		gt_set = {i.item() for i in gt_ind}
 		#p = torch.from_numpy(gt[key])
 		#q = torch.from_numpy(target[key])
 		#mse += int()
-		if target_key == gt_key:
-			mse += 1
-	mse /= len(target.keys())
-	print(f'{name} {fname_to_size[name]} {mse} 0')
+		F1 += len(x_set & gt_set) / k
+	F1 /= len(x.keys())
+	print(f'{name} {fname_to_size[name]} {F1} 0')

@@ -459,6 +459,8 @@ class Client:
             for fid in batch_results.keys():
                 classification_results[fid + start_fid] = batch_results[fid]
 
+            #input()
+
             cleanup(video_name, debug_mode, start_fid, end_fid)
             shutil.rmtree(low_images_path)
 

@@ -11,12 +11,12 @@ import matplotlib.pyplot as plt
 import glob
 import os
 import logging
+import threading
 
 import yaml
 with open('dds_env.yaml', 'r') as f:
     dds_env = yaml.load(f.read())
 
-network = None
 
 class RPN(nn.Module):
 
@@ -50,7 +50,20 @@ class RPN(nn.Module):
         return x
 
 
-class Classifier():
+
+class Classifier(object):
+
+    # Ensure Classifier class is a singleton
+    __instance = None
+    __lock = threading.Lock()
+    def __new__(cls):
+
+        if Classifier.__instance is None:
+            with Classifier.__lock:
+                if Classifier.__instance is None:
+                    Classifier.__instance = super(Classifier, cls).__new__(cls)
+        return Classifier.__instance
+
 
     def __init__(self):
 
@@ -67,6 +80,13 @@ class Classifier():
             T.ToTensor(),
             T.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
         ])
+
+        self.logger.info("loading rpn")
+        self.rpn = RPN(self)
+        self.rpn.load_state_dict(torch.load(dds_env['classifier_rpn']))
+        self.rpn.eval()
+        self.rpn.cuda()
+        self.logger.info("rpn loaded to gpu")
 
 
     def transform(self, images):
@@ -96,7 +116,7 @@ class Classifier():
         return x, features
 
 
-    def region_proposal(self, image, fid, resolution, k = 63, topk = 3):
+    def region_proposal(self, image, fid, resolution, k = 63, topk = 6):
 
         def unravel_index(index, shape):
             out = []
@@ -140,14 +160,8 @@ class Classifier():
 
 def run_rpn_inference(video, _,__,___, low_scale, low_qp, high_scale, high_qp, results_dir):
 
-    if network is None:
-        network = Classifier()
-        network.logger.info("loading rpn")
-        network.rpn = RPN(network)
-        network.rpn.load_state_dict(torch.load(dds_env['classifier_rpn']))
-        network.rpn.eval()
-        network.rpn.cuda()
-        network.logger.info("rpn loaded to gpu")
+    classifier = Classifier()
+
     final_results = Results()
 
     dataset_root = Path(dds_env['dataset'])
@@ -163,13 +177,13 @@ def run_rpn_inference(video, _,__,___, low_scale, low_qp, high_scale, high_qp, r
 
         image = plt.imread(str(image_path))
 
-        regions = network.region_proposal([image], idx, low_scale)
+        regions = classifier.region_proposal([image], idx, low_scale)
 
         for region in regions:
             final_results.append(region)
 
 
-        network.logger.info(f'Region proposal for {image_path} completed.')
+        classifier.logger.info(f'Region proposal for {image_path} completed.')
 
     os.system(f"mkdir -p {project_root / f'results_{video}'/ 'no_filter_combined_merged_bboxes'}")
     final_results.write(str(
