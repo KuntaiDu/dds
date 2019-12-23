@@ -12,44 +12,11 @@ import glob
 import os
 import logging
 import threading
+from .classifier_rpn import RPN
 
 import yaml
 with open('dds_env.yaml', 'r') as f:
     dds_env = yaml.load(f.read())
-
-
-class RPN(nn.Module):
-
-    def __init__(self, classifier):
-
-        super(RPN, self).__init__()
-        self.classifier = classifier
-        self.upscale = [
-            nn.PixelShuffle(1),
-            nn.PixelShuffle(2),
-            nn.PixelShuffle(4),
-            nn.PixelShuffle(8),
-            nn.PixelShuffle(16)
-        ]
-        self.conv1 = nn.Conv2d(122, 64, 3, padding=3//2)
-        self.conv2 = nn.Conv2d(64, 64, 3, padding=3//2)
-        self.conv3 = nn.Conv2d(64, 1, 3, padding=3//2)
-
-    def forward(self, features):
-
-        x = [self.upscale[i](features[i]) for i in range(len(features))]
-        x = torch.cat(x, dim=1)
-
-        x = F.leaky_relu(self.conv1(x))
-        x = F.leaky_relu(self.conv2(x))
-        x = F.leaky_relu(self.conv3(x))
-        # normalize to [0, 1]
-        x = x - torch.min(x)
-        x = x / torch.max(x)
-
-        return x
-
-
 
 class Classifier(object):
 
@@ -83,9 +50,6 @@ class Classifier(object):
 
         self.logger.info("loading rpn")
         self.rpn = RPN(self)
-        self.rpn.load_state_dict(torch.load(dds_env['classifier_rpn']))
-        self.rpn.eval()
-        self.rpn.cuda()
         self.logger.info("rpn loaded to gpu")
 
 

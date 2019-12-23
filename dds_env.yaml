@@ -1,9 +1,9 @@
 dataset: /tank/kuntai/DAVIS/JPEGImages/720p/
 dds_config:
 - - 1.0
-  - 40
+  - 50
   - 1.0
-  - 30
+  - 40
   - 0.0
   - 15
   - no_filter_combined_bboxes
@@ -12,23 +12,23 @@ dds_config:
   - 0.01
 gt_config:
 - - 1.0
-  - 20
+  - 30
 mpeg_configs:
 - - 1.0
-  - 24
+  - 34
 - - 1.0
-  - 28
+  - 38
 - - 1.0
-  - 32
+  - 42
 - - 1.0
-  - 36
+  - 46
 - - 1.0
-  - 40
+  - 50
 relevant_classes:
 - vehicle
 - pass
 resnet_101_coco: /data2/kuntai/code/dds/model/frozen_inference_graph.pb
-classifier_rpn: /data2/kuntai/code/dds/model/rpn_40_30.pth
+classifier_rpn: /data2/kuntai/code/dds/model/classifier_rpn_50_40_bn.pth
 root: /data2/kuntai/code/dds
 video_list: /data2/kuntai/code/dds/video_list.yaml
 application: classification
