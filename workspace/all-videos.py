@@ -3,6 +3,7 @@ import os
 import argparse
 import sys
 import yaml
+import logging
 
 # append the root of dds to find dds_config_generator
 with open('dds_env.yaml', 'r') as f:
@@ -52,7 +53,8 @@ for video_target in vid_names:
     # Run DDS
     # before running DDS, you must have rpn results for 2nd iteration
     if CODE==1:
-
+        logging.basicConfig(format="%(name)s -- %(levelname)s -- %(message)s",
+                        level="INFO")
         for low_res, low_qp, high_res, high_qp, rpn_enlarge_ratio, batch_size, rpn_box_source, prune_score, objfilter_iou, size_obj in dds_config[video]:
             low_cofig_src = os.path.join(dataset_root, f"{video}_{low_res}_{low_qp}/src")
             if (not os.path.exists(low_cofig_src)) or (os.path.exists(low_cofig_src) and len(os.listdir(low_cofig_src))!=num_frames):
@@ -66,6 +68,10 @@ for video_target in vid_names:
                 from backend.rpn_inference_func import run_rpn_inference
             elif dds_env['application'] == 'classification':
                 from backend.classifier import run_rpn_inference
+            elif dds_env['application'] == 'segmentation':
+                from backend.segmenter import run_rpn_inference
+            else:
+                raise NotImplementedError(f"Application {dds_env['application']} not implemented!")
             run_rpn_inference(video, 0.5, 0.3, 0.3, low_res, low_qp, high_res, high_qp, result_target)
 
 

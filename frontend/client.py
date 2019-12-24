@@ -32,8 +32,8 @@ class Client:
     def analyze_video_mpeg(self, video_name, raw_images_path, enforce_iframes):
         if dds_env['application'] == 'detection':
             return self.analyze_video_mpeg_detection(video_name, raw_images_path, enforce_iframes)
-        elif dds_env['application'] == 'classification':
-            return self.analyze_video_mpeg_classification(video_name, raw_images_path, enforce_iframes)
+        else:
+            return self.analyze_video_mpeg_application(video_name, raw_images_path, enforce_iframes)
 
     def analyze_video_mpeg_detection(self, video_name, raw_images_path, enforce_iframes):
         number_of_frames = len(
@@ -99,7 +99,7 @@ class Client:
 
         return final_results, [total_size, 0]
 
-    def analyze_video_mpeg_classification(self, video_name, raw_images_path, enforce_iframes):
+    def analyze_video_mpeg_application(self, video_name, raw_images_path, enforce_iframes):
         number_of_frames = len(
             [f for f in os.listdir(raw_images_path) if ".png" in f])
 
@@ -131,7 +131,7 @@ class Client:
                              f"in base phase using {self.config.low_qp}QP")
             extract_images_from_video(f"{video_name}-base-phase-cropped",
                                       req_regions)
-            self.server.perform_classification(
+            self.server.perform_application(
                 f"{video_name}-base-phase-cropped", self.config.low_resolution,
                 batch_fnames, results = results)
             stop = timeit.default_timer()
@@ -166,8 +166,8 @@ class Client:
                 enforce_iframes,
                 low_results_path,
                 debug_mode)
-        elif dds_env['application'] == 'classification':
-            return self.analyze_video_emulate_classification(
+        else:
+            return self.analyze_video_emulate_application(
                 video_name,
                 high_images_path,
                 enforce_iframes,
@@ -391,7 +391,7 @@ class Client:
         return final_results, total_size
 
 
-    def analyze_video_emulate_classification(self, video_name, high_images_path,
+    def analyze_video_emulate_application(self, video_name, high_images_path,
                               enforce_iframes, low_results_path=None,
                               debug_mode=False):
 
@@ -402,7 +402,7 @@ class Client:
         low_results_dict = read_results_dict(low_results_path)
         total_size = [0, 0]
 
-        classification_results = {}
+        model_results = {}
 
         for i in range(0, number_of_frames, self.config.batch_size):
 
@@ -457,7 +457,7 @@ class Client:
                 high_req_regions
             )
             for fid in batch_results.keys():
-                classification_results[fid + start_fid] = batch_results[fid]
+                model_results[fid + start_fid] = batch_results[fid]
 
             #input()
 
@@ -467,7 +467,7 @@ class Client:
 
         # save the result
         with open(f"{video_name}", 'wb') as f:
-            pickle.dump(classification_results, f)
+            pickle.dump(model_results, f)
 
-        return classification_results, total_size
+        return model_results, total_size
 

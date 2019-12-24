@@ -1,6 +1,6 @@
 
 import torch
-from torchvision.models import vgg19
+from torchvision.models.segmentation import fcn_resnet101
 import torchvision.transforms as T
 import torch.nn.functional as F
 import torch.nn as nn
@@ -12,39 +12,53 @@ import glob
 import os
 import logging
 import threading
-from .classifier_rpn import RPN
+from .segmenter_rpn import RPN
 
 import yaml
 with open('dds_env.yaml', 'r') as f:
     dds_env = yaml.load(f.read())
 
-class Classifier(object):
+class Segmenter(object):
 
-    # Ensure Classifier class is a singleton
+    # Ensure Segmenter class is a singleton
     __instance = None
     __lock = threading.Lock()
     def __new__(cls):
 
-        if Classifier.__instance is None:
-            with Classifier.__lock:
-                if Classifier.__instance is None:
-                    Classifier.__instance = super(Classifier, cls).__new__(cls)
-        return Classifier.__instance
+        if Segmenter.__instance is None:
+            with Segmenter.__lock:
+                if Segmenter.__instance is None:
+                    Segmenter.__instance = super(Segmenter, cls).__new__(cls)
+        return Segmenter.__instance
 
 
     def __init__(self):
 
-        self.logger = logging.getLogger("classifier")
+        self.logger = logging.getLogger("segmenter")
         handler = logging.NullHandler()
         self.logger.addHandler(handler)
 
-        self.logger.info("loading vgg19")
-        self.model = vgg19(pretrained=True)
-        self.model.eval().cuda()
-        self.requires_features = False
-        self.features = []
-        self.logger.info("vgg19 loaded to gpu")
+        self.logger.info("loading fcn_resnet101")
+        self.model = fcn_resnet101(pretrained=True)
 
+        # add forward hooks to get features
+        self.features = []
+        self.requires_features = False
+        def append(tensor):
+            if self.requires_features:
+                self.features.append(tensor.detach())
+        def hook(module):
+            module.register_forward_hook(lambda m, i, o: append(o))
+        hook(self.model.backbone.layer1)
+        hook(self.model.backbone.layer2)
+        hook(self.model.backbone.layer3)
+        hook(self.model.backbone.layer4)
+        self.model.register_forward_hook(lambda m,i,o: append(o['out']))
+
+        self.model.eval().cuda()
+        self.logger.info("fcn_resnet101 loaded to gpu")
+
+        # image normalization
         self.im2tensor = T.Compose([
             T.ToTensor(),
             T.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
@@ -72,16 +86,7 @@ class Classifier(object):
         else:
             func = torch.enable_grad
         with func():
-            for module in self.model.features:
-                # import pdb; pdb.set_trace()
-                if self.requires_features and isinstance(module, torch.nn.MaxPool2d):
-                    self.features.append(x)
-                x = module(x)
-            x = self.model.avgpool(x)
-            x = torch.flatten(x, 1)
-            x = self.model.classifier(x)
-            x = F.softmax(x, dim = 1)[0]
-        return x
+            return torch.max(self.model(x)['out'], 1)[1]
 
 
     def region_proposal(self, image, fid, resolution, k = 63, topk = 6):
@@ -129,7 +134,7 @@ class Classifier(object):
 
 def run_rpn_inference(video, _,__,___, low_scale, low_qp, high_scale, high_qp, results_dir):
 
-    classifier = Classifier()
+    segmenter = Segmenter()
 
     final_results = Results()
 
@@ -146,13 +151,13 @@ def run_rpn_inference(video, _,__,___, low_scale, low_qp, high_scale, high_qp, r
 
         image = plt.imread(str(image_path))
 
-        regions = classifier.region_proposal([image], idx, low_scale)
+        regions = segmenter.region_proposal([image], idx, low_scale)
 
         for region in regions:
             final_results.append(region)
 
 
-        classifier.logger.info(f'Region proposal for {image_path} completed.')
+        segmenter.logger.info(f'Region proposal for {image_path} completed.')
 
     os.system(f"mkdir -p {project_root / f'results_{video}'/ 'no_filter_combined_merged_bboxes'}")
     final_results.write(str(

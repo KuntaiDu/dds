@@ -7,6 +7,7 @@ from dds_utils import (Results, Region, calc_intersection_area,
                        calc_area, merge_images_with_zeros, merge_images, extract_images_from_video)
 from .object_detector import Detector
 from .classifier import Classifier
+from .segmenter import Segmenter
 import matplotlib.pyplot as plt
 import yaml
 
@@ -70,12 +71,11 @@ class Server:
                     Region(fid, 0, 0, 0, 0, 0.1, "no obj", resolution))
         return final_results, None, None
 
-    def perform_classification(self, images_direc, resolution, fnames=None, images=None, results = None):
+    def perform_application(self, images_direc, resolution, fnames=None, images=None, results = None):
 
         assert results is not None
-        if not hasattr(self, 'classifier'):
-            self.classifier = Classifier()
-
+        if not hasattr(self, 'model'):
+            exec(f"self.model = {dds_env['model']}()")
 
         if fnames is None:
             fnames = sorted(os.listdir(images_direc))
@@ -91,9 +91,9 @@ class Server:
                 image_path = os.path.join(images_direc, fname)
                 image = plt.imread(image_path)
 
-            self.logger.debug(f"Running classification for {fname}")
-            classification_results = self.classifier.infer([image])[0].cpu().numpy()
-            results[fid] = classification_results
+            self.logger.debug(f"Running {dds_env['application']} by {dds_env['model']} for {fname}")
+            model_results = self.model.infer([image]).cpu().numpy()
+            results[fid] = model_results
 
         return results
 
@@ -130,10 +130,10 @@ class Server:
     def emulate_high_query(self, vid_name, low_images_direc, req_regions):
         if dds_env['application'] == 'detection':
             return self.emulate_high_query_detection(vid_name, low_images_direc, req_regions)
-        elif dds_env['application'] == 'classification':
-            return self.emulate_high_query_classification(vid_name, low_images_direc, req_regions)
+        else:
+            return self.emulate_high_query_application(vid_name, low_images_direc, req_regions)
 
-    def emulate_high_query_detection(self, vid_name, low_images_direc, req_regions):
+    def emulate_high_query_application(self, vid_name, low_images_direc, req_regions):
         images_direc = vid_name + "-cropped"
         # Extract images from encoded video
         extract_images_from_video(images_direc, req_regions)
@@ -167,7 +167,7 @@ class Server:
 
         return results_with_detections_only
 
-    def emulate_high_query_classification(self, vid_name, low_images_direc, req_regions):
+    def emulate_high_query_application(self, vid_name, low_images_direc, req_regions):
         images_direc = vid_name + "-cropped"
         # Extract images from encoded video
         extract_images_from_video(images_direc, req_regions)
@@ -188,7 +188,7 @@ class Server:
 
         # get the final result
         results = {}
-        self.perform_classification(
+        self.perform_application(
             merged_images_direc, self.config.high_resolution, fnames,
             merged_images, results = results)
 
