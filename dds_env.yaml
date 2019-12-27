@@ -1,8 +1,8 @@
 dataset: /tank/kuntai/DAVIS/JPEGImages/720p/
 dds_config:
-- - 1.0
+- - 0.8
   - 50
-  - 1.0
+  - 0.8
   - 40
   - 0.0
   - 15
@@ -11,18 +11,18 @@ dds_config:
   - 0.0
   - 0.01
 gt_config:
-- - 1.0
-  - 30
+- - 0.8
+  - 40
 mpeg_configs:
-- - 1.0
-  - 34
-- - 1.0
-  - 38
-- - 1.0
+- - 0.8
   - 42
-- - 1.0
+- - 0.8
+  - 44
+- - 0.8
   - 46
-- - 1.0
+- - 0.8
+  - 48
+- - 0.8
   - 50
 relevant_classes:
 - vehicle

@@ -38,7 +38,7 @@ class Segmenter(object):
         handler = logging.NullHandler()
         self.logger.addHandler(handler)
 
-        self.logger.info("loading fcn_resnet101")
+        self.logger.info("loading fcn_resnet101...")
         self.model = fcn_resnet101(pretrained=True)
 
         # add forward hooks to get features
@@ -56,7 +56,6 @@ class Segmenter(object):
         self.model.register_forward_hook(lambda m,i,o: append(o['out']))
 
         self.model.eval().cuda()
-        self.logger.info("fcn_resnet101 loaded to gpu")
 
         # image normalization
         self.im2tensor = T.Compose([
@@ -64,9 +63,8 @@ class Segmenter(object):
             T.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
         ])
 
-        self.logger.info("loading rpn")
+        self.logger.info("loading rpn...")
         self.rpn = RPN(self)
-        self.logger.info("rpn loaded to gpu")
 
 
     def transform(self, images):
@@ -89,7 +87,7 @@ class Segmenter(object):
             return torch.max(self.model(x)['out'], 1)[1]
 
 
-    def region_proposal(self, image, fid, resolution, k = 63, topk = 6):
+    def region_proposal(self, image, fid, resolution, k = 63, topk = 3):
 
         def unravel_index(index, shape):
             out = []
@@ -107,10 +105,9 @@ class Segmenter(object):
             for i in range(topk):
                 index = unravel_index(torch.argmax(grad), grad.shape)
                 index = [index[0].item(), index[1].item()]
+
                 results.append(Region(fid, (index[1] - k + 1) / y, (index[0] - k + 1) / x, k / y, k / x, 1.0, 'pass', resolution))
                 set_zero(grad, index[0], index[1])
-
-        assert k % 2 == 1
 
         assert len(image) == 1
 

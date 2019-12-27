@@ -15,6 +15,30 @@ with open('dds_env.yaml', 'r') as f:
     dds_env = yaml.load(f.read())
 
 
+def TicTocGenerator():
+    import time
+    # Generator that returns time differences
+    ti = 0           # initial time
+    tf = time.time() # final time
+    while True:
+        ti = tf
+        tf = time.time()
+        yield tf-ti # returns the time difference
+
+TicToc = TicTocGenerator() # create an instance of the TicTocGen generator
+
+# This will be the main function through which we define both tic() and toc()
+def toc(tempBool=True):
+    # Prints the time difference yielded by generator instance TicToc
+    tempTimeInterval = next(TicToc)
+    if tempBool:
+        print( "Elapsed time: %f seconds.\n" %tempTimeInterval )
+
+def tic():
+    # Records a time in TicToc, marks the beginning of a time interval
+    toc(False)
+
+
 
 class Server:
     """The server component of DDS protocol. Responsible for running DNN
@@ -88,6 +112,7 @@ class Server:
             if images:
                 image = images[fid]
             else:
+                # import pdb; pdb.set_trace()
                 image_path = os.path.join(images_direc, fname)
                 image = plt.imread(image_path)
 
@@ -127,13 +152,13 @@ class Server:
         # all the regions for query
         return results_for_regions
 
-    def emulate_high_query(self, vid_name, low_images_direc, req_regions):
+    def emulate_high_query(self, vid_name, low_images_direc, req_regions, high_images_direc = None):
         if dds_env['application'] == 'detection':
             return self.emulate_high_query_detection(vid_name, low_images_direc, req_regions)
         else:
-            return self.emulate_high_query_application(vid_name, low_images_direc, req_regions)
+            return self.emulate_high_query_application(vid_name, low_images_direc, req_regions, high_images_direc)
 
-    def emulate_high_query_application(self, vid_name, low_images_direc, req_regions):
+    def emulate_high_query_detection(self, vid_name, low_images_direc, req_regions):
         images_direc = vid_name + "-cropped"
         # Extract images from encoded video
         extract_images_from_video(images_direc, req_regions)
@@ -163,11 +188,11 @@ class Server:
             # r.origin = "high-res"
             results_with_detections_only.add_single_result(
                 r, self.config.intersection_threshold)
-        shutil.rmtree(merged_images_direc)
+        # shutil.rmtree(merged_images_direc)
 
         return results_with_detections_only
 
-    def emulate_high_query_application(self, vid_name, low_images_direc, req_regions):
+    def emulate_high_query_application(self, vid_name, low_images_direc, req_regions, high_images_direc):
         images_direc = vid_name + "-cropped"
         # Extract images from encoded video
         extract_images_from_video(images_direc, req_regions)
@@ -177,19 +202,28 @@ class Server:
                               "second iteration was call anyway")
             return None
 
-        fnames = sorted([f for f in os.listdir(images_direc) if "png" in f])
+        def fid_exists(fid):
+            for r in req_regions.regions:
+                if fid == r.fid:
+                    return True
+            return False
 
+        fnames = sorted([f for f in os.listdir(images_direc) if "png" in f and fid_exists(int(f.split(".")[0]))])
+
+        self.logger.info("Merging images...")
         # Make seperate directory and copy all images to that directory
         merged_images_direc = os.path.join(images_direc, "merged")
         os.makedirs(merged_images_direc, exist_ok=True)
         for img in fnames:
-            shutil.copy(os.path.join(images_direc, img), merged_images_direc)
+            shutil.copy(os.path.join(high_images_direc, img), merged_images_direc)
+        # print(low_images_direc)
         merged_images = merge_images(merged_images_direc, low_images_direc, req_regions)
+        self.logger.info("Merge complete")
 
         # get the final result
         results = {}
         self.perform_application(
             merged_images_direc, self.config.high_resolution, fnames,
-            merged_images, results = results)
+            None, results = results)
 
         return results

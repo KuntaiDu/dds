@@ -389,8 +389,9 @@ def compress_and_get_size(images_path, start_id, end_id, qp,
                                              universal_newlines=True)
         else:
             # import pdb; pdb.set_trace()
+
             encoding_result = subprocess.run(["ffmpeg", "-y",
-                                              "-loglevel", "error",
+                                              "-loglevel", "info",
                                               "-start_number", str(start_id),
                                               '-i', f"{images_path}/%010d.png",
                                               "-vcodec", "libx264",
@@ -402,9 +403,9 @@ def compress_and_get_size(images_path, start_id, end_id, qp,
                                               "-frames:v",
                                               str(number_of_frames),
                                               encoded_vid_path],
-                                             stdout=subprocess.PIPE,
-                                             stderr=subprocess.PIPE,
-                                             universal_newlines=True)
+                                              stdout=subprocess.PIPE,
+                                              stderr=subprocess.PIPE,
+                                              universal_newlines=True)
     else:
         encoding_result = subprocess.run(["ffmpeg", "-y",
                                           "-start_number", str(start_id),
@@ -444,13 +445,14 @@ def extract_images_from_video(images_path, req_regions):
     decoding_result = subprocess.run(["ffmpeg", "-y",
                                       "-i", encoded_vid_path,
                                       # "-vcodec", "mjpeg",
-                                      "-pix_fmt", "yuvj420p",
-                                      "-g", "8", "-q:v", "2",
-                                      "-vsync", "0", "-start_number", "0",
+                                      #"-pix_fmt", "yuv420p",
+                                      #"-g", "8", "-q:v", "2",
+                                      #"-vsync", "0",
+                                      "-start_number", "0",
                                       extacted_images_path],
-                                     stdout=subprocess.PIPE,
-                                     stderr=subprocess.PIPE,
-                                     universal_newlines=True)
+                                      stdout=subprocess.PIPE,
+                                      stderr=subprocess.PIPE,
+                                      universal_newlines=True)
     if decoding_result.returncode != 0:
         print("DECODING FAILED")
         print(decoding_result.stdout)
@@ -711,6 +713,14 @@ def merge_images(cropped_images_direc, low_images_direc, req_regions):
             continue
         fid = int(fname.split(".")[0])
 
+        def fid_exists(fid):
+            for r in req_regions.regions:
+                if fid == r.fid:
+                    return True
+            return False
+        if not fid_exists(fid):
+            continue
+
         # Read high resolution image
         high_image = cv.imread(os.path.join(cropped_images_direc, fname))
         width = high_image.shape[1]
@@ -721,18 +731,19 @@ def merge_images(cropped_images_direc, low_images_direc, req_regions):
         low_image = cv.imread(os.path.join(low_images_direc, fname))
         #import pdb; pdb.set_trace()
         # Enlarge low resolution image
-        enlarged_image = cv.resize(low_image, (width, height), fx=0, fy=0,
-                                   interpolation=cv.INTER_CUBIC)
+        enlarged_image = low_image  #cv.resize(low_image, (width, height), fx=0, fy=0,
+                          #         interpolation=cv.INTER_CUBIC)
         # Put regions in place
         for r in req_regions.regions:
             if fid != r.fid:
                 continue
-            x0 = int(r.x * width)
-            y0 = int(r.y * height)
-            x1 = int((r.w * width) + x0 - 1)
-            y1 = int((r.h * height) + y0 - 1)
+            x0 = round(r.x * width)
+            y0 = round(r.y * height)
+            x1 = round((r.w * width) + x0 - 1)
+            y1 = round((r.h * height) + y0 - 1)
 
             enlarged_image[y0:y1, x0:x1, :] = high_image[y0:y1, x0:x1, :]
+        # import pdb; pdb.set_trace()
         cv.imwrite(os.path.join(cropped_images_direc, fname), enlarged_image,[cv.IMWRITE_PNG_COMPRESSION, 0] )
         images[fid] = enlarged_image
     return images
@@ -740,10 +751,12 @@ def merge_images(cropped_images_direc, low_images_direc, req_regions):
 
 def compute_regions_size(results, vid_name, images_direc, resolution, qp,
                          enforce_iframes, estimate_banwidth=True, mode = 1):
+
     if estimate_banwidth:
         # If not simulation then compress and encode images
         # and get size
         if mode == 1:
+            # print(images_direc)
             vid_name = f"{vid_name}-cropped"
             frames_count = crop_images(results, vid_name, images_direc,
                                        resolution)

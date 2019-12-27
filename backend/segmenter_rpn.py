@@ -33,15 +33,14 @@ class RPN(nn.Module):
             nn.Conv2d(64, 64, 3, padding=1),
             nn.LeakyReLU(),
             nn.Conv2d(64, 64, 3, padding=1),
-            nn.LeakyReLU(),
             nn.BatchNorm2d(64),
+            nn.LeakyReLU(),
             nn.Conv2d(64, 64, 3, padding=1),
             nn.LeakyReLU(),
             nn.Conv2d(64, 64, 3, padding=1),
             nn.LeakyReLU(),
             nn.Conv2d(64, 1, 3, padding=1),
-            nn.BatchNorm2d(1),
-            nn.Sigmoid()
+            nn.BatchNorm2d(1)
         )
         self.load_state_dict(torch.load(dds_env['segmenter_rpn']))
         self.eval().cuda()
@@ -49,4 +48,6 @@ class RPN(nn.Module):
     def forward(self, features):
         x = torch.cat([self.upscale[i](features[i]) for i in range(len(features))], dim=1)
         x = self.convs(x)
+        x[x<0] = 0
+        x[x>1] = 1
         return x

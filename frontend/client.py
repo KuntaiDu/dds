@@ -12,6 +12,31 @@ with open('dds_env.yaml', 'r') as f:
     dds_env = yaml.load(f.read())
 relevant_classes = dds_env['relevant_classes']
 
+import time
+
+def TicTocGenerator():
+    # Generator that returns time differences
+    ti = 0           # initial time
+    tf = time.time() # final time
+    while True:
+        ti = tf
+        tf = time.time()
+        yield tf-ti # returns the time difference
+
+TicToc = TicTocGenerator() # create an instance of the TicTocGen generator
+
+# This will be the main function through which we define both tic() and toc()
+def toc(tempBool=True):
+    # Prints the time difference yielded by generator instance TicToc
+    tempTimeInterval = next(TicToc)
+    if tempBool:
+        print( "Elapsed time: %f seconds.\n" %tempTimeInterval )
+
+def tic():
+    # Records a time in TicToc, marks the beginning of a time interval
+    toc(False)
+
+
 class Client:
     """The client of the DDS protocol
        sends images in low resolution and waits for
@@ -113,7 +138,7 @@ class Client:
             start = timeit.default_timer()
             start_frame = i
             end_frame = min(number_of_frames, i + self.config.batch_size)
-            print(start_frame, end_frame)
+            self.logger.info(f"Analyzing frames from {start_frame} to {end_frame}")
 
             batch_fnames = sorted([f"{str(idx).zfill(10)}.png"
                                    for idx in range(start_frame, end_frame)])
@@ -121,7 +146,7 @@ class Client:
             req_regions = Results()
             for fid in range(start_frame, end_frame):
                 req_regions.append(
-                    Region(fid, 0, 0, 1, 1, 1.0, 2,
+                    Region(fid, 0, 0, 1, 1, 1.0, "pass",
                            self.config.low_resolution))
             batch_video_size, _ = compute_regions_size(
                 req_regions, f"{video_name}-base-phase", raw_images_path,
@@ -141,8 +166,9 @@ class Client:
                              f"batch {start_frame} to {end_frame} with a "
                              f"total size of {batch_video_size / 1024}KB")
 
+            # input()
             # Remove encoded video manually
-            shutil.rmtree(f"{video_name}-base-phase-cropped")
+            # shutil.rmtree(f"{video_name}-base-phase-cropped")
             total_size += batch_video_size
             segment_size_file.write(f"{batch_video_size}, {batch_time}\n")
 
@@ -391,14 +417,15 @@ class Client:
         return final_results, total_size
 
 
-    def analyze_video_emulate_application(self, video_name, high_images_path,
+    def analyze_video_emulate_application(self, video_name, gt_images_path,
                               enforce_iframes, low_results_path=None,
                               debug_mode=False):
 
         # segment_size_file = open(f'{video_name}_segment_size', 'w')
 
+        # print(gt_images_path)
         number_of_frames = len(
-            [x for x in os.listdir(high_images_path) if "png" in x])
+            [x for x in os.listdir(gt_images_path) if "png" in x])
         low_results_dict = read_results_dict(low_results_path)
         total_size = [0, 0]
 
@@ -409,7 +436,7 @@ class Client:
             start_fid = i
             end_fid = min(number_of_frames, i + self.config.batch_size)
             self.logger.info(f'Processing batch from {start_fid} to {end_fid}')
-
+            self.logger.info(f'Extracting base phase...')
             # config paths
             low_images_path = f"{video_name}-base-phase-cropped"
 
@@ -417,20 +444,38 @@ class Client:
             base_req_regions = Results()
             for fid in range(start_fid, end_fid):
                 base_req_regions.append(
-                    Region(fid - start_fid, 0, 0, 1, 1, 1.0, "pass",
+                    Region(fid, 0, 0, 1, 1, 1.0, "pass",
                            self.config.low_resolution))
             encoded_batch_video_size, _ = compute_regions_size(
-                base_req_regions, f"{video_name}-base-phase", high_images_path,
+                base_req_regions, f"{video_name}-base-phase", gt_images_path,
                 self.config.low_resolution, self.config.low_qp,
                 enforce_iframes, True, 1)
+            extract_images_from_video(low_images_path, base_req_regions)
             total_size[0] += encoded_batch_video_size
+
+
+            self.logger.info(f'Extracting second phase...')
+            # config paths
+            high_images_path = f"{video_name}-second-phase-cropped"
+
+            # encode high quality
+            base_req_regions = Results()
+            for fid in range(start_fid, end_fid):
+                base_req_regions.append(
+                    Region(fid, 0, 0, 1, 1, 1.0, "pass",
+                           self.config.high_resolution))
+            _, _ = compute_regions_size(
+                base_req_regions, f"{video_name}-second-phase", gt_images_path,
+                self.config.high_resolution, self.config.high_qp,
+                enforce_iframes, True, 1)
+            extract_images_from_video(high_images_path, base_req_regions)
 
             # encode mixed quality
             high_req_regions = Results()
             for fid in range(start_fid, end_fid):
                 for region in low_results_dict[fid]:
                     high_req_regions.append(Region(
-                            fid - start_fid,
+                            fid,
                             region.x,
                             region.y,
                             region.w,
@@ -441,7 +486,7 @@ class Client:
             regions_size, _ = compute_regions_size(
                 high_req_regions,
                 video_name,
-                high_images_path,
+                gt_images_path,
                 self.config.high_resolution,
                 self.config.high_qp,
                 enforce_iframes,
@@ -454,15 +499,16 @@ class Client:
             batch_results = self.server.emulate_high_query(
                 video_name,
                 low_images_path,
-                high_req_regions
+                high_req_regions,
+                high_images_path
             )
             for fid in batch_results.keys():
-                model_results[fid + start_fid] = batch_results[fid]
+                model_results[fid] = batch_results[fid]
 
-            #input()
+            # input()
 
-            cleanup(video_name, debug_mode, start_fid, end_fid)
-            shutil.rmtree(low_images_path)
+            # cleanup(video_name, debug_mode, start_fid, end_fid)
+            # shutil.rmtree(low_images_path)
 
 
         # save the result
