@@ -1064,6 +1064,7 @@ for name in dirs:
 			x[key] = torch.from_numpy(x[key])
 		if isinstance(gt[key], numpy.ndarray):
 			gt[key] = torch.from_numpy(gt[key])
+		print(x[key].shape)
 		_, x_ind = x[key].topk(k)
 		x_set = {i.item() for i in x_ind}
 		_, gt_ind = gt[key].topk(k)

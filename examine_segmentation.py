@@ -87,7 +87,8 @@ for name in dirs:
 
 		ncorrect = len(correct_pixels.nonzero())
 		ntotal = len(total_pixels.nonzero())
-		F1.append(ncorrect/ntotal)
+		if ntotal != 0:
+			F1.append((ncorrect)/(ntotal))
 
 
 	print(f'{name} {fname_to_size[name]} {np.mean(F1)} 0')

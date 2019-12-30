@@ -198,7 +198,7 @@ class Server:
         extract_images_from_video(images_direc, req_regions)
 
         if not os.path.isdir(images_direc):
-            self.logger.error("Images directory was not found but the "
+            self.logger.error(f"Images directory {images_direc} was not found but the "
                               "second iteration was call anyway")
             return None
 
@@ -218,7 +218,6 @@ class Server:
             shutil.copy(os.path.join(high_images_direc, img), merged_images_direc)
         # print(low_images_direc)
         merged_images = merge_images(merged_images_direc, low_images_direc, req_regions)
-        self.logger.info("Merge complete")
 
         # get the final result
         results = {}

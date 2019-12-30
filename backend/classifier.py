@@ -84,7 +84,7 @@ class Classifier(object):
         return x
 
 
-    def region_proposal(self, image, fid, resolution, k = 63, topk = 6):
+    def region_proposal(self, image, fid, resolution, k = dds_env['kernel_size'], topk = dds_env['num_sqrt'] * dds_env['num_sqrt']):
 
         def unravel_index(index, shape):
             out = []
@@ -105,9 +105,9 @@ class Classifier(object):
                 results.append(Region(fid, (index[1] - k + 1) / y, (index[0] - k + 1) / x, k / y, k / x, 1.0, 'pass', resolution))
                 set_zero(grad, index[0], index[1])
 
-        assert k % 2 == 1
+        # assert k % 2 == 1
 
-        assert len(image) == 1
+        # assert len(image) == 1
 
 
         with torch.no_grad():

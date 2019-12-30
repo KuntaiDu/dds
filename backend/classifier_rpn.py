@@ -45,7 +45,6 @@ class RPN(nn.Module):
             nn.LeakyReLU(),
             nn.Conv2d(64, 1, 3, padding=3//2),
             nn.BatchNorm2d(1),
-            nn.Sigmoid()
         )
         self.load_state_dict(torch.load(dds_env['classifier_rpn']))
         self.eval().cuda()
@@ -55,4 +54,6 @@ class RPN(nn.Module):
         x = [self.upscale[i](features[i]) for i in range(len(features))]
         x = torch.cat(x, dim=1)
         x = self.convs(x)
+        x[x<0]=0
+        x[x>1]=1
         return x

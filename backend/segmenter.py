@@ -13,6 +13,8 @@ import os
 import logging
 import threading
 from .segmenter_rpn import RPN
+import cv2
+import numpy as np
 
 import yaml
 with open('dds_env.yaml', 'r') as f:
@@ -87,7 +89,7 @@ class Segmenter(object):
             return torch.max(self.model(x)['out'], 1)[1]
 
 
-    def region_proposal(self, image, fid, resolution, k = 63, topk = 3):
+    def region_proposal(self, image, fid, resolution, k = dds_env['kernel_size'], topk = dds_env['num_sqrt'] * dds_env['num_sqrt']):
 
         def unravel_index(index, shape):
             out = []
@@ -113,10 +115,21 @@ class Segmenter(object):
 
 
         with torch.no_grad():
-            self.infer(image, requires_features = True)
+            pred = self.infer(image, requires_features = True)
             grad = self.rpn(self.features)
             grad = grad[0,0,:,:]
-            grad = torch.abs(grad).type(torch.DoubleTensor)
+
+            # encourage edges
+            pred = pred[0,:,:]
+            pred[pred != 0] = 1
+            pred = pred.cpu().data.numpy().astype(np.uint8)
+            kernel = np.ones((8, 8), np.uint8)
+            pred = cv2.morphologyEx(pred, cv2.MORPH_CLOSE, kernel)
+            pred = pred - cv2.erode(pred, kernel)
+            pred = torch.from_numpy(pred)
+            grad[pred != 0] += 0.5
+
+            grad = grad.type(torch.DoubleTensor)
             grad = grad.type(torch.DoubleTensor)
             grad = torch.cumsum(torch.cumsum(grad, axis = 0), axis = 1)
             grad_pad = F.pad(grad, (k,k,k,k))

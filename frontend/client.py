@@ -5,6 +5,7 @@ from dds_utils import (Results, read_results_dict, cleanup, Region,
                        compress_and_get_size, compute_regions_size,
                        get_size_from_mpeg_results, extract_images_from_video)
 from merger import *
+from .compressor import compute_regions_size_tight
 
 import yaml
 import pickle
@@ -483,7 +484,8 @@ class Client:
                             1.0,
                             "pass",
                             self.config.high_resolution))
-            regions_size, _ = compute_regions_size(
+
+            _,_ = compute_regions_size(
                 high_req_regions,
                 video_name,
                 gt_images_path,
@@ -492,6 +494,15 @@ class Client:
                 enforce_iframes,
                 True,
                 1
+            )
+            regions_size = compute_regions_size_tight(
+                high_req_regions,
+                video_name,
+                gt_images_path,
+                self.config.high_resolution,
+                self.config.high_qp,
+                start_fid,
+                end_fid
             )
             total_size[1] += regions_size
 
