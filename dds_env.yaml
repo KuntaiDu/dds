@@ -15,6 +15,8 @@ gt_config:
   - 26
 mpeg_configs:
 - - 0.8
+  - 24
+- - 0.8
   - 28
 - - 0.8
   - 30
@@ -34,5 +36,5 @@ root: /data2/kuntai/code/dds
 video_list: /data2/kuntai/code/dds/video_list.yaml
 application: classification
 model: Classifier
-kernel_size: 32
-num_sqrt: 4
+kernel_size: 64
+num_sqrt: 2

@@ -6,6 +6,7 @@ import shutil
 import subprocess
 import numpy as np
 import cv2 as cv
+from pathlib import Path
 
 
 class ServerConfig:
@@ -431,25 +432,28 @@ def compress_and_get_size(images_path, start_id, end_id, qp,
     return size
 
 
-def extract_images_from_video(images_path, req_regions):
-    if not os.path.isdir(images_path):
-        return
+def extract_images_from_video(cur_path, req_regions):
 
-    for fname in os.listdir(images_path):
-        if "png" not in fname:
-            continue
-        else:
-            os.remove(os.path.join(images_path, fname))
-    encoded_vid_path = os.path.join(images_path, "temp.mp4")
-    extacted_images_path = os.path.join(images_path, "%010d.png")
+    cur_path = Path(cur_path)
+    assert cur_path.is_dir()
+
+    images_path = cur_path / 'images'
+    images_path.mkdir(exist_ok = True)
+
+
+    # for fname in os.listdir(images_path):
+    #    if "png" not in fname:
+    #        continue
+    #    else:
+    #        os.remove(os.path.join(images_path, fname))
     decoding_result = subprocess.run(["ffmpeg", "-y",
-                                      "-i", encoded_vid_path,
+                                      "-i", f"{cur_path / 'temp.mp4'}",
                                       # "-vcodec", "mjpeg",
                                       #"-pix_fmt", "yuv420p",
                                       #"-g", "8", "-q:v", "2",
                                       #"-vsync", "0",
                                       "-start_number", "0",
-                                      extacted_images_path],
+                                      f"{images_path / '%010d.png'}"],
                                       stdout=subprocess.PIPE,
                                       stderr=subprocess.PIPE,
                                       universal_newlines=True)
@@ -459,18 +463,10 @@ def extract_images_from_video(images_path, req_regions):
         print(decoding_result.stderr)
         exit()
 
-    fnames = sorted(
-        [os.path.join(images_path, name)
-         for name in os.listdir(images_path) if "png" in name])
     fids = sorted(list(set([r.fid for r in req_regions.regions])))
-    fids_mapping = zip(fids, fnames)
-    for fname in fnames:
-        # Rename temporarily
-        os.rename(fname, f"{fname}_temp")
 
-    for fid, fname in fids_mapping:
-        os.rename(os.path.join(f"{fname}_temp"),
-                  os.path.join(images_path, f"{str(fid).zfill(10)}.png"))
+    for i in range(len(fids)):
+        shutil.copyfile(images_path / ('%010d.png' % i), cur_path / ('%010d.png' % fids[i]))
 
 def squeeze_regions(results, vid_name, images_direc, resolution=None):
     cached_image = None
@@ -568,7 +564,7 @@ def crop_images(results, vid_name, images_direc, resolution=None):
         cropped_image[y0:y1, x0:x1, :] = cached_image[1][y0:y1, x0:x1, :]
         cropped_images[region.fid] = cropped_image
 
-    os.makedirs(vid_name, exist_ok=True)
+    os.makedirs(vid_name, exist_ok = True)
     frames_count = len(cropped_images)
     frames = sorted(cropped_images.items(), key=lambda e: e[0])
     for idx, (_, frame) in enumerate(frames):
