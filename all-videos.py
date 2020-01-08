@@ -1,26 +1,7 @@
 
 import subprocess
+import os
 
-for i in range(100):
-    if i < 17:
-        continue
-    subprocess.run([
-        'python',
-        'workspace/all-videos.py',
-        '0',
-        f'{i}'
-        ])
-
-    subprocess.run([
-        'python',
-        'workspace/all-videos.py',
-        '1',
-        f'{i}'
-        ])
-
-    subprocess.run([
-        'python',
-        'workspace/all-videos.py',
-        '2',
-        f'{i}'
-        ])
+os.system("python workspace/all-videos.py 0")
+os.system("python workspace/all-videos.py 1")
+os.system("python workspace/all-videos.py 2")

@@ -368,7 +368,7 @@ def compute_area_of_regions(results):
 
 
 def compress_and_get_size(images_path, start_id, end_id, qp,
-                          enforce_iframes=False, resolution=None):
+                          enforce_iframes=False, resolution=None, preset = 'medium'):
     number_of_frames = end_id - start_id
     encoded_vid_path = os.path.join(images_path, "temp.mp4")
     if resolution and enforce_iframes:
@@ -379,6 +379,7 @@ def compress_and_get_size(images_path, start_id, end_id, qp,
                                               "-start_number", str(start_id),
                                               '-i', f"{images_path}/%010d.png",
                                               "-vcodec", "libx264", "-g", "15",
+                                              "-preset", f"{preset}",
                                               "-keyint_min", "15",
                                               "-pix_fmt", "yuv420p",
                                               "-vf", scale,
@@ -433,6 +434,8 @@ def compress_and_get_size(images_path, start_id, end_id, qp,
 
 
 def extract_images_from_video(cur_path, req_regions):
+
+    # fids = [r.fid for r in req_regions.regions]
 
     cur_path = Path(cur_path)
     assert cur_path.is_dir()
@@ -535,6 +538,7 @@ def squeeze_regions(results, vid_name, images_direc, resolution=None):
     return frames_count
 
 def crop_images(results, vid_name, images_direc, resolution=None):
+
     cached_image = None
     cropped_images = {}
 
@@ -552,10 +556,16 @@ def crop_images(results, vid_name, images_direc, resolution=None):
 
         width = cached_image[1].shape[1]
         height = cached_image[1].shape[0]
-        x0 = int(region.x * width)
-        y0 = int(region.y * height)
-        x1 = int((region.w * width) + x0 - 1)
-        y1 = int((region.h * height) + y0 - 1)
+        x0 = round(region.x * width)
+        y0 = round(region.y * height)
+        x1 = round((region.w * width) + x0)
+        y1 = round((region.h * height) + y0)
+        x0 = max(x0,0)
+        y0 = max(y0,0)
+        x1 = min(x1, width)
+        y1 = min(y1, width)
+
+        #import pdb; pdb.set_trace()
 
         if region.fid not in cropped_images:
             cropped_images[region.fid] = np.zeros_like(cached_image[1])
@@ -566,8 +576,8 @@ def crop_images(results, vid_name, images_direc, resolution=None):
 
     os.makedirs(vid_name, exist_ok = True)
     frames_count = len(cropped_images)
-    frames = sorted(cropped_images.items(), key=lambda e: e[0])
-    for idx, (_, frame) in enumerate(frames):
+    for idx in cropped_images:
+        frame = cropped_images[idx]
         if resolution:
             w = int(frame.shape[1] * resolution)
             h = int(frame.shape[0] * resolution)
@@ -746,7 +756,7 @@ def merge_images(cropped_images_direc, low_images_direc, req_regions):
 
 
 def compute_regions_size(results, vid_name, images_direc, resolution, qp,
-                         enforce_iframes, estimate_banwidth=True, mode = 1):
+                         enforce_iframes, estimate_banwidth=True, mode = 1, preset='medium'):
 
     if estimate_banwidth:
         # If not simulation then compress and encode images
@@ -758,11 +768,17 @@ def compute_regions_size(results, vid_name, images_direc, resolution, qp,
                                        resolution)
             # frames_count = crop_images(results, vid_name, images_direc,
             #                            resolution)
-            size = compress_and_get_size(vid_name, 0, frames_count, qp=qp,
+
+            ids = [r.fid for r in results.regions]
+            start_id = min(ids)
+            end_id = max(ids) + 1
+            assert start_id + frames_count == end_id
+            size = compress_and_get_size(vid_name, start_id, end_id, qp=qp,
                                          enforce_iframes=enforce_iframes,
-                                         resolution=1)
-            pixel_size = compute_area_of_regions(results)
-            return size, pixel_size
+                                         resolution=1, preset = preset)
+            return size, 0
+            # pixel_size = compute_area_of_regions(results)
+            #return size, pixel_size
 
         elif mode == 2:
             vid_name = f"{vid_name}-cropped"

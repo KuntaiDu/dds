@@ -1066,25 +1066,18 @@ for name in dirs:
 			gt[key] = torch.from_numpy(gt[key])
 		#print(x[key].shape)
 		_, x_ind = x[key].topk(k)
-		x_set = {i.item() for i in x_ind}
-		_, gt_ind = gt[key].topk(k)
-		gt_ind_i = [i.item() for i in gt_ind]
-		'''
-		print(key2label[gt_ind_i[0]])
-		print(_[0])
-		print(key2label[gt_ind_i[1]])
-		print(_[1])
-		print(key2label[gt_ind_i[2]])
-		print(_[2])
-		print(key2label[gt_ind_i[3]])
-		print(_[3])
-		print(key2label[gt_ind_i[4]])
-		print(_[4])
-		'''
+		_, gt_ind = gt[key].topk(1)
+		x_lst = [i.item() for i in x_ind]
+		gt_lst = [i.item() for  i in gt_ind]
+
+
+
+
+
 		gt_set = {i.item() for i in gt_ind}
 		#p = torch.from_numpy(gt[key])
 		#q = torch.from_numpy(target[key])
 		#mse += int()
-		F1 += len(x_set & gt_set) / k
+		F1 += len(set(x_lst) & set(gt_lst))
 	F1 /= len(x.keys())
 	print(f'{name} {fname_to_size[name]} {F1} 0')

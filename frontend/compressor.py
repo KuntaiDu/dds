@@ -13,6 +13,8 @@ with open('dds_env.yaml', 'r') as f:
 
 
 kernel_size = dds_env['kernel_size']
+if dds_env['enable_cloudseg']:
+    kernel_size = kernel_size // 4
 num_sqrt = dds_env['num_sqrt']
 
 def compute_regions_size_tight(results, video_name, gt_images_path, hres, hqp, start_fid, end_fid):

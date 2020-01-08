@@ -428,6 +428,7 @@ class Client:
         number_of_frames = len(
             [x for x in os.listdir(gt_images_path) if "png" in x])
         low_results_dict = read_results_dict(low_results_path)
+        # import pdb; pdb.set_trace()
         total_size = [0, 0]
 
         model_results = {}
@@ -485,7 +486,8 @@ class Client:
                             "pass",
                             self.config.high_resolution))
 
-            _,_ = compute_regions_size(
+            # import pdb; pdb.set_trace()
+            regions_size_a,_ = compute_regions_size(
                 high_req_regions,
                 video_name,
                 gt_images_path,
@@ -493,9 +495,10 @@ class Client:
                 self.config.high_qp,
                 enforce_iframes,
                 True,
-                1
+                1,
+                'veryslow'
             )
-            regions_size = compute_regions_size_tight(
+            regions_size_b = compute_regions_size_tight(
                 high_req_regions,
                 video_name,
                 gt_images_path,
@@ -504,6 +507,10 @@ class Client:
                 start_fid,
                 end_fid
             )
+            print(regions_size_a)
+            print(regions_size_b)
+            regions_size = min(regions_size_a, regions_size_b)
+            print(regions_size)
             total_size[1] += regions_size
 
             # calculate performance
