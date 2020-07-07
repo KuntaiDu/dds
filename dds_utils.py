@@ -1,4 +1,3 @@
-import math
 import re
 import os
 import csv
@@ -6,14 +5,16 @@ import shutil
 import subprocess
 import numpy as np
 import cv2 as cv
+import networkx
+from networkx.algorithms.components.connected import connected_components
 
 
 class ServerConfig:
     def __init__(self, low_res, high_res, low_qp, high_qp, bsize,
                  h_thres, l_thres, max_obj_size, min_obj_size,
                  tracker_length, boundary, intersection_threshold,
-                 tracking_threshold, suppression_threshold, simulation, rpn_enlarge_ratio,
-                 prune_score, objfilter_iou, size_obj):
+                 tracking_threshold, suppression_threshold, simulation,
+                 rpn_enlarge_ratio, prune_score, objfilter_iou, size_obj):
         self.low_resolution = low_res
         self.high_resolution = high_res
         self.low_qp = low_qp
@@ -34,18 +35,23 @@ class ServerConfig:
         self.objfilter_iou = objfilter_iou
         self.size_obj = size_obj
 
+
 class Region:
     def __init__(self, fid, x, y, w, h, conf, label, resolution,
                  origin="generic"):
-        self.fid = fid
-        self.x = x
-        self.y = y
-        self.w = w
-        self.h = h
-        self.conf = conf
+        self.fid = int(fid)
+        self.x = float(x)
+        self.y = float(y)
+        self.w = float(w)
+        self.h = float(h)
+        self.conf = float(conf)
         self.label = label
-        self.resolution = resolution
+        self.resolution = float(resolution)
         self.origin = origin
+
+    @staticmethod
+    def convert_from_server_response(r, res, phase):
+        return Region(r[0], r[1], r[2], r[3], r[4], r[5], r[6], res, phase)
 
     def __str__(self):
         string_rep = (f"{self.fid}, {self.x:0.3f}, {self.y:0.3f}, "
@@ -69,6 +75,16 @@ class Region:
         else:
             return False
 
+    def enlarge(self, ratio):
+        x_min = max(self.x - self.w * ratio, 0.0)
+        y_min = max(self.y - self.h * ratio, 0.0)
+        x_max = min(self.x + self.w * (1 + ratio), 1.0)
+        y_max = min(self.y + self.h * (1 + ratio), 1.0)
+        self.x = x_min
+        self.y = y_min
+        self.w = x_max - x_min
+        self.h = y_max - y_min
+
     def copy(self):
         return Region(self.fid, self.x, self.y, self.w, self.h, self.conf,
                       self.label, self.resolution, self.origin)
@@ -77,6 +93,7 @@ class Region:
 class Results:
     def __init__(self):
         self.regions = []
+        self.regions_dict = {}
 
     def __len__(self):
         return len(self.regions)
@@ -91,9 +108,12 @@ class Results:
     def is_dup(self, result_to_add, threshold=0.5):
         # return the regions with IOU greater than threshold
         # and maximum confidence
+        if result_to_add.fid not in self.regions_dict:
+            return None
+
         max_conf = -1
         max_conf_result = None
-        for existing_result in self.regions:
+        for existing_result in self.regions_dict[result_to_add.fid]:
             if existing_result.is_same(result_to_add, threshold):
                 if existing_result.conf > max_conf:
                     max_conf = existing_result.conf
@@ -113,6 +133,9 @@ class Results:
                 ("tracking" in region_to_add.origin and
                  "tracking" in dup_region.origin)):
             self.regions.append(region_to_add)
+            if region_to_add.fid not in self.regions_dict:
+                self.regions_dict[region_to_add.fid] = []
+            self.regions_dict[region_to_add.fid].append(region_to_add)
         else:
             final_object = None
             if dup_region.origin == region_to_add.origin:
@@ -136,7 +159,7 @@ class Results:
         while len(self.regions) > 0:
             max_conf_obj = max(self.regions, key=lambda e: e.conf)
             new_regions_list.append(max_conf_obj)
-            self.regions.remove(max_conf_obj)
+            self.remove(max_conf_obj)
             objs_to_remove = []
             for r in self.regions:
                 if r.fid != max_conf_obj.fid:
@@ -144,15 +167,21 @@ class Results:
                 if calc_iou(r, max_conf_obj) > threshold:
                     objs_to_remove.append(r)
             for r in objs_to_remove:
-                self.regions.remove(r)
-        self.regions = new_regions_list
-        self.regions.sort(key=lambda e: e.fid)
+                self.remove(r)
+        new_regions_list.sort(key=lambda e: e.fid)
+        for r in new_regions_list:
+            self.append(r)
 
     def append(self, region_to_add):
         self.regions.append(region_to_add)
+        if region_to_add.fid not in self.regions_dict:
+            self.regions_dict[region_to_add.fid] = []
+        self.regions_dict[region_to_add.fid].append(region_to_add)
 
     def remove(self, region_to_remove):
+        self.regions_dict[region_to_remove.fid].remove(region_to_remove)
         self.regions.remove(region_to_remove)
+        self.regions_dict[region_to_remove.fid].remove(region_to_remove)
 
     def fill_gaps(self, number_of_frames):
         if len(self.regions) == 0:
@@ -197,36 +226,102 @@ class Results:
             self.write_results_txt(fname)
 
 
-def read_results_txt_dict(fname):
-    """Return a dictionary with fid mapped to
-       and array that contains all SingleResult objects
-       from that particular frame"""
-    results_dict = {}
+def to_graph(l):
+    G = networkx.Graph()
+    for part in l:
+        # each sublist is a bunch of nodes
+        G.add_nodes_from(part)
+        # it also imlies a number of edges:
+        G.add_edges_from(to_edges(part))
+    return G
 
-    with open(fname, "r") as f:
-        lines = f.readlines()
-        f.close()
 
-    for line in lines:
-        line = line.split(",")
-        fid = int(line[0])
-        x, y, w, h = [float(e) for e in line[1:5]]
-        conf = float(line[6])
-        label = line[5]
-        resolution = float(line[7])
-        origin = "generic"
-        if len(line) > 8:
-            origin = line[8].strip()
-        single_result = Region(fid, x, y, w, h, conf, label,
-                               resolution, origin.rstrip())
+def to_edges(l):
+    """
+        treat `l` as a Graph and returns it's edges
+        to_edges(['a','b','c','d']) -> [(a,b), (b,c),(c,d)]
+    """
+    it = iter(l)
+    last = next(it)
 
-        if fid not in results_dict:
-            results_dict[fid] = []
+    for current in it:
+        yield last, current
+        last = current
 
-        if label != "no obj":
-            results_dict[fid].append(single_result)
 
-    return results_dict
+def filter_bbox_group(bb1, bb2, iou_threshold):
+    if calc_iou(bb1, bb2) > iou_threshold and bb1.label == bb2.label:
+        return True
+    else:
+        return False
+
+
+def overlap(bb1, bb2):
+    # determine the coordinates of the intersection rectangle
+    x_left = max(bb1.x, bb2.x)
+    y_top = max(bb1.y, bb2.y)
+    x_right = min(bb1.x+bb1.w, bb2.x+bb2.w)
+    y_bottom = min(bb1.y+bb1.h, bb2.y+bb2.h)
+
+    # no overlap
+    if x_right < x_left or y_bottom < y_top:
+        return False
+    else:
+        return True
+
+
+def pairwise_overlap_indexing_list(single_result_frame, iou_threshold):
+    pointwise = [[i] for i in range(len(single_result_frame))]
+    pairwise = [[i, j] for i, x in enumerate(single_result_frame)
+                for j, y in enumerate(single_result_frame)
+                if i != j if filter_bbox_group(x, y, iou_threshold)]
+    return pointwise + pairwise
+
+
+def simple_merge(single_result_frame, index_to_merge):
+    # directly using the largest box
+    bbox_large = []
+    for i in index_to_merge:
+        i2np = np.array([j for j in i])
+        left = min(np.array(single_result_frame)[i2np], key=lambda x: x.x)
+        top = min(np.array(single_result_frame)[i2np], key=lambda x: x.y)
+        right = max(
+            np.array(single_result_frame)[i2np], key=lambda x: x.x + x.w)
+        bottom = max(
+            np.array(single_result_frame)[i2np], key=lambda x: x.y + x.h)
+
+        fid, x, y, w, h, conf, label, resolution, origin = (
+            left.fid, left.x, top.y, right.x + right.w - left.x,
+            bottom.y + bottom.h - top.y, left.conf, left.label,
+            left.resolution, left.origin)
+        single_merged_region = Region(fid, x, y, w, h, conf,
+                                      label, resolution, origin)
+        bbox_large.append(single_merged_region)
+    return bbox_large
+
+
+def merge_boxes_in_results(results_dict, min_conf_threshold, iou_threshold):
+    final_results = Results()
+
+    # Clean dict to remove min_conf_threshold
+    for _, regions in results_dict.items():
+        to_remove = []
+        for r in regions:
+            if r.conf < min_conf_threshold:
+                to_remove.append(r)
+        for r in to_remove:
+            regions.remove(r)
+
+    for fid, regions in results_dict.items():
+        overlap_pairwise_list = pairwise_overlap_indexing_list(
+            regions, iou_threshold)
+        overlap_graph = to_graph(overlap_pairwise_list)
+        grouped_bbox_idx = [c for c in sorted(
+            connected_components(overlap_graph), key=len, reverse=True)]
+        merged_regions = simple_merge(regions, grouped_bbox_idx)
+        for r in merged_regions:
+            final_results.append(r)
+    return final_results
 
 
 def read_results_csv_dict(fname):
@@ -255,6 +350,38 @@ def read_results_csv_dict(fname):
 
         if label != "no obj":
             results_dict[fid].append(region)
+
+    return results_dict
+
+
+def read_results_txt_dict(fname):
+    """Return a dictionary with fid mapped to
+       and array that contains all SingleResult objects
+       from that particular frame"""
+    results_dict = {}
+
+    with open(fname, "r") as f:
+        lines = f.readlines()
+        f.close()
+
+    for line in lines:
+        line = line.split(",")
+        fid = int(line[0])
+        x, y, w, h = [float(e) for e in line[1:5]]
+        conf = float(line[6])
+        label = line[5]
+        resolution = float(line[7])
+        origin = "generic"
+        if len(line) > 8:
+            origin = line[8].strip()
+        single_result = Region(fid, x, y, w, h, conf, label,
+                               resolution, origin.rstrip())
+
+        if fid not in results_dict:
+            results_dict[fid] = []
+
+        if label != "no obj":
+            results_dict[fid].append(single_result)
 
     return results_dict
 
@@ -388,7 +515,6 @@ def compress_and_get_size(images_path, start_id, end_id, qp,
                                              stderr=subprocess.PIPE,
                                              universal_newlines=True)
         else:
-            # import pdb; pdb.set_trace()
             encoding_result = subprocess.run(["ffmpeg", "-y",
                                               "-loglevel", "error",
                                               "-start_number", str(start_id),
@@ -443,7 +569,6 @@ def extract_images_from_video(images_path, req_regions):
     extacted_images_path = os.path.join(images_path, "%010d.png")
     decoding_result = subprocess.run(["ffmpeg", "-y",
                                       "-i", encoded_vid_path,
-                                      # "-vcodec", "mjpeg",
                                       "-pix_fmt", "yuvj420p",
                                       "-g", "8", "-q:v", "2",
                                       "-vsync", "0", "-start_number", "0",
@@ -470,71 +595,6 @@ def extract_images_from_video(images_path, req_regions):
         os.rename(os.path.join(f"{fname}_temp"),
                   os.path.join(images_path, f"{str(fid).zfill(10)}.png"))
 
-def squeeze_regions(results, vid_name, images_direc, resolution=None):
-    cached_image = None
-    cropped_images = {}
-
-    for region in results.regions:
-        if not (cached_image and
-                cached_image[0] == region.fid):
-            image_path = os.path.join(images_direc,
-                                      f"{str(region.fid).zfill(10)}.png")
-            cached_image = (region.fid, cv.imread(image_path))
-
-        # Just move the complete image
-        if region.x == 0 and region.y == 0 and region.w == 1 and region.h == 1:
-            cropped_images[region.fid] = cached_image[1]
-            continue
-
-        width = cached_image[1].shape[1]
-        height = cached_image[1].shape[0]
-        x0 = int(region.x * width)
-        y0 = int(region.y * height)
-        x1 = int((region.w * width) + x0 - 1)
-        y1 = int((region.h * height) + y0 - 1)
-
-        if region.fid not in cropped_images:
-            cropped_images[region.fid] = np.zeros_like(cached_image[1])
-
-        cropped_image = cropped_images[region.fid]
-        cropped_image[y0:y1, x0:x1, :] = cached_image[1][y0:y1, x0:x1, :]
-        cropped_images[region.fid] = cropped_image
-
-    os.makedirs(vid_name, exist_ok=True)
-    frames_count = len(cropped_images)
-    frames = sorted(cropped_images.items(), key=lambda e: e[0])
-    crops = []
-    max_w = 0.
-    max_h = 0.
-    for idx, (_, frame) in enumerate(frames):
-        if resolution:
-            w = int(frame.shape[1] * resolution)
-            h = int(frame.shape[0] * resolution)
-            im_to_write = cv.resize(frame, (w, h), fx=0, fy=0,
-                                    interpolation=cv.INTER_CUBIC)
-            frame = im_to_write
-            mask = frame == 0
-            all_black = mask.sum(axis=2) == 3
-            rows = np.flatnonzero((~all_black).sum(axis=1))
-            cols = np.flatnonzero((~all_black).sum(axis=0))
-            frame = frame[rows,:,:]
-            frame = frame[:,cols,:]
-            # cv.imwrite(os.path.join(vid_name, f"{str(idx).zfill(10)}.png"),
-            #         frame, )
-            # get the largest w,h in a batch
-            if len(cols) > max_w:
-                max_w = len(cols)
-            if len(rows) > max_h:
-                max_h = len(rows)
-            crops.append(frame)
-    for idx, crop in enumerate(crops):
-        black_canvas = np.zeros((max_h,max_w,3), np.uint8)
-        black_canvas[0:crop.shape[0],0:crop.shape[1],:] = crop
-        cv.imwrite(os.path.join(vid_name, f"{str(idx).zfill(10)}.png"),
-                    black_canvas, [cv.IMWRITE_PNG_COMPRESSION, 0])
-
-    # import pdb; pdb.set_trace()
-    return frames_count
 
 def crop_images(results, vid_name, images_direc, resolution=None):
     cached_image = None
@@ -576,133 +636,11 @@ def crop_images(results, vid_name, images_direc, resolution=None):
             im_to_write = cv.resize(frame, (w, h), fx=0, fy=0,
                                     interpolation=cv.INTER_CUBIC)
             frame = im_to_write
-        cv.imwrite(os.path.join(vid_name, f"{str(idx).zfill(10)}.png"),
-                   frame,[cv.IMWRITE_PNG_COMPRESSION, 0] )
+        cv.imwrite(os.path.join(vid_name, f"{str(idx).zfill(10)}.png"), frame,
+                   [cv.IMWRITE_PNG_COMPRESSION, 0])
 
     return frames_count
 
-def crop_images_cubic(results, vid_name, images_direc, resolution=None):
-    cached_image = None
-    cropped_images = {}
-    # get the max size
-    max_w = 0.
-    max_h = 0.
-    for region in results.regions:
-        max_w = max(region.w, max_w)
-        max_h = max(region.h, max_h)
-    frames_count = 0
-    for idx, region in enumerate(results.regions):
-        frames_count += 1
-        if not (cached_image and
-                cached_image[0] == region.fid):
-            image_path = os.path.join(images_direc,
-                                      f"{str(region.fid).zfill(10)}.png")
-            cached_image = (region.fid, cv.imread(image_path))
-            cropped_images[region.fid] = []
-
-
-        # # Just move the complete image
-        # if region.x == 0 and region.y == 0 and region.w == 1 and region.h == 1:
-        #     cropped_images[region.fid] = cached_image[1]
-        #     continue
-
-        width = cached_image[1].shape[1]
-        height = cached_image[1].shape[0]
-        x0 = int(region.x * width)
-        y0 = int(region.y * height)
-        x1 = int((region.w * width) + x0 - 1)
-        y1 = int((region.h * height) + y0 - 1)
-
-        # if region.fid not in cropped_images:
-        cropped_images[region.fid].append((np.zeros((int(max_h * height), int(max_w * width), 3), np.uint8), (x0,y0,x1,y1)))
-        cropped_image = cropped_images[region.fid][-1][0]
-        cropped_image[0:y1-y0, 0:x1-x0, :] = cached_image[1][y0:y1, x0:x1, :]
-        # import pdb; pdb.set_trace()
-        crop_images_list = list(cropped_images[region.fid][-1])
-        crop_images_list[0] = cropped_image
-        cropped_images[region.fid][-1] = tuple(crop_images_list)
-
-    os.makedirs(vid_name, exist_ok=True)
-    frames = sorted(cropped_images.items(), key=lambda e: e[0])
-    save_idx = 0
-    bbox_offset = {}
-    for idx, (_,frame) in enumerate(frames):
-        bbox_offset[idx] = []
-        for ridx, (region, loc) in enumerate(frame):
-            if resolution:
-                bbox_offset[idx] = loc
-                w = int(region.shape[1] * resolution)
-                h = int(region.shape[0] * resolution)
-                im_to_write = cv.resize(region, (w, h), fx=0, fy=0,
-                                        interpolation=cv.INTER_CUBIC)
-                frame = im_to_write
-            cv.imwrite(os.path.join(vid_name, f"{str(save_idx).zfill(10)}.png"),
-                       frame,[cv.IMWRITE_PNG_COMPRESSION, 0] )
-            save_idx = save_idx + 1
-
-    return frames_count, bbox_offset
-
-def padding_images(cropped_images_direc, req_regions):
-    images = {}
-    for fname in os.listdir(cropped_images_direc):
-        if "png" not in fname:
-            continue
-        fid = int(fname.split(".")[0])
-
-        # Read high resolution image
-        high_image = cv.imread(os.path.join(cropped_images_direc, fname))
-        width = high_image.shape[1]
-        height = high_image.shape[0]
-
-        # Read low resolution image
-        low_image = cv.imread(os.path.join(low_images_direc, fname))
-        # Enlarge low resolution image
-        enlarged_image = cv.resize(low_image, (width, height), fx=0, fy=0,
-                                   interpolation=cv.INTER_CUBIC)
-        # Put regions in place
-        for r in req_regions.regions:
-            if fid != r.fid:
-                continue
-            x0 = int(r.x * width)
-            y0 = int(r.y * height)
-            x1 = int((r.w * width) + x0 - 1)
-            y1 = int((r.h * height) + y0 - 1)
-            enlarged_image[y0:y1, x0:x1, :] = high_image[y0:y1, x0:x1, :]
-        cv.imwrite(os.path.join(cropped_images_direc, fname), enlarged_image,[cv.IMWRITE_PNG_COMPRESSION, 0] )
-        images[fid] = enlarged_image
-    return images
-
-def merge_images_with_zeros(cropped_images_direc, req_regions):
-    images = {}
-    for fname in os.listdir(cropped_images_direc):
-        if "png" not in fname:
-            continue
-        fid = int(fname.split(".")[0])
-
-        # Read high resolution image
-        high_image = cv.imread(os.path.join(cropped_images_direc, fname))
-        width = high_image.shape[1]
-        height = high_image.shape[0]
-
-        # Read low resolution image
-        # low_image = cv.imread(os.path.join(low_images_direc, fname))
-        # Enlarge low resolution image
-        # enlarged_image = cv.resize(low_image, (width, height), fx=0, fy=0,
-        #                            interpolation=cv.INTER_CUBIC)
-        # blank_image = np.zeros((height,width,3), np.uint8)
-        # Put regions in place
-        for r in req_regions.regions:
-            if fid != r.fid:
-                continue
-            x0 = int(r.x * width)
-            y0 = int(r.y * height)
-            x1 = int((r.w * width) + x0 - 1)
-            y1 = int((r.h * height) + y0 - 1)
-
-            blank_image[y0:y1, x0:x1, :] = high_image[y0:y1, x0:x1, :]
-        cv.imwrite(os.path.join(cropped_images_direc, fname), blank_image,[cv.IMWRITE_PNG_COMPRESSION, 0] )
-        images[fid] = blank_image
-    return images
 
 def merge_images(cropped_images_direc, low_images_direc, req_regions):
     images = {}
@@ -731,46 +669,26 @@ def merge_images(cropped_images_direc, low_images_direc, req_regions):
             y1 = int((r.h * height) + y0 - 1)
 
             enlarged_image[y0:y1, x0:x1, :] = high_image[y0:y1, x0:x1, :]
-        cv.imwrite(os.path.join(cropped_images_direc, fname), enlarged_image,[cv.IMWRITE_PNG_COMPRESSION, 0] )
+        cv.imwrite(os.path.join(cropped_images_direc, fname), enlarged_image,
+                   [cv.IMWRITE_PNG_COMPRESSION, 0])
         images[fid] = enlarged_image
     return images
 
 
 def compute_regions_size(results, vid_name, images_direc, resolution, qp,
-                         enforce_iframes, estimate_banwidth=True, mode = 1):
+                         enforce_iframes, estimate_banwidth=True):
     if estimate_banwidth:
-        # If not simulation then compress and encode images
+        # If not simulation, compress and encode images
         # and get size
-        if mode == 1:
-            vid_name = f"{vid_name}-cropped"
-            frames_count = crop_images(results, vid_name, images_direc,
-                                       resolution)
-            # frames_count = crop_images(results, vid_name, images_direc,
-            #                            resolution)
-            size = compress_and_get_size(vid_name, 0, frames_count, qp=qp,
-                                         enforce_iframes=enforce_iframes,
-                                         resolution=1)
-            pixel_size = compute_area_of_regions(results)
-            return size, pixel_size
+        vid_name = f"{vid_name}-cropped"
+        frames_count = crop_images(results, vid_name, images_direc,
+                                   resolution)
 
-        elif mode == 2:
-            vid_name = f"{vid_name}-cropped"
-            frames_count, bbox_offset = crop_images_cubic(results, vid_name, images_direc,
-                                       resolution)
-            # print(frames_count)
-            size = compress_and_get_size(vid_name, 0, frames_count, qp=qp,
-                                         enforce_iframes=enforce_iframes,
-                                         resolution=1)
-            return size, bbox_offset
-        elif mode == 3:
-            vid_name = f"{vid_name}-cropped"
-            frames_count = squeeze_regions(results, vid_name, images_direc,
-                                       resolution)
-            # print(frames_count)
-            size = compress_and_get_size(vid_name, 0, frames_count, qp=qp,
-                                         enforce_iframes=enforce_iframes,
-                                         resolution=1)
-            return size
+        size = compress_and_get_size(vid_name, 0, frames_count, qp=qp,
+                                     enforce_iframes=enforce_iframes,
+                                     resolution=1)
+        pixel_size = compute_area_of_regions(results)
+        return size, pixel_size
     else:
         size = compute_area_of_regions(results)
 
@@ -782,6 +700,7 @@ def cleanup(vid_name, debug_mode=False, start_id=None, end_id=None):
         return
 
     if not debug_mode:
+        shutil.rmtree(vid_name + "-base-phase-cropped")
         shutil.rmtree(vid_name + "-cropped")
     else:
         if start_id is None or end_id is None:
@@ -812,16 +731,96 @@ def get_size_from_mpeg_results(results_log_path, images_path, resolution):
     return size
 
 
-def evaluate(results, gt_dict, high_threshold, iou_threshold=0.5, scale=None):
-    # DEPRECATED:
-    # We have a new evaluation protocol, this function is only for maintain
-    # the same format of stats with old dds protocol.
-    # Use examine.py on project root folder for evaluation.
-    f1 = 0.0
-    tp = 0.0
-    fp = 0.0
-    fn = 0.0
-    return f1, (tp, fp, fn)
+def filter_results(bboxes, gt_flag, gt_confid_thresh, mpeg_confid_thresh,
+                   max_area_thresh_gt, max_area_thresh_mpeg):
+    relevant_classes = ["vehicle"]
+    if gt_flag:
+        confid_thresh = gt_confid_thresh
+        max_area_thresh = max_area_thresh_gt
+
+    else:
+        confid_thresh = mpeg_confid_thresh
+        max_area_thresh = max_area_thresh_mpeg
+
+    result = []
+    for b in bboxes:
+        b = b.x, b.y, b.w, b.h, b.label, b.conf
+        (x, y, w, h, label, confid) = b
+        if (confid >= confid_thresh and w*h <= max_area_thresh and
+                label in relevant_classes):
+            result.append(b)
+    return result
+
+
+def iou(b1, b2):
+    (x1, y1, w1, h1, label1, confid1) = b1
+    (x2, y2, w2, h2, label2, confid2) = b2
+    x3 = max(x1, x2)
+    y3 = max(y1, y2)
+    x4 = min(x1+w1, x2+w2)
+    y4 = min(y1+h1, y2+h2)
+    if x3 > x4 or y3 > y4:
+        return 0
+    else:
+        overlap = (x4-x3)*(y4-y3)
+        return overlap/(w1*h1+w2*h2-overlap)
+
+
+def evaluate(max_fid, map_dd, map_gt, gt_confid_thresh, mpeg_confid_thresh,
+             max_area_thresh_gt, max_area_thresh_mpeg, iou_thresh=0.3):
+    tp_list = []
+    fp_list = []
+    fn_list = []
+    count_list = []
+    for fid in range(max_fid+1):
+        bboxes_dd = map_dd[fid]
+        bboxes_gt = map_gt[fid]
+        bboxes_dd = filter_results(
+            bboxes_dd, gt_flag=False, gt_confid_thresh=gt_confid_thresh,
+            mpeg_confid_thresh=mpeg_confid_thresh,
+            max_area_thresh_gt=max_area_thresh_gt,
+            max_area_thresh_mpeg=max_area_thresh_mpeg)
+        bboxes_gt = filter_results(
+            bboxes_gt, gt_flag=True, gt_confid_thresh=gt_confid_thresh,
+            mpeg_confid_thresh=mpeg_confid_thresh,
+            max_area_thresh_gt=max_area_thresh_gt,
+            max_area_thresh_mpeg=max_area_thresh_mpeg)
+        tp = 0
+        fp = 0
+        fn = 0
+        count = 0
+        for b_dd in bboxes_dd:
+            found = False
+            for b_gt in bboxes_gt:
+                if iou(b_dd, b_gt) >= iou_thresh:
+                    found = True
+                    break
+            if found:
+                tp += 1
+            else:
+                fp += 1
+        for b_gt in bboxes_gt:
+            found = False
+            for b_dd in bboxes_dd:
+                if iou(b_dd, b_gt) >= iou_thresh:
+                    found = True
+                    break
+            if not found:
+                fn += 1
+            else:
+                count += 1
+        tp_list.append(tp)
+        fp_list.append(fp)
+        fn_list.append(fn)
+        count_list.append(count)
+    tp = sum(tp_list)
+    fp = sum(fp_list)
+    fn = sum(fn_list)
+    count = sum(count_list)
+    return (tp, fp, fn, count,
+            round(tp/(tp+fp), 3),
+            round(tp/(tp+fn), 3),
+            round((2.0*tp/(2.0*tp+fp+fn)), 3))
 
 
 def write_stats_txt(fname, vid_name, config, f1, stats,

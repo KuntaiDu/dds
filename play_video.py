@@ -9,8 +9,9 @@ from dds_utils import (ServerConfig, read_results_dict,
 
 
 def main(args):
-    logging.basicConfig(format="%(name)s -- %(levelname)s -- %(message)s",
-                        level=args.verbosity.upper())
+    logging.basicConfig(
+        format="%(name)s -- %(levelname)s -- %(lineno)s -- %(message)s",
+        level=args.verbosity.upper())
 
     logger = logging.getLogger("dds")
     logger.addHandler(logging.NullHandler())
@@ -21,58 +22,64 @@ def main(args):
                 f"{args.low_threshold} tracker length of "
                 f"{args.tracker_length}")
 
-    config = ServerConfig(args.resolutions[0], args.resolutions[1],
-                          args.qp[0], args.qp[1], args.bsize,
-                          args.high_threshold, args.low_threshold,
-                          args.max_object_size, args.min_object_size,
-                          args.tracker_length, args.boundary,
-                          args.intersection_threshold,
-                          args.tracking_threshold,
-                          args.suppression_threshold,
-                          args.simulate,
-                          args.rpn_enlarge_ratio,
-                          args.prune_score,
-                          args.objfilter_iou,
-                          args.size_obj)
-    server = Server(config)
+    config = ServerConfig(
+        args.resolutions[0], args.resolutions[1], args.qp[0], args.qp[1],
+        args.bsize, args.high_threshold, args.low_threshold,
+        args.max_object_size, args.min_object_size, args.tracker_length,
+        args.boundary, args.intersection_threshold, args.tracking_threshold,
+        args.suppression_threshold, args.simulate, args.rpn_enlarge_ratio,
+        args.prune_score, args.objfilter_iou, args.size_obj)
 
-    logger.info("Starting client")
-    client = Client(server, args.hname, config)
-
+    server = None
     mode = None
     results, bw = None, None
     if args.simulate:
         mode = "simulation"
         logger.warning("Running DDS in SIMULATION mode")
+        server = Server(config)
+
+        logger.info("Starting client")
+        client = Client(args.hname, config, server)
         # Run simulation
         logger.info(f"Analyzing video {args.video_name} with low resolution "
                     f"of {args.resolutions[0]} and high resolution of "
                     f"{args.resolutions[1]}")
-        results, bw = client.analyze_video_simulate(args.video_name,
-                                                    args.low_images_path,
-                                                    args.high_images_path,
-                                                    args.high_results_path,
-                                                    args.low_results_path,
-                                                    args.enforce_iframes,
-                                                    args.mpeg_results_path,
-                                                    args.estimate_banwidth,
-                                                    args.debug_mode)
+        results, bw = client.analyze_video_simulate(
+            args.video_name, args.low_images_path, args.high_images_path,
+            args.high_results_path, args.low_results_path,
+            args.enforce_iframes, args.mpeg_results_path,
+            args.estimate_banwidth, args.debug_mode)
     elif not args.simulate and not args.hname and args.resolutions[-1] != -1:
         mode = "emulation"
         logger.warning(f"Running DDS in EMULATION mode on {args.video_name}")
+        server = Server(config)
+
+        logger.info("Starting client")
+        client = Client(args.hname, config, server)
         # Run emulation
-        results, bw = client.analyze_video_emulate(args.video_name,
-                                                   args.high_images_path,
-                                                   args.enforce_iframes,
-                                                   args.low_results_path,
-                                                   args.debug_mode)
+        results, bw = client.analyze_video_emulate(
+            args.video_name, args.high_images_path,
+            args.enforce_iframes, args.low_results_path, args.debug_mode)
     elif not args.simulate and not args.hname:
         mode = "mpeg"
         logger.warning(f"Running in MPEG mode with resolution "
                        f"{args.resolutions[0]} on {args.video_name}")
-        results, bw = client.analyze_video_mpeg(args.video_name,
-                                                args.high_images_path,
-                                                args.enforce_iframes)
+        server = Server(config)
+
+        logger.info("Starting client")
+        client = Client(args.hname, config, server)
+        results, bw = client.analyze_video_mpeg(
+            args.video_name, args.high_images_path, args.enforce_iframes)
+    elif not args.simulate and args.hname:
+        mode = "implementation"
+        logger.warning(
+            f"Running DDS using a server client implementation with "
+            f"server running on {args.hname} using video {args.hname}")
+        logger.info("Starting client")
+        client = Client(args.hname, config, server)
+        results, bw = client.analyze_video(
+            args.video_name, args.high_images_path, config,
+            args.enforce_iframes)
 
     # Evaluation and writing results
     # Read Groundtruth results
@@ -81,6 +88,19 @@ def main(args):
     stats = (0, 0, 0)
     number_of_frames = len(
         [x for x in os.listdir(args.high_images_path) if "png" in x])
+    if args.ground_truth:
+        ground_truth_dict = read_results_dict(args.ground_truth)
+        logger.info("Reading ground truth results complete")
+        tp, fp, fn, _, _, _, f1 = evaluate(
+            number_of_frames - 1, results.regions_dict, ground_truth_dict,
+            args.low_threshold, 0.5, 0.4, 0.4)
+        stats = (tp, fp, fn)
+        logger.info(f"Got an f1 score of {f1} "
+                    f"for this experiment {mode} with "
+                    f"tp {stats[0]} fp {stats[1]} fn {stats[2]} "
+                    f"with total bandwidth {sum(bw)}")
+    else:
+        logger.info("No groundtruth given skipping evalution")
 
     # Write evaluation results to file
     write_stats(args.outfile, f"{args.video_name}", config, f1,
@@ -189,7 +209,7 @@ if __name__ == "__main__":
                         "tracked region is already in accpected results")
     parser.add_argument("--intersection-threshold",
                         dest="intersection_threshold",
-                        default=0.5, type=float,
+                        default=1.0, type=float,
                         help="The intersection threshold to use"
                         " when combining results objects")
     parser.add_argument("--simulate",
@@ -228,8 +248,7 @@ if __name__ == "__main__":
               "calculate true bandwidth estimate")
         exit()
 
-    if not args.simulate and not args.hname and len(args.resolutions) == 2:
-        print("Running in emulation mode")
+    if not args.simulate and len(args.resolutions) == 2:
         if args.low_images_path:
             print("Discarding low images path")
             args.low_images_path = None
