@@ -1,7 +1,0 @@
-{
-    "python.pythonPath": "/data2/kuntai/envs/dds/bin/python",
-    "python.linting.pylintArgs": [
-        "--disable=C0103"
-    ],
-    "files.trimTrailingWhitespace": true
-}
