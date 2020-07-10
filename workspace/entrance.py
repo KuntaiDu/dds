@@ -31,16 +31,13 @@ def execute_single(single_instance):
     baseline = single_instance['method']
 
     # to be fixed:
-    # 1. ambiguity between video and vname (fixed)
-    # 2. check existence of result files before execution
-    # 3. gt and mpeg must be run for dds regardless of whether they are in config
+    # gt and mpeg must be run for dds regardless of whether they are in config
 
     # branching based on baselines
     if baseline == 'gt':
         # unpacking
-        video_name = list(single_instance['qp'].keys())[0]
-        gt_qp = single_instance['qp'][video_name]
-        #print(f"******************gt qp is: {gt_qp}******************")
+        video_name = single_instance['video_name']
+        gt_qp = single_instance['qp']
         original_images_dir = os.path.join(data_dir, video_name, 'src')
 
         # skip if result file already exists
@@ -64,9 +61,8 @@ def execute_single(single_instance):
     # assume we are running emulation
     elif baseline == 'mpeg':
         # unpacking
-        video_name = list(single_instance['qp'].keys())[0]
-        mpeg_qp = single_instance['qp'][video_name]
-        #print(f"******************mpeg_qp is: {mpeg_qp}******************")
+        video_name = single_instance['video_name']
+        mpeg_qp = single_instance['qp']
         mpeg_resolution = single_instance['resolution']
         original_images_dir = os.path.join(data_dir, video_name, 'src')
 
@@ -91,10 +87,10 @@ def execute_single(single_instance):
     # assume we are running emulation
     elif baseline == 'dds':
         # unpacking
-        video_name = list(single_instance['low_qp'].keys())[0]
+        video_name = single_instance['video_name']
         original_images_dir = os.path.join(data_dir, video_name, 'src')
-        low_qp = single_instance['low_qp'][video_name]
-        high_qp = single_instance['high_qp'][video_name]
+        low_qp = single_instance['low_qp']
+        high_qp = single_instance['high_qp']
         low_res = single_instance['low_res']
         high_res = single_instance['high_res']
         rpn_enlarge_ratio = single_instance['rpn_enlarge_ratio']
@@ -144,7 +140,6 @@ def parameter_sweeping(instances, new_instance, keys):
         execute_single(new_instance)
     else: # recursive step
         curr_key = keys[0]
-
         if (isinstance(instances[curr_key], list)): 
             # need parameter sweeping
             for each_parameter in instances[curr_key]:
@@ -152,25 +147,6 @@ def parameter_sweeping(instances, new_instance, keys):
                 new_instance[curr_key] = each_parameter
                 # proceed with the other parameters in keys
                 parameter_sweeping(instances, new_instance, keys[1:])
-
-        elif (isinstance(instances[curr_key], dict) 
-                and len(instances[curr_key]) > 1): 
-            # more than one videos in the list of qps, need parameter sweeping
-            new_instance[curr_key] = {}
-            for each_video in list(instances[curr_key].keys()):
-                new_instance[curr_key][each_video] = instances[curr_key][each_video]
-                parameter_sweeping(instances, new_instance, keys[1:])
-
-        elif (isinstance(instances[curr_key], dict) 
-                and len(instances[curr_key]) == 1 
-                and isinstance(instances[curr_key][next(iter(instances[curr_key]))], list)):
-            # more than one qps in a single video, need parameter sweeping
-            new_instance[curr_key] = {}
-            video_name = next(iter(instances[curr_key]))
-            for each_value in instances[curr_key][video_name]:
-                new_instance[curr_key][video_name] = each_value
-                parameter_sweeping(instances, new_instance, keys[1:])
-
         else: # no need for parameter sweeping
             new_instance[curr_key] = instances[curr_key]
             parameter_sweeping(instances, new_instance, keys[1:])
