@@ -1,32 +1,29 @@
-'''
+"""
     entrance.py - user entrance for the platform
-
     author: Qizheng Zhang (qizhengz@uchicago.edu)
-'''
+"""
 
 import os
 import subprocess
 import yaml
 
-'''
-    load_configuration - read configuration information from yaml file
-
-    Returns: config_info - a dictionary containing info of the yaml file
-'''
 def load_configuration():
+    """read configuration information from yaml file
+
+    Returns:
+        dict: information of the yaml file
+    """
     with open('configuration.yml', 'r') as config:
-        config_info = yaml.load(config, Loader=yaml.FullLoader) # COMMENT: does this satisfy "load once"?
+        config_info = yaml.load(config, Loader=yaml.FullLoader)
     return config_info
 
 
-'''
-    execute_single - execute an atomic instance
-
-    single_instance - the instance to be executed
-
-    Returns: nothing
-'''
 def execute_single(single_instance):
+    """execute an atomic instance
+
+    Args:
+        single_instance (dict): the instance to be executed
+    """
     # unpacking
     baseline = single_instance['method']
 
@@ -47,16 +44,16 @@ def execute_single(single_instance):
         # otherwise, start execution
         else:
             subprocess.run(['python', '../play_video.py', 
-                        '--vid-name', f'results/{result_file_name}',
-                        '--high-src', f'{original_images_dir}',
-                        '--resolutions',  '1.0',
-                        '--output-file', 'stats', # location of output file to be fixed
-                        '--max-size', '0.3',
-                        '--low-threshold', '0.3',
-                        '--high-threshold', '0.8', 
-                        '--enforce-iframes',
-                        '--qp', f'{gt_qp}',
-                        '--verbosity', 'info'])
+                            '--vid-name', f'results/{result_file_name}',
+                            '--high-src', f'{original_images_dir}',
+                            '--resolutions',  '1.0',
+                            '--output-file', 'stats', # location of output file to be fixed
+                            '--max-size', '0.3',
+                            '--low-threshold', '0.3',
+                            '--high-threshold', '0.8', 
+                            '--enforce-iframes',
+                            '--qp', f'{gt_qp}',
+                            '--verbosity', 'info'])
 
     # assume we are running emulation
     elif baseline == 'mpeg':
@@ -72,17 +69,17 @@ def execute_single(single_instance):
             print(f"Skipping {result_file_name}")
         else:
             subprocess.run(['python', '../play_video.py',
-                        '--vid-name', f'results/{result_file_name}',
-                        '--resolutions', f'{mpeg_resolution}',
-                        '--high-src', f'{original_images_dir}',
-                        '--output-file', 'stats', # location of output file to be fixed
-                        '--ground-truth', f'results/{video_name}_gt',
-                        '--max-size', '0.3',
-                        '--low-threshold', '0.3',
-                        '--high-threshold', '0.3', 
-                        '--enforce-iframes',
-                        '--qp', f'{mpeg_qp}',
-                        '--verbosity', 'info'])
+                            '--vid-name', f'results/{result_file_name}',
+                            '--resolutions', f'{mpeg_resolution}',
+                            '--high-src', f'{original_images_dir}',
+                            '--output-file', 'stats', # location of output file to be fixed
+                            '--ground-truth', f'results/{video_name}_gt',
+                            '--max-size', '0.3',
+                            '--low-threshold', '0.3',
+                            '--high-threshold', '0.3', 
+                            '--enforce-iframes',
+                            '--qp', f'{mpeg_qp}',
+                            '--verbosity', 'info'])
 
     # assume we are running emulation
     elif baseline == 'dds':
@@ -107,35 +104,33 @@ def execute_single(single_instance):
             print(f"Skipping {result_file_name}")
         else:
             subprocess.run(['python', '../play_video.py',
-                        '--vid-name', f'results/{result_file_name}',
-                        '--high-src', f'{original_images_dir}',
-                        '--resolutions', f'{low_res}', f'{high_res}',
-                        '--low-results', f'results/{video_name}_mpeg_{low_res}_{low_qp}',
-                        '--output-file', 'stats', # location of output file to be fixed
-                        '--ground-truth', f'results/{video_name}_gt',
-                        '--max-size', '0.3',
-                        '--low-threshold', '0.3',
-                        '--high-threshold', '0.3', 
-                        '--batch-size', f'{batch_size}',
-                        '--enforce-iframes',
-                        '--prune-score', f'{prune_score}',
-                        '--objfilter-iou', f'{objfilter_iou}',
-                        '--size-obj', f'{size_obj}',
-                        '--qp', f'{low_qp}', f'{high_qp}',
-                        '--verbosity', 'info', 
-                        '--rpn_enlarge_ratio', f'{rpn_enlarge_ratio}'])
+                            '--vid-name', f'results/{result_file_name}',
+                            '--high-src', f'{original_images_dir}',
+                            '--resolutions', f'{low_res}', f'{high_res}',
+                            '--low-results', f'results/{video_name}_mpeg_{low_res}_{low_qp}',
+                            '--output-file', 'stats', # location of output file to be fixed
+                            '--ground-truth', f'results/{video_name}_gt',
+                            '--max-size', '0.3',
+                            '--low-threshold', '0.3',
+                            '--high-threshold', '0.3', 
+                            '--batch-size', f'{batch_size}',
+                            '--enforce-iframes',
+                            '--prune-score', f'{prune_score}',
+                            '--objfilter-iou', f'{objfilter_iou}',
+                            '--size-obj', f'{size_obj}',
+                            '--qp', f'{low_qp}', f'{high_qp}',
+                            '--verbosity', 'info', 
+                            '--rpn_enlarge_ratio', f'{rpn_enlarge_ratio}'])
     
 
-'''
-    parameter_sweeping - recursive function for parameter sweeping
-
-    new_instance - recursive parameter
-
-    keys - a list of all keys of an instance
-
-    Returns: nothing
-'''
 def parameter_sweeping(instances, new_instance, keys):
+    """recursive function for parameter sweeping
+
+    Args:
+        instances (dict): the instance in process
+        new_instance (dict): recursive parameter
+        keys (list): keys of the instance in process
+    """
     if keys == []: # base case
         execute_single(new_instance)
     else: # recursive step
@@ -152,14 +147,12 @@ def parameter_sweeping(instances, new_instance, keys):
             parameter_sweeping(instances, new_instance, keys[1:])
 
 
-'''
-    execute_all - execute all instances based on user's config info
-
-    config_info - configuration information from the yaml file
-
-    Returns: nothing
-'''
 def execute_all(config_info):
+    """execute all instances based on user's config info
+
+    Args:
+        config_info (dict): configuration information from the yaml file
+    """
     all_instances = config_info['instances']
 
     for single_instance in all_instances:
@@ -171,7 +164,7 @@ def execute_all(config_info):
 
 
 if __name__ == "__main__":
-    # load configuration information
+    # load configuration information (only once)
     config_info = load_configuration()
     data_dir = config_info['data_dir']
 

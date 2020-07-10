@@ -2,6 +2,7 @@ import yaml
 
 configuration = {
     'data_dir': '/tank/qizheng/new_dataset',
+    'mode': 'emulation',
     'instances': [
         {
             'method': 'gt',
