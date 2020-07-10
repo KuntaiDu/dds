@@ -8,6 +8,8 @@ import os
 import subprocess
 import yaml
 
+# change doc strings
+
 '''
     load_configuration - read configuration information from yaml file
 
