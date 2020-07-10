@@ -1,0 +1,31 @@
+data_dir: /tank/qizheng/new_dataset
+instances:
+- method: gt
+  qp: 34
+  video_name: trafficcam_1
+- method: mpeg
+  qp:
+  - 35
+  - 36
+  - 40
+  resolution:
+  - 0.375
+  - 0.5
+  - 0.625
+  - 0.7
+  - 0.75
+  - 0.8
+  - 0.9
+  video_name: trafficcam_1
+- batch_size: 15
+  high_qp: 26
+  high_res: 0.9
+  low_qp: 40
+  low_res: 0.9
+  method: dds
+  objfilter_iou: 0.0
+  prune_score: 0.5
+  rpn_enlarge_ratio: 0.0
+  size_obj: 0.0025
+  video_name: trafficcam_1
+mode: emulation
