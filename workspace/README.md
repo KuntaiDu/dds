@@ -5,6 +5,8 @@ This part will serve as documentation for users. We will update this soon.
 
 ## Priority (Bug Fix, Functionality Support, etc.)
 Fix parameter_sweeping.
+Fix doc_strings.
+Check correctness.
 
 ## Naming Convention
 To be updated.
