@@ -1,6 +1,7 @@
 """
     entrance.py - user entrance for the platform
     author: Qizheng Zhang (qizhengz@uchicago.edu)
+            Kuntai Du (kuntai@uchicago.edu)
 """
 
 import os
@@ -39,7 +40,7 @@ def execute_single(single_instance):
 
         # skip if result file already exists
         result_file_name = f"{video_name}_gt"
-        if os.path.exists(os.path.join("results", result_file_name)):
+        if single_instance['overwrite'] == False and os.path.exists(os.path.join("results", result_file_name)):
             print(f"Skipping {result_file_name}")
         # otherwise, start execution
         else:
@@ -148,15 +149,20 @@ def parameter_sweeping(instances, new_instance, keys):
 
 
 def execute_all(config_info):
-    """execute all instances based on user's config info
+    """execute all instances based on user's config info and default config info
 
     Args:
         config_info (dict): configuration information from the yaml file
     """
     all_instances = config_info['instances']
+    default = config_info['default']
 
     for single_instance in all_instances:
-        # to be fixed: special judgement for dds
+
+        # propagate default config to current instance
+        for key in default.keys():
+            if key not in single_instance.keys():
+                single_instance[key] = default[key]
 
         keys = list(single_instance.keys())
         new_instance = {} # initially empty
