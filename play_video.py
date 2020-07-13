@@ -1,12 +1,14 @@
 import os
 import re
 import logging
-import argparse
 from backend.server import Server
 from frontend.client import Client
 from dds_utils import (ServerConfig, read_results_dict,
                        evaluate, write_stats)
+import sys
 
+from munch import *
+import yaml
 
 def main(args):
     logging.basicConfig(
@@ -22,13 +24,20 @@ def main(args):
                 f"{args.low_threshold} tracker length of "
                 f"{args.tracker_length}")
 
-    config = ServerConfig(
-        args.resolutions[0], args.resolutions[1], args.qp[0], args.qp[1],
-        args.bsize, args.high_threshold, args.low_threshold,
-        args.max_object_size, args.min_object_size, args.tracker_length,
-        args.boundary, args.intersection_threshold, args.tracking_threshold,
-        args.suppression_threshold, args.simulate, args.rpn_enlarge_ratio,
-        args.prune_score, args.objfilter_iou, args.size_obj)
+    args.low_resolution = args.resolutions[0]
+    args.high_resolution = args.resolutions[1]
+    args.low_qp = args.qp[0]
+    args.high_qp = args.qp[1]
+
+    config = args
+
+    # config = ServerConfig(
+    #     args.resolutions[0], args.resolutions[1], args.qp[0], args.qp[1],
+    #     args.batch_size, args.high_threshold, args.low_threshold,
+    #     args.max_object_size, args.min_object_size, args.tracker_length,
+    #     args.boundary, args.intersection_threshold, args.tracking_threshold,
+    #     args.suppression_threshold, args.simulate, args.rpn_enlarge_ratio,
+    #     args.prune_score, args.objfilter_iou, args.size_obj)
 
     server = None
     mode = None
@@ -108,120 +117,10 @@ def main(args):
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Analyze video using "
-                                     "DDS protocol")
-    # Video arguments
-    parser.add_argument("--vid-name", dest="video_name",
-                        required=True, type=str,
-                        help="Name of video to analyze")
-    parser.add_argument("--low-src", dest="low_images_path",
-                        type=str,
-                        help="Path of low resolution images of the video")
-    parser.add_argument("--high-src", dest="high_images_path",
-                        type=str, default=None,
-                        help="Path to high resolution images of the video")
-    parser.add_argument("--resolutions", dest="resolutions", type=float,
-                        nargs="+", required=True,
-                        help="The resolutions to use. If only one given "
-                        "runs MPEG emulation")
-    parser.add_argument("--hname",
-                        type=str, default=None,
-                        help="Host name for server "
-                        "(simulation mode if not given)")
-    parser.add_argument("--low-results", dest="low_results_path",
-                        type=str, default=None,
-                        help="Path to file containing low resolution results")
-    parser.add_argument("--high-results", dest="high_results_path",
-                        type=str, default=None,
-                        help="Path to file containing high resolution results")
-    parser.add_argument("--ground-truth", dest="ground_truth",
-                        type=str, default=None,
-                        help="File containing the ground_truth")
-    parser.add_argument("--mpeg-result-summary", dest="mpeg_results_path",
-                        type=str, default=None,
-                        help="The path to the results.log file for MPEG that "
-                        "the simulator can use to calculate low bandwidth "
-                        "without enoding images to low resolution")
-    parser.add_argument("--batch-size", dest="bsize",
-                        type=int, default=15,
-                        help="Segment size to use for DDS")
-    parser.add_argument("--qp", dest="qp", nargs="+",
-                        default=None, type=int,
-                        help="QP to be used for encoding video")
-    parser.add_argument("--enforce-iframes", action="store_true",
-                        dest="enforce_iframes",
-                        help="Flag to whether or not enfore only 1 "
-                        "iframe per batch")
-    parser.add_argument("--output-file",
-                        dest="outfile", type=str, default="stats",
-                        help="The name of the file to which to append "
-                        "statistics about the experiment after evaluation")
-    parser.add_argument("--estimate-bandwidth",
-                        dest="estimate_banwidth", action="store_true",
-                        help="Flag to indicate whether DDS should encode "
-                        "and estimate bandwidth or just give fractions for "
-                        "high resolution regions")
 
-    # Server config arguments
-    parser.add_argument("--low-threshold", dest="low_threshold",
-                        type=float, default=0.1,
-                        help="High threshold for ROI selection")
-    parser.add_argument("--high-threshold", dest="high_threshold",
-                        type=float, default=0.8,
-                        help="Low threshold for ROI selection")
-    parser.add_argument("--max-size", dest="max_object_size",
-                        type=float, default=0.3,
-                        help="Maximum size of object as fraction frame")
-    parser.add_argument("--min-size", dest="min_object_size",
-                        type=float, default=None,
-                        help="Minimum object size to cosider")
-    parser.add_argument("--tracker-length", dest="tracker_length",
-                        type=int, default=4,
-                        help="Number of frame for tracking in ROI selection")
-    parser.add_argument("--boundary",
-                        type=float, default=0.2,
-                        help="Size by which to enlarge boundary while "
-                        "calculating regions to query")
-    parser.add_argument("--suppression-threshold",
-                        dest="suppression_threshold", type=float, default=0.5,
-                        help="The iou threshold to use during "
-                        "non maximum suppression")
-    parser.add_argument("--rpn_enlarge_ratio",
-                        dest="rpn_enlarge_ratio", type=float, default=0.,
-                        help="rpn_enlarge_ratio")
-    parser.add_argument("--prune-score",
-                        dest="prune_score", type=float, default=1.1,
-                        help="prune_score")
-    parser.add_argument("--objfilter-iou",
-                        dest="objfilter_iou", type=float, default=1.1,
-                        help="objfilter_iou")
-    parser.add_argument("--size-obj",
-                        dest="size_obj", type=float, default=1.1,
-                        help="size_obj")
-    # Simulation settings
-    parser.add_argument("--verbosity",
-                        default="warning", type=str,
-                        help="The verbosity of logging")
-    parser.add_argument("--tracking-intersection-threshold",
-                        dest="tracking_threshold", default=0.3,
-                        type=float,
-                        help="The threshold to use when determining whether "
-                        "tracked region is already in accpected results")
-    parser.add_argument("--intersection-threshold",
-                        dest="intersection_threshold",
-                        default=1.0, type=float,
-                        help="The intersection threshold to use"
-                        " when combining results objects")
-    parser.add_argument("--simulate",
-                        dest="simulate", action="store_true",
-                        help="If provided use the given high and low results "
-                        "files to simulate actual DDS output")
-    parser.add_argument("--debug-mode",
-                        dest="debug_mode", action="store_true",
-                        help="If provided the simulator does not delete "
-                        "intermediate high resolution videos")
-
-    args = parser.parse_args()
+    # load configuration dictonary from command line
+    print(yaml.load(sys.argv[1], Loader=yaml.SafeLoader))
+    args = munchify(yaml.load(sys.argv[1], Loader=yaml.SafeLoader))
 
     # If running simulation check if results files are present
     if (args.simulate and
