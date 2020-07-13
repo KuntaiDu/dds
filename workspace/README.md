@@ -1,22 +1,39 @@
 # Integrated Video Analytics Platform
 
 ## Get Started
-This part will serve as documentation for users. We will update this soon.
+Before you get started, make sure that you have installed the following libraries:<br/>
+munch<br/>
 
-## Priority (Bug Fix, Functionality Support, etc.)
-Fix parameter_sweeping.
-Fix doc_strings.
-Check correctness.
+(To be updated)
 
-## Naming Convention
-To be updated.
+### Set up the configuration file
+configuration.yaml is the configuration file that you need to set up and from
+which the main program would be reading. If you are unfamiliar with the format
+of yaml files, use generate_yaml.py to generate one.
 
-## Wishlist
-- Parameter sweeping<br />
-The recursive function parameter_sweeping already addresses this need. However, 
-potential issues and bugs may arise. We are closely watching this feature at 
-the moment.
-- User can add single instance
-- No hard-code
-- Load once (for future parallelization)<br />
-This has already been addressed.
+### Run the program
+
+## Naming Convention (for developers)
+### General variable names
+- data_dir: path of the directory that contain all the video datasets
+- method: baseline/method to be executed
+- qp: quantization parameter<br/>
+  gt_qp for groundtruth, mpeg_qp for AWStream, low_qp and high_qp for DDS
+- resolution: resolution of the videos<br/>
+  mpeg_resolution for AWStream, low_res and high_res for DDS
+- video_name: name of the video dataset to be streamed
+
+### DDS-related variable names
+batch_size: number of frames to be processed at one time
+objfilter_iou
+prune_score
+rpn_enlarge_ratio
+size_obj
+
+## To-dos (for developers)
+- Build up implementation
+    - What would be transmitted through network?
+- More applications
+    - e.g. semantic segmentation
+- More Baselines
+    - e.g. Glimpse, Vigil, CloudSeg
