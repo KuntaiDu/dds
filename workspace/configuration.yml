@@ -1,7 +1,48 @@
+# The configuration file is a yaml file that follows yaml format
+#
+# The directory to your dataset
+# The data must be organized as /path/to/dataset/your_video_name/src/%010d.png, start from id=0
 data_dir: /tank/new_dataset/
+#
+# Set the default value of parameters here
+# All the parameters here will be forwarded to server configuration
 default:
+  # overwrite existing results or not
   overwrite: False
+  # the video name you want to run
   video_name: trafficcam_1
+  # several configurations
+  max_object_size: 0.3
+  low_threshold: 0.3
+  high_threshold: 0.8
+  enforce_iframes: True
+  verbosity: info
+  simulate: False
+  hname: False
+  low_results_path: None
+  high_results_path: None
+  estimate_banwidth: False
+  low_images_path: None
+  tracker_length: 4
+  batch_size: 15 
+  min_object_size: 0
+  boundary: 0.2
+  tracking_threshold: 0.3
+  suppression_threshold: 0.5
+  rpn_enlarge_ratio: 0
+  prune_score: 1.1
+  objfilter_iou: 1.1
+  size_obj: 1.1
+  debug_mode: True
+  # The path to the ground truth. Will be automatically set in entrance.py
+  ground_truth: False
+#
+# Specify each instance here
+# You could overwrite the default configuration here
+# You could specify multiple values for each parameter. We will automatically generate multiple instances for each parameters
+# E.g., if you specify qp = [1,2], resolution = [3,4]
+# You will get four instances with (qp,resolution)=(1,3),(1,4),(2,3),(2,4).
+# All the parameters here will be forwarded to server configuration
 instances:
 - method: gt
   qp: 24

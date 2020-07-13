@@ -44,17 +44,14 @@ def execute_single(single_instance):
             print(f"Skipping {result_file_name}")
         # otherwise, start execution
         else:
+            single_instance['video_name'] = f'results/{result_file_name}'
+            single_instance['high_images_path'] = f'{original_images_dir}'
+            single_instance['resolutions'] = [single_instance['resolution']]
+            single_instance['outfile'] = 'stats'
+            single_instance['qp'] = [gt_qp]
+
             subprocess.run(['python', '../play_video.py', 
-                            '--vid-name', f'results/{result_file_name}',
-                            '--high-src', f'{original_images_dir}',
-                            '--resolutions',  '1.0',
-                            '--output-file', 'stats', # location of output file to be fixed
-                            '--max-size', '0.3',
-                            '--low-threshold', '0.3',
-                            '--high-threshold', '0.8', 
-                            '--enforce-iframes',
-                            '--qp', f'{gt_qp}',
-                            '--verbosity', 'info'])
+                            yaml.dump(single_instance)])
 
     # assume we are running emulation
     elif baseline == 'mpeg':
@@ -66,21 +63,18 @@ def execute_single(single_instance):
 
         # skip if result file already exists
         result_file_name = f"{video_name}_mpeg_{mpeg_resolution}_{mpeg_qp}"
-        if os.path.exists(os.path.join("results", result_file_name)):
+        if single_instance['overwrite'] == False and os.path.exists(os.path.join("results", result_file_name)):
             print(f"Skipping {result_file_name}")
         else:
+            single_instance['video_name'] = f'results/{result_file_name}'
+            single_instance['high_images_path'] = f'{original_images_dir}'
+            single_instance['resolutions'] = [mpeg_resolution]
+            single_instance['outfile'] = 'stats'
+            single_instance['qp'] = [mpeg_qp]
+            single_instance['ground_truth'] = f'results/{video_name}_gt'
+
             subprocess.run(['python', '../play_video.py',
-                            '--vid-name', f'results/{result_file_name}',
-                            '--resolutions', f'{mpeg_resolution}',
-                            '--high-src', f'{original_images_dir}',
-                            '--output-file', 'stats', # location of output file to be fixed
-                            '--ground-truth', f'results/{video_name}_gt',
-                            '--max-size', '0.3',
-                            '--low-threshold', '0.3',
-                            '--high-threshold', '0.3', 
-                            '--enforce-iframes',
-                            '--qp', f'{mpeg_qp}',
-                            '--verbosity', 'info'])
+                            yaml.dump(single_instance)])
 
     # assume we are running emulation
     elif baseline == 'dds':
@@ -98,30 +92,24 @@ def execute_single(single_instance):
         size_obj = single_instance['size_obj']
 
         # skip if result file already exists
+        # You could customize the way to serialize the parameters into filename by yourself
         result_file_name = (f"{video_name}_dds_{low_res}_{high_res}_{low_qp}_{high_qp}_"
                             f"{rpn_enlarge_ratio}_twosides_batch_{batch_size}_"
                             f"{prune_score}_{objfilter_iou}_{size_obj}")
-        if os.path.exists(os.path.join("results", result_file_name)):
+        if single_instance['overwrite'] == False and os.path.exists(os.path.join("results", result_file_name)):
             print(f"Skipping {result_file_name}")
         else:
+            single_instance['video_name'] = f'results/{result_file_name}'
+            single_instance['high_images_path'] = f'{original_images_dir}'
+            single_instance['resolutions'] = [low_res, high_res]
+            single_instance['outfile'] = 'stats'
+            single_instance['qp'] = [low_qp, high_qp]
+            single_instance['ground_truth'] = f'results/{video_name}_gt'
+            single_instance['low_results_path'] = f'results/{video_name}_mpeg_{low_res}_{low_qp}'
+
+
             subprocess.run(['python', '../play_video.py',
-                            '--vid-name', f'results/{result_file_name}',
-                            '--high-src', f'{original_images_dir}',
-                            '--resolutions', f'{low_res}', f'{high_res}',
-                            '--low-results', f'results/{video_name}_mpeg_{low_res}_{low_qp}',
-                            '--output-file', 'stats', # location of output file to be fixed
-                            '--ground-truth', f'results/{video_name}_gt',
-                            '--max-size', '0.3',
-                            '--low-threshold', '0.3',
-                            '--high-threshold', '0.3', 
-                            '--batch-size', f'{batch_size}',
-                            '--enforce-iframes',
-                            '--prune-score', f'{prune_score}',
-                            '--objfilter-iou', f'{objfilter_iou}',
-                            '--size-obj', f'{size_obj}',
-                            '--qp', f'{low_qp}', f'{high_qp}',
-                            '--verbosity', 'info', 
-                            '--rpn_enlarge_ratio', f'{rpn_enlarge_ratio}'])
+                            yaml.dump(single_instance)])
     
 
 def parameter_sweeping(instances, new_instance, keys):
