@@ -33,7 +33,8 @@ default:
   prune_score: 1.1
   objfilter_iou: 1.1
   size_obj: 1.1
-  debug_mode: True
+  # Turn on debug_mode to show what DDS sends in second iteration.
+  debug_mode: False
   # The path to the ground truth. Will be automatically set in entrance.py
   ground_truth: False
 #
