@@ -7,6 +7,10 @@
 import os
 import subprocess
 import yaml
+import sys
+
+# dirty fix
+sys.path.append('../')
 
 def load_configuration():
     """read configuration information from yaml file
@@ -106,9 +110,9 @@ def execute_single(single_instance):
             single_instance['ground_truth'] = f'results/{video_name}_gt'
             single_instance['low_results_path'] = f'results/{video_name}_mpeg_{low_res}_{low_qp}'
 
-            # implementation
             if mode == 'implementation':
-                single_instance['hname'] = '127.0.0.1:5000'
+                assert single_instance['hname'] != False, "Must provide the server address for implementation, abort."
+                # single_instance['hname'] = '127.0.0.1:5000'
                 
             subprocess.run(['python', '../play_video.py',
                                 yaml.dump(single_instance)])
