@@ -76,7 +76,6 @@ def execute_single(single_instance):
             subprocess.run(['python', '../play_video.py',
                             yaml.dump(single_instance)])
 
-    # assume we are running emulation
     elif baseline == 'dds':
         # unpacking
         video_name = single_instance['video_name']
@@ -107,9 +106,12 @@ def execute_single(single_instance):
             single_instance['ground_truth'] = f'results/{video_name}_gt'
             single_instance['low_results_path'] = f'results/{video_name}_mpeg_{low_res}_{low_qp}'
 
-
+            # implementation
+            if mode == 'implementation':
+                single_instance['hname'] = '127.0.0.1:5000'
+                
             subprocess.run(['python', '../play_video.py',
-                            yaml.dump(single_instance)])
+                                yaml.dump(single_instance)])
     
 
 def parameter_sweeping(instances, new_instance, keys):
@@ -161,6 +163,6 @@ if __name__ == "__main__":
     # load configuration information (only once)
     config_info = load_configuration()
     data_dir = config_info['data_dir']
-
-    # start execution
+    mode = config_info['mode']
+    
     execute_all(config_info)
