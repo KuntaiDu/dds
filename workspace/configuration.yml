@@ -6,6 +6,8 @@ data_dir: /tank/new_dataset/
 #
 # Set the default value of parameters here
 # All the parameters here will be forwarded to server configuration
+# You can add any variables here as long as you obey the basic yaml format.
+# So please use this part nicely to avoid hard-coding.
 default:
   # overwrite existing results or not
   overwrite: False
@@ -24,7 +26,8 @@ default:
   estimate_banwidth: False
   low_images_path: None
   tracker_length: 4
-  batch_size: 15 
+  # the size of a video chunk
+  batch_size: 15
   min_object_size: 0
   boundary: 0.2
   tracking_threshold: 0.3
@@ -46,7 +49,9 @@ default:
 # All the parameters here will be forwarded to server configuration
 instances:
 - method: gt
+  # quantization parameter, higher qp means worse quality.
   qp: 24
+  # resolution is a number in (0, 1]. We will scale the width and the hight according to this factor.
   resolution: 1.0
 - method: mpeg
   qp:
@@ -54,13 +59,19 @@ instances:
   - 26
   resolution: 0.8
 - batch_size: 15
+  # the configuration for the Stream A (low) and Stream B (high)
   high_qp: 26
   high_res: 0.8
   low_qp: 36
   low_res: 0.8
   method: dds
+  # Two regions will be treated as the same region if the intersection-over-union (IoU) is larger than this threshold
   objfilter_iou: 0.3
+  # The score to prune out those low-objectness-score regions. Just to control the bandwidth
   prune_score: 0.5
+  # Deprecated parameter
   rpn_enlarge_ratio: 0.0
+  # control the size of the object
   size_obj: 0.01
+# mode can be emulation or implementation.
 mode: emulation
