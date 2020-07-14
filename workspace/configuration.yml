@@ -2,12 +2,14 @@
 #
 # The directory to your dataset
 # The data must be organized as /path/to/dataset/your_video_name/src/%010d.png, start from id=0
+# We use png to avoid error caused by jpeg compression
 data_dir: /tank/new_dataset/
 #
 # Set the default value of parameters here
-# All the parameters here will be forwarded to server configuration
+# All the parameters here will be forwarded to each instance
 # You can add any variables here as long as you obey the basic yaml format.
 # So please use this part nicely to avoid hard-coding.
+# You could specify multiple values for each parameter through yaml list. The code will automatically sweep all parameters for you
 default:
   # overwrite existing results or not
   overwrite: False
@@ -42,11 +44,12 @@ default:
   ground_truth: False
 #
 # Specify each instance here
-# You could overwrite the default configuration here
-# You could specify multiple values for each parameter. We will automatically generate multiple instances for each parameters
-# E.g., if you specify qp = [1,2], resolution = [3,4]
-# You will get four instances with (qp,resolution)=(1,3),(1,4),(2,3),(2,4).
-# All the parameters here will be forwarded to server configuration
+# You could overwrite the default configuration for each instance
+# The configuration will be directly forwarded to the server
+# You could specify multiple values for each parameter through yaml list
+# We will automatically spawn multiple instances for you
+# E.g., if you specify qp = [1,2], resolution = [0.6,0.8]
+# You will get four instances with (qp,resolution)=(1,0.6),(1,0.8),(2,0.6),(2,0.8)
 instances:
 - method: gt
   # quantization parameter, higher qp means worse quality.
