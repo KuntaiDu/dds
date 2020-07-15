@@ -39,7 +39,6 @@ def execute_single(single_instance):
     if baseline == 'gt':
         # unpacking
         video_name = single_instance['video_name']
-        gt_qp = single_instance['qp']
         original_images_dir = os.path.join(data_dir, video_name, 'src')
 
         # skip if result file already exists
@@ -50,9 +49,7 @@ def execute_single(single_instance):
         else:
             single_instance['video_name'] = f'results/{result_file_name}'
             single_instance['high_images_path'] = f'{original_images_dir}'
-            single_instance['resolutions'] = [single_instance['resolution']]
             single_instance['outfile'] = 'stats'
-            single_instance['qp'] = [gt_qp]
 
             subprocess.run(['python', '../play_video.py', 
                             yaml.dump(single_instance)])
@@ -61,8 +58,8 @@ def execute_single(single_instance):
     elif baseline == 'mpeg':
         # unpacking
         video_name = single_instance['video_name']
-        mpeg_qp = single_instance['qp']
-        mpeg_resolution = single_instance['resolution']
+        mpeg_qp = single_instance['low_qp']
+        mpeg_resolution = single_instance['low_resolution']
         original_images_dir = os.path.join(data_dir, video_name, 'src')
 
         # skip if result file already exists
@@ -72,9 +69,7 @@ def execute_single(single_instance):
         else:
             single_instance['video_name'] = f'results/{result_file_name}'
             single_instance['high_images_path'] = f'{original_images_dir}'
-            single_instance['resolutions'] = [mpeg_resolution]
             single_instance['outfile'] = 'stats'
-            single_instance['qp'] = [mpeg_qp]
             single_instance['ground_truth'] = f'results/{video_name}_gt'
 
             subprocess.run(['python', '../play_video.py',
@@ -86,8 +81,8 @@ def execute_single(single_instance):
         original_images_dir = os.path.join(data_dir, video_name, 'src')
         low_qp = single_instance['low_qp']
         high_qp = single_instance['high_qp']
-        low_res = single_instance['low_res']
-        high_res = single_instance['high_res']
+        low_res = single_instance['low_resolution']
+        high_res = single_instance['high_resolution']
         rpn_enlarge_ratio = single_instance['rpn_enlarge_ratio']
         batch_size = single_instance['batch_size']
         prune_score = single_instance['prune_score']
@@ -104,9 +99,7 @@ def execute_single(single_instance):
         else:
             single_instance['video_name'] = f'results/{result_file_name}'
             single_instance['high_images_path'] = f'{original_images_dir}'
-            single_instance['resolutions'] = [low_res, high_res]
             single_instance['outfile'] = 'stats'
-            single_instance['qp'] = [low_qp, high_qp]
             single_instance['ground_truth'] = f'results/{video_name}_gt'
             single_instance['low_results_path'] = f'results/{video_name}_mpeg_{low_res}_{low_qp}'
 

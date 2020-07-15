@@ -23,8 +23,11 @@ default:
   verbosity: info
   simulate: False
   hname: False
+  intersection_threshold: 1.0
   low_results_path: None
   high_results_path: None
+  high_resolution: -1
+  high_qp: -1
   estimate_banwidth: False
   low_images_path: None
   tracker_length: 4
@@ -53,20 +56,20 @@ default:
 instances:
 - method: gt
   # quantization parameter, higher qp means worse quality.
-  qp: 24
+  low_qp: 24
   # resolution is a number in (0, 1]. We will scale the width and the hight according to this factor.
-  resolution: 1.0
+  low_resolution: 1.0
 - method: mpeg
-  qp:
+  low_qp:
   - 36
   - 26
-  resolution: 0.8
+  low_resolution: 0.8
 - batch_size: 15
   # the configuration for the Stream A (low) and Stream B (high)
   high_qp: 26
-  high_res: 0.8
+  high_resolution: 0.8
   low_qp: 36
-  low_res: 0.8
+  low_resolution: 0.8
   method: dds
   # Two regions will be treated as the same region if the intersection-over-union (IoU) is larger than this threshold
   objfilter_iou: 0.3
