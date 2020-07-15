@@ -24,11 +24,6 @@ def main(args):
                 f"{args.low_threshold} tracker length of "
                 f"{args.tracker_length}")
 
-    args.low_resolution = args.resolutions[0]
-    args.high_resolution = args.resolutions[1]
-    args.low_qp = args.qp[0]
-    args.high_qp = args.qp[1]
-
     config = args
 
     # config = ServerConfig(
@@ -43,22 +38,8 @@ def main(args):
     mode = None
     results, bw = None, None
     if args.simulate:
-        mode = "simulation"
-        logger.warning("Running DDS in SIMULATION mode")
-        server = Server(config)
-
-        logger.info("Starting client")
-        client = Client(args.hname, config, server)
-        # Run simulation
-        logger.info(f"Analyzing video {args.video_name} with low resolution "
-                    f"of {args.resolutions[0]} and high resolution of "
-                    f"{args.resolutions[1]}")
-        results, bw = client.analyze_video_simulate(
-            args.video_name, args.low_images_path, args.high_images_path,
-            args.high_results_path, args.low_results_path,
-            args.enforce_iframes, args.mpeg_results_path,
-            args.estimate_banwidth, args.debug_mode)
-    elif not args.simulate and not args.hname and args.resolutions[-1] != -1:
+        raise NotImplementedError("We do not support simulation anymore")
+    elif not args.simulate and not args.hname and args.high_resolution != -1:
         mode = "emulation"
         logger.warning(f"Running DDS in EMULATION mode on {args.video_name}")
         server = Server(config)
@@ -72,7 +53,7 @@ def main(args):
     elif not args.simulate and not args.hname:
         mode = "mpeg"
         logger.warning(f"Running in MPEG mode with resolution "
-                       f"{args.resolutions[0]} on {args.video_name}")
+                       f"{args.low_resolution} on {args.video_name}")
         server = Server(config)
 
         logger.info("Starting client")
@@ -119,18 +100,10 @@ def main(args):
 if __name__ == "__main__":
 
     # load configuration dictonary from command line
-    print(yaml.load(sys.argv[1], Loader=yaml.SafeLoader))
+    # use munch to provide class-like accessment to python dictionary
     args = munchify(yaml.load(sys.argv[1], Loader=yaml.SafeLoader))
 
-    # If running simulation check if results files are present
-    if (args.simulate and
-            (args.low_results_path is None or args.high_results_path is None)):
-        print("Low and high results files not given.\n"
-              "Low and high results files "
-              "are needed when running in simulation mode")
-        exit()
-
-    if (not args.simulate and not args.hname and len(args.resolutions) == 2):
+    if not args.simulate and not args.hname and args.high_resolution != -1:
         if not args.high_images_path:
             print("Running DDS in emulation mode requires raw/high "
                   "resolution images")
@@ -147,29 +120,26 @@ if __name__ == "__main__":
               "calculate true bandwidth estimate")
         exit()
 
-    if not args.simulate and len(args.resolutions) == 2:
+    if not args.simulate and args.high_resolution != -1:
         if args.low_images_path:
             print("Discarding low images path")
             args.low_images_path = None
         args.intersection_threshold = 1.0
 
-    if args.simulate and not args.low_images_path:
-        print("Running simulation require low resolution images")
-        exit()
+    if args.method != "dds":
+        assert args.high_resolution == -1, "Only dds support two quality levels"
+            
 
-    if len(args.resolutions) < 2:
+    if args.high_resolution == -1:
         print("Only one resolution given, running MPEG emulation")
-        args.intersection_threshold = 1.0
-        args.resolutions.append(-1)
-        if len(args.qp) == 2:
-            args.qp[1] = -1
-        else:
-            args.qp.append(-1)
+        assert args.high_qp == -1, "MPEG emulation only support one QP"
     else:
-        if args.resolutions[1] < args.resolutions[0]:
-            print("Given high resolution is less than low resolution, "
-                  "swapping resolutions")
-            args.resolutions[0], args.resolutions[1] = (args.resolutions[1],
-                                                        args.resolutions[0])
+        assert args.low_resolution <= args.high_resolution, \
+                f"The resolution of low quality({args.low_resolution})"\
+                f"can't be larger than high quality({args.high_resolution})"
+        assert not(args.low_resolution == args.high_resolution and 
+                    args.low_qp < args.high_qp),\
+                f"Under the same resolution, the QP of low quality({args.low_qp})"\
+                f"can't be higher than the QP of high quality({args.high_qp})"
 
     main(args)
