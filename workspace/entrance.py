@@ -103,7 +103,7 @@ def execute_single(single_instance):
             single_instance['ground_truth'] = f'results/{video_name}_gt'
             single_instance['low_results_path'] = f'results/{video_name}_mpeg_{low_res}_{low_qp}'
 
-            if mode == 'implementation':
+            if single_instance["mode"] == 'implementation':
                 assert single_instance['hname'] != False, "Must provide the server address for implementation, abort."
                 # single_instance['hname'] = '127.0.0.1:5000'
                 
@@ -160,6 +160,5 @@ if __name__ == "__main__":
     # load configuration information (only once)
     config_info = load_configuration()
     data_dir = config_info['data_dir']
-    mode = config_info['mode']
     
     execute_all(config_info)
