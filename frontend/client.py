@@ -183,8 +183,8 @@ class Client:
         return final_results, total_size
 
     def init_server(self, nframes):
-        params = dict(self.config.__dict__)
-        params.update({"nframes": nframes})
+        params = self.config
+        params['nframes'] = nframes
         response = self.session.post(
             "http://" + self.hname + "/init", params=params)
         if response.status_code != 200:
