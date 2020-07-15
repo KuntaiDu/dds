@@ -45,6 +45,7 @@ default:
   debug_mode: False
   # The path to the ground truth. Will be automatically set in entrance.py
   ground_truth: False
+  mode: emulation
 #
 # Specify each instance here
 # You could overwrite the default configuration for each instance
@@ -79,5 +80,7 @@ instances:
   rpn_enlarge_ratio: 0.0
   # control the size of the object
   size_obj: 0.01
-# mode can be emulation or implementation.
-mode: emulation
+  # hname must be specified if in implementation mode
+  hname: 127.0.0.1:5001
+  # mode can be emulation or implementation, mode==emulation if not specified
+  mode: implementation
