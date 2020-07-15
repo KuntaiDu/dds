@@ -183,7 +183,7 @@ class Client:
         return final_results, total_size
 
     def init_server(self, nframes):
-        params = self.config
+        params = self.config.toDict()
         params['nframes'] = nframes
         response = self.session.post(
             "http://" + self.hname + "/init", params=params)
