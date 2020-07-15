@@ -6,6 +6,7 @@ import json
 from dds_utils import (Results, read_results_dict, cleanup, Region,
                        compute_regions_size, extract_images_from_video,
                        merge_boxes_in_results)
+import yaml
 
 
 class Client:
@@ -183,10 +184,9 @@ class Client:
         return final_results, total_size
 
     def init_server(self, nframes):
-        params = self.config.toDict()
-        params['nframes'] = nframes
+        self.config['nframes'] = nframes
         response = self.session.post(
-            "http://" + self.hname + "/init", params=params)
+            "http://" + self.hname + "/init", data=yaml.dump(self.config))
         if response.status_code != 200:
             self.logger.fatal("Could not initialize server")
             # Need to add exception handling
