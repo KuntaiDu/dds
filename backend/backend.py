@@ -3,6 +3,7 @@ import logging
 from flask import Flask, request, jsonify
 from dds_utils import ServerConfig
 import json
+import yaml
 from .server import Server
 
 app = Flask(__name__)
@@ -20,13 +21,13 @@ def index():
 
 @app.route("/init", methods=["POST"])
 def initialize_server():
-    args = munchify(request.args)
+    args = yaml.load(request.data, Loader=yaml.SafeLoader)
     global server
     if not server:
         logging.basicConfig(
             format="%(name)s -- %(levelname)s -- %(lineno)s -- %(message)s",
             level="INFO")
-        server = Server(args, int(args["nframes"]))
+        server = Server(args, args["nframes"])
         os.makedirs("server_temp", exist_ok=True)
         os.makedirs("server_temp-cropped", exist_ok=True)
         return "New Init"
