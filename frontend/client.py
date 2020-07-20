@@ -3,7 +3,13 @@ import os
 import shutil
 import requests
 import json
+'''
 from dds_utils import (Results, read_results_dict, cleanup, Region,
+                       compute_regions_size, extract_images_from_video,
+                       merge_boxes_in_results)
+'''
+from classes.regions import (Regions, Region)
+from dds_utils import (read_results_dict, cleanup,
                        compute_regions_size, extract_images_from_video,
                        merge_boxes_in_results)
 import yaml
@@ -33,8 +39,8 @@ class Client:
         number_of_frames = len(
             [f for f in os.listdir(raw_images_path) if ".png" in f])
 
-        final_results = Results()
-        final_rpn_results = Results()
+        final_results = Regions()
+        final_rpn_results = Regions()
         total_size = 0
         for i in range(0, number_of_frames, self.config.batch_size):
             start_frame = i
@@ -43,7 +49,7 @@ class Client:
             batch_fnames = sorted([f"{str(idx).zfill(10)}.png"
                                    for idx in range(start_frame, end_frame)])
 
-            req_regions = Results()
+            req_regions = Regions()
             for fid in range(start_frame, end_frame):
                 req_regions.append(
                     Region(fid, 0, 0, 1, 1, 1.0, 2,
@@ -88,9 +94,9 @@ class Client:
     def analyze_video_emulate(self, video_name, high_images_path,
                               enforce_iframes, low_results_path=None,
                               debug_mode=False):
-        final_results = Results()
-        low_phase_results = Results()
-        high_phase_results = Results()
+        final_results = Regions()
+        low_phase_results = Regions()
+        high_phase_results = Regions()
 
         number_of_frames = len(
             [x for x in os.listdir(high_images_path) if "png" in x])
@@ -108,7 +114,7 @@ class Client:
 
             # Encode frames in batch and get size
             # Make temporary frames to downsize complete frames
-            base_req_regions = Results()
+            base_req_regions = Regions()
             for fid in range(start_fid, end_fid):
                 base_req_regions.append(
                     Region(fid, 0, 0, 1, 1, 1.0, 2,
@@ -200,11 +206,11 @@ class Client:
             "http://" + self.hname + "/low", files=video_to_send)
         response_json = json.loads(response.text)
 
-        results = Results()
+        results = Regions()
         for region in response_json["results"]:
             results.append(Region.convert_from_server_response(
                 region, self.config.low_resolution, "low-res"))
-        rpn = Results()
+        rpn = Regions()
         for region in response_json["req_regions"]:
             rpn.append(Region.convert_from_server_response(
                 region, self.config.low_resolution, "low-res"))
@@ -218,7 +224,7 @@ class Client:
             "http://" + self.hname + "/high", files=video_to_send)
         response_json = json.loads(response.text)
 
-        results = Results()
+        results = Regions()
         for region in response_json["results"]:
             results.append(Region.convert_from_server_response(
                 region, self.config.high_resolution, "high-res"))
@@ -227,8 +233,8 @@ class Client:
 
     def analyze_video(
             self, vid_name, raw_images, config, enforce_iframes):
-        final_results = Results()
-        all_required_regions = Results()
+        final_results = Regions()
+        all_required_regions = Regions()
         low_phase_size = 0
         high_phase_size = 0
         nframes = sum(map(lambda e: "png" in e, os.listdir(raw_images)))
@@ -241,7 +247,7 @@ class Client:
             self.logger.info(f"Processing frames {start_frame} to {end_frame}")
 
             # First iteration
-            req_regions = Results()
+            req_regions = Regions()
             for fid in range(start_frame, end_frame):
                 req_regions.append(Region(
                     fid, 0, 0, 1, 1, 1.0, 2, self.config.low_resolution))

@@ -2,7 +2,13 @@ import os
 import shutil
 import logging
 import cv2 as cv
+'''
 from dds_utils import (Results, Region, calc_iou, merge_images,
+                       extract_images_from_video, merge_boxes_in_results,
+                       compute_area_of_frame, calc_area, read_results_dict)
+'''
+from classes.regions import (Regions, Region)
+from dds_utils import (calc_iou, merge_images,
                        extract_images_from_video, merge_boxes_in_results,
                        compute_area_of_frame, calc_area, read_results_dict)
 from .object_detector import Detector
@@ -45,8 +51,8 @@ class Server:
 
     def perform_detection(self, images_direc, resolution, fnames=None,
                           images=None):
-        final_results = Results()
-        rpn_regions = Results()
+        final_results = Regions()
+        rpn_regions = Regions()
 
         if fnames is None:
             fnames = sorted(os.listdir(images_direc))
@@ -89,8 +95,9 @@ class Server:
 
         return final_results, rpn_regions
 
+    # core function of returning feedback region
     def get_regions_to_query(self, rpn_regions, detections):
-        req_regions = Results()
+        req_regions = Regions()
         for region in rpn_regions.regions:
             # Continue if the size of region is too large
             if region.w * region.h > self.config.size_obj:
@@ -121,14 +128,14 @@ class Server:
         if extract_regions:
             # If called from actual implementation
             # This will not run
-            base_req_regions = Results()
+            base_req_regions = Regions()
             for fid in range(start_fid, end_fid):
                 base_req_regions.append(
                     Region(fid, 0, 0, 1, 1, 1.0, 2,
                            self.config.high_resolution))
             extract_images_from_video(images_direc, base_req_regions)
 
-        batch_results = Results()
+        batch_results = Regions()
 
         self.logger.info(f"Getting results with threshold "
                          f"{self.config.low_threshold} and "
@@ -141,8 +148,8 @@ class Server:
                 batch_results.add_single_result(
                     single_result, self.config.intersection_threshold)
 
-        detections = Results()
-        rpn_regions = Results()
+        detections = Regions()
+        rpn_regions = Regions()
         # Divide RPN results into detections and RPN regions
         for single_result in batch_results.regions:
             if (single_result.conf > self.config.prune_score and
@@ -165,7 +172,7 @@ class Server:
         if not os.path.isdir(images_direc):
             self.logger.error("Images directory was not found but the "
                               "second iteration was called anyway")
-            return Results()
+            return Regions()
 
         fnames = sorted([f for f in os.listdir(images_direc) if "png" in f])
 
@@ -181,14 +188,14 @@ class Server:
             merged_images_direc, self.config.high_resolution, fnames,
             merged_images)
 
-        results_with_detections_only = Results()
+        results_with_detections_only = Regions()
         for r in results.regions:
             if r.label == "no obj":
                 continue
             results_with_detections_only.add_single_result(
                 r, self.config.intersection_threshold)
 
-        high_only_results = Results()
+        high_only_results = Regions()
         area_dict = {}
         for r in results_with_detections_only.regions:
             frame_regions = req_regions.regions_dict[r.fid]
@@ -219,7 +226,7 @@ class Server:
         start_fid = self.curr_fid
         end_fid = min(self.curr_fid + self.config.batch_size, self.nframes)
         self.logger.info(f"Processing frames from {start_fid} to {end_fid}")
-        req_regions = Results()
+        req_regions = Regions()
         for fid in range(start_fid, end_fid):
             req_regions.append(
                 Region(fid, 0, 0, 1, 1, 1.0, 2, self.config.low_resolution))
@@ -229,7 +236,7 @@ class Server:
         results, rpn = self.perform_detection(
             "server_temp", self.config.low_resolution, fnames)
 
-        batch_results = Results()
+        batch_results = Regions()
         batch_results.combine_results(
             results, self.config.intersection_threshold)
 

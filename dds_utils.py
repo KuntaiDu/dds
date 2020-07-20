@@ -7,6 +7,7 @@ import numpy as np
 import cv2 as cv
 import networkx
 from networkx.algorithms.components.connected import connected_components
+from classes.regions import (Regions, Region)
 
 
 class ServerConfig:
@@ -35,7 +36,7 @@ class ServerConfig:
         self.objfilter_iou = objfilter_iou
         self.size_obj = size_obj
 
-
+'''
 class Region:
     def __init__(self, fid, x, y, w, h, conf, label, resolution,
                  origin="generic"):
@@ -224,7 +225,7 @@ class Results:
             self.write_results_csv(fname)
         else:
             self.write_results_txt(fname)
-
+'''
 
 def to_graph(l):
     G = networkx.Graph()
@@ -301,7 +302,8 @@ def simple_merge(single_result_frame, index_to_merge):
 
 
 def merge_boxes_in_results(results_dict, min_conf_threshold, iou_threshold):
-    final_results = Results()
+    # final_results = Results()
+    final_results = Regions()
 
     # Clean dict to remove min_conf_threshold
     for _, regions in results_dict.items():
