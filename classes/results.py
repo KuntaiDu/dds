@@ -4,7 +4,7 @@ import pickle
 
 
 class Results:
-    def __init__(self):
+    def __init__(self, ):
         self.inference_results = {}
         
     @abstractmethod

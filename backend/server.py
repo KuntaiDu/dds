@@ -8,7 +8,7 @@ from dds_utils import (Results, Region, calc_iou, merge_images,
                        compute_area_of_frame, calc_area, read_results_dict)
 '''
 from classes.regions import (Regions, Region)
-from dds_utils import (calc_iou, merge_images,
+from classes.regions import (calc_iou, merge_images,
                        extract_images_from_video, merge_boxes_in_results,
                        compute_area_of_frame, calc_area, read_results_dict)
 from .object_detector import Detector
@@ -49,7 +49,8 @@ class Server:
         for f in os.listdir("server_temp-cropped"):
             os.remove(os.path.join("server_temp-cropped", f))
 
-    def perform_detection(self, images_direc, resolution, fnames=None,
+    # perform object detection
+    def perform_object_detection(self, images_direc, resolution, fnames=None,
                           images=None):
         final_results = Regions()
         rpn_regions = Regions()
@@ -95,8 +96,16 @@ class Server:
 
         return final_results, rpn_regions
 
-    # core function of returning feedback region
-    def get_regions_to_query(self, rpn_regions, detections):
+    # general function for starting inference based on application type
+    def perform_detection(self, images_direc, resolution, fnames=None,
+                          images=None):
+        assert self.config.application is not None
+        if self.config.application == 'object_detection':
+            final_results, rpn_regions = self.perform_object_detection(images_direc, 
+                                            resolution, fnames=None, images=None)
+            return final_results, rpn_regions
+
+    def get_regions_to_query_object_detection(self, rpn_regions, detections):
         req_regions = Regions()
         for region in rpn_regions.regions:
             # Continue if the size of region is too large
@@ -120,6 +129,13 @@ class Server:
             region.enlarge(self.config.rpn_enlarge_ratio)
             req_regions.add_single_result(
                 region, self.config.intersection_threshold)
+        return req_regions
+
+    # core function of returning feedback region
+    def get_regions_to_query(self, rpn_regions=None, detections):
+        assert self.config.application is not None
+        if self.config.application == 'object_detection':
+            req_regions = self.get_regions_to_query_object_detection(rpn_regions, detections)
         return req_regions
 
     def simulate_low_query(self, start_fid, end_fid, images_direc,

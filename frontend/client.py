@@ -9,7 +9,7 @@ from dds_utils import (Results, read_results_dict, cleanup, Region,
                        merge_boxes_in_results)
 '''
 from classes.regions import (Regions, Region)
-from dds_utils import (read_results_dict, cleanup,
+from classes.regions import (read_results_dict, cleanup,
                        compute_regions_size, extract_images_from_video,
                        merge_boxes_in_results)
 import yaml
@@ -176,6 +176,11 @@ class Client:
 
         # Write results
         final_results.write(f"{video_name}")
+
+        '''
+        # change to Results()
+        
+        '''
 
         self.logger.info(f"Writing results for {video_name}")
         self.logger.info(f"{len(final_results)} objects detected "

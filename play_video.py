@@ -3,8 +3,9 @@ import re
 import logging
 from backend.server import Server
 from frontend.client import Client
-from dds_utils import (ServerConfig, read_results_dict,
+from classes.regions import (read_results_dict,
                        evaluate, write_stats)
+from dds_utils import ServerConfig
 import sys
 
 from munch import *
