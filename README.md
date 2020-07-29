@@ -1,6 +1,5 @@
 # DDS Simulator
 
-<<<<<<< HEAD
 ## 1. Dataset
 
 ### 1.1 Detection dataset
@@ -81,6 +80,3 @@ to cd into the workspace of DDS. Inside that folder, we have a configuration fil
 ```python entrance.py```
 
 to run DDS! Note that the configuration file will be only load **once** in the above line. So you can change the configuration file freely after running the program without changing the behavior of the program.
-=======
-Forthcoming!
->>>>>>> 8db900f086477032b039a2794ab664521bc93e04
