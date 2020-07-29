@@ -3,7 +3,7 @@
 # The directory to your dataset
 # The data must be organized as /path/to/dataset/your_video_name/src/%010d.png, start from id=0
 # We use png to avoid error caused by jpeg compression
-data_dir: /tank/new_dataset/
+data_dir: ../dataset
 #
 # Set the default value of parameters here
 # All the parameters here will be forwarded to each instance
@@ -13,7 +13,7 @@ data_dir: /tank/new_dataset/
 default:
   # overwrite existing results or not
   overwrite: False
-  # the video name you want to run
+  # the video name you want to run. Can be a list or a single string
   video_name: trafficcam_1
   # several configurations
   max_object_size: 0.3
@@ -80,7 +80,7 @@ instances:
   rpn_enlarge_ratio: 0.0
   # control the size of the object
   size_obj: 0.01
-  # hname must be specified if in implementation mode
-  hname: 127.0.0.1:5001
-  # mode can be emulation or implementation, mode==emulation if not specified
-  mode: implementation
+  # hname must be the ip:port of the server if in implementation mode
+  hname: False
+  # mode can be emulation or implementation. Emulation: trasmit the video through disk, Implementation: send the video through http protocol
+  mode: emulation
