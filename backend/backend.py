@@ -32,7 +32,7 @@ def initialize_server():
         os.makedirs("server_temp-cropped", exist_ok=True)
         return "New Init"
     else:
-        server.reset_state(int(d.get("nframes")))
+        server.reset_state(int(args["nframes"]))
         return "Reset"
 
 
