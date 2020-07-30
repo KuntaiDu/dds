@@ -1,5 +1,9 @@
 # DDS Simulator
 
+## 0. Related resources
+
+Please check [Kuntai Du's home page](https://kuntaidu.github.io/aboutme.html) for more DDS-related resources.
+
 ## 1. Dataset
 
 ### 1.1 Detection dataset
@@ -59,24 +63,63 @@ We use clips from TBBT and Friends.
 
 ## 2. Install Instructions
 
-To run our code, please make sure that conda is installed. First, run
-
-```git checkout clean```
-
-to enter in the clean branch of DDS. And then under the DDS repo, run
+To run our code, please make sure that conda is installed. Then, under dds repo, run
 
 ```conda env create -f conda_environment_configuration.yml```
 
-to install dds environment. Note that this installation assumes that you have GPU resources on your machine. If not, please temporarily skip this step.
+to install dds environment. Note that this installation assumes that you have GPU resources on your machine. If not, please edit ```tensorflow-gpu=1.14``` to ```tensorflow=1.14``` in ```conda_environment_configuration.yml```.
 
-## 3. Run our code
-
-Run
+Now run
 
 ```cd workspace```
 
-to cd into the workspace of DDS. Inside that folder, we have a configuration file ```configuration.yml``` that allows you to customize the behavior of DDS and conduct parameter sweeping on DDS easily (we put some comments there to help you understand each configuration). Then, run
+and run 
+
+```wget people.cs.uchicago.edu/~kuntai/frozen_inference_graph.pb```
+
+to download the object detection model (FasterRCNN-ResNet101).
+
+## 3. Run our code
+
+Under ```DDSrepo/workspace```, run
 
 ```python entrance.py```
 
-to run DDS! Note that the configuration file will be only load **once** in the above line. So you can change the configuration file freely after running the program without changing the behavior of the program.
+to run DDS!
+
+## 4. Get performance numbers
+
+Under ```DDSrepo/workspace```, run
+
+```python examine.py trafficcam_1 results stats```
+
+you should see something like
+
+```
+trafficcam_1_dds_0.8_0.8_36_26_0.0_twosides_batch_15_0.5_0.3_0.01 3474KB 0.901
+trafficcam_1_mpeg_0.8_26 8652KB 0.904
+trafficcam_1_mpeg_0.8_36 2369KB 0.876
+```
+
+The number might vary by platform.
+
+## 5. Some details
+
+If you are considering building your projects based on our codebase, here are some details.
+
+### 5.1 Run in implementation mode
+
+Implementation means we run DDS under real network environment through HTTP post. To do so, in ```DDSrepo```, run
+
+```FLASK_APP=backend/backend.py flask run --port=5001```
+
+and copy the ```frozen_inference_graph.pb``` to ```DDSrepo``` to help the server find the model.
+
+Then use another terminal, cd to ```DDSrepo/workspace```, and edit the mode to ```implementation``` and edit the hname to ```ip:5001``` (ip should be 127.0.0.1 if you run the server locally) to run DDS on implementation mode. You can also run other methods in implementation mode by changing the default value of mode to ```implementation```. 
+
+
+### 5.2 Inside workspace folder
+
+Inside workspace folder, we use a configuration file ```configuration.yml``` to control the configuration for both the client and the server. This file will be only loaded **once** inside the whole ```python entrance.py``` process. You can add new keys and values in this file. We even support caching, parameter sweeping, and some fancy functionalities in this file. Please read the comments inside this file to utilize it.
+
+
