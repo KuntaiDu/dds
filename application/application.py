@@ -1,10 +1,10 @@
 import os
 import shutil
 import cv2 as cv
-from classes.regions import (Regions, Region)
-from classes.results import Results
-from .object_detector import Detector
-from classes.regions import (calc_iou, merge_images,
+from results.regions import (Regions, Region)
+from results.results import Results
+from backend.object_detector import Detector
+from results.regions import (calc_iou, merge_images,
                        extract_images_from_video, merge_boxes_in_results,
                        compute_area_of_frame, calc_area, read_results_dict)
 

@@ -3,7 +3,7 @@ import re
 import logging
 from backend.server import Server
 from frontend.client import Client
-from classes.regions import (read_results_dict,
+from results.regions import (read_results_dict,
                        evaluate, write_stats)
 from dds_utils import ServerConfig
 import sys

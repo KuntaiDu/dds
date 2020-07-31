@@ -7,7 +7,7 @@ import numpy as np
 import cv2 as cv
 import networkx
 from networkx.algorithms.components.connected import connected_components
-from classes.results import Results
+from .results import Results
 
 
 class Region:

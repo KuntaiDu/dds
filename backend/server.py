@@ -2,13 +2,13 @@ import os
 import shutil
 import logging
 import cv2 as cv
-from classes.regions import (Regions, Region)
-from classes.results import Results
-from classes.regions import (calc_iou, merge_images,
+from results.regions import (Regions, Region)
+from results.results import Results
+from results.regions import (calc_iou, merge_images,
                        extract_images_from_video, merge_boxes_in_results,
                        compute_area_of_frame, calc_area, read_results_dict)
 from .object_detector import Detector
-from .application import Application
+from application.application import Application
 
 
 class Server:

@@ -3,13 +3,8 @@ import os
 import shutil
 import requests
 import json
-'''
-from dds_utils import (Results, read_results_dict, cleanup, Region,
-                       compute_regions_size, extract_images_from_video,
-                       merge_boxes_in_results)
-'''
-from classes.regions import (Regions, Region)
-from classes.regions import (read_results_dict, cleanup,
+from results.regions import (Regions, Region)
+from results.regions import (read_results_dict, cleanup,
                        compute_regions_size, extract_images_from_video,
                        merge_boxes_in_results)
 import yaml
