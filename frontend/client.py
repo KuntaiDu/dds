@@ -244,6 +244,7 @@ class Client:
         high_phase_size = 0
         nframes = sum(map(lambda e: "png" in e, os.listdir(raw_images)))
 
+        # initialize server
         self.init_server(nframes)
 
         for i in range(0, nframes, self.config.batch_size):

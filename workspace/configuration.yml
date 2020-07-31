@@ -46,6 +46,7 @@ default:
   # The path to the ground truth. Will be automatically set in entrance.py
   ground_truth: False
   mode: emulation
+  application: object_detection
 #
 # Specify each instance here
 # You could overwrite the default configuration for each instance

@@ -31,9 +31,6 @@ rpn_enlarge_ratio
 size_obj
 
 ## To-dos (for developers)
-- Build up implementation
-    - What would be transmitted through network?
-- More applications
-    - e.g. semantic segmentation
-- More Baselines
-    - e.g. Glimpse, Vigil, CloudSeg
+- Interface for inference results
+- Interface for different applications
+- Then, we are able to add more applications and baselines
