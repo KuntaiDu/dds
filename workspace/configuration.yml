@@ -14,8 +14,8 @@ default:
   # overwrite existing results or not
   overwrite: False
   # the video name you want to run. Can be a list or a single string
-  video_name: trafficcam_1
-  # several configurations
+  video_name: trafficcam_2
+  # several configurations, a lot of them are ... just issues left over from history.
   max_object_size: 0.3
   low_threshold: 0.3
   high_threshold: 0.8
@@ -82,5 +82,7 @@ instances:
   size_obj: 0.01
   # hname must be the ip:port of the server if in implementation mode
   hname: False
+  # print the regions that DDS generates if set to True
+  debug_mode: True
   # mode can be emulation or implementation. Emulation: trasmit the video through disk, Implementation: send the video through http protocol
   mode: emulation
