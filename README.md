@@ -15,6 +15,10 @@ to install dds environment. Note that this installation assumes that you have GP
 
 Now run
 
+```conda activate dds```
+
+to activate dds environment, and 
+
 ```cd workspace```
 
 and run 
