@@ -14,7 +14,7 @@ default:
   # overwrite existing results or not
   overwrite: False
   # the video name you want to run. Can be a list or a single string
-  video_name: trafficcam_2
+  video_name: trafficcam_1
   # several configurations, a lot of them are ... just issues left over from history.
   max_object_size: 0.3
   low_threshold: 0.3
