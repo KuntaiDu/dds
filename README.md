@@ -1,4 +1,4 @@
-# DDS Simulator
+# DDS
 
 ## 1. Related resources
 
