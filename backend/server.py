@@ -8,7 +8,7 @@ from results.regions import (calc_iou, merge_images,
                        extract_images_from_video, merge_boxes_in_results,
                        compute_area_of_frame, calc_area, read_results_dict)
 from .object_detector import Detector
-from application.application import Application
+from application.application_creator import Application_Creator
 
 
 class Server:
@@ -23,10 +23,13 @@ class Server:
         handler = logging.NullHandler()
         self.logger.addHandler(handler)
 
+        # Initialize a Dector object
         self.detector = Detector()
 
         # Initialize an Application object
-        self.app = Application(config)
+        self.app_creator = Application_Creator()
+        dic_creator_functions = {'object_detection': self.app_creator.create_object_detection}
+        self.app = dic_creator_functions[config['application']](config)
 
         self.curr_fid = 0
         self.nframes = nframes
