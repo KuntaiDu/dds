@@ -7,7 +7,7 @@ from results.results import Results
 from results.regions import (calc_iou, merge_images,
                        extract_images_from_video, merge_boxes_in_results,
                        compute_area_of_frame, calc_area, read_results_dict)
-from .object_detector import Detector
+from models.model_creator import Model_Creator
 from application.application_creator import Application_Creator
 
 
@@ -23,13 +23,15 @@ class Server:
         handler = logging.NullHandler()
         self.logger.addHandler(handler)
 
-        # Initialize a Dector object
-        self.detector = Detector()
+        # Initialize a neural network model to be used
+        self.model_creator = Model_Creator()
+        mod_creator_functions = {'object_detection': self.mod_creator.create_object_detector}
+        self.model = mod_creator_functions[config['application']]()
 
         # Initialize an Application object
         self.app_creator = Application_Creator()
-        dic_creator_functions = {'object_detection': self.app_creator.create_object_detection}
-        self.app = dic_creator_functions[config['application']](config)
+        app_creator_functions = {'object_detection': self.app_creator.create_object_detection}
+        self.app = app_creator_functions[config['application']](config)
 
         self.curr_fid = 0
         self.nframes = nframes
@@ -75,7 +77,7 @@ class Server:
 
         # (modified) run inference
         inference_results = self.app.run_inference(
-                        self.detector, merged_images_direc, 
+                        self.model, merged_images_direc, 
                         self.config.high_resolution, fnames, merged_images)
         results = inference_results["results"]
 
@@ -114,7 +116,7 @@ class Server:
         batch_results = self.app.create_empty_results() 
 
         # run inference
-        inference_results = self.app.run_inference(self.detector, "server_temp",
+        inference_results = self.app.run_inference(self.model, "server_temp",
                                             self.config.low_resolution, fnames)
         results = inference_results["results"]
 
