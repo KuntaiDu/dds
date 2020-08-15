@@ -25,7 +25,7 @@ class Server:
 
         # Initialize a neural network model to be used
         self.model_creator = Model_Creator()
-        mod_creator_functions = {'object_detection': self.mod_creator.create_object_detector}
+        mod_creator_functions = {'object_detection': self.model_creator.create_object_detector}
         self.model = mod_creator_functions[config['application']]()
 
         # Initialize an Application object
