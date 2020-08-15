@@ -3,6 +3,7 @@ import logging
 import numpy as np
 import tensorflow as tf
 from tensorflow.compat.v1 import ConfigProto
+from pathlib import Path
 os.environ['TF_CPP_MIN_VLOG_LEVEL'] = '3'
 
 
@@ -14,19 +15,40 @@ class Detector:
     }
     rpn_threshold = 0.5
 
-    def __init__(self, model_path='frozen_inference_graph.pb'):
+    def __init__(self):
         self.logger = logging.getLogger("object_detector")
         handler = logging.NullHandler()
         self.logger.addHandler(handler)
 
+        # the path of the model
+        self.model_path = Path(__file__).parent / (Path(__file__).stem + '.pb')
+
+        if not self.model_path.exists():
+            # download model
+            self.logger.info('Frozen model not found. Downloading...')
+            import requests
+            from clint.textui import progress
+
+            url = 'http://people.cs.uchicago.edu/~kuntai/object_detector.pb'
+            r = requests.get(url, stream = True)
+
+            with open(self.model_path, 'wb') as f:
+                total_length = int(r.headers.get('content-length'))
+                # show a progress bar
+                for chunk in progress.bar(r.iter_content(chunk_size=1024), expected_size=(total_length/1024) + 1):
+                    if chunk:
+                        f.write(chunk)
+                        f.flush()
+
+            self.logger.info('Download complete')
+
         tf.compat.v1.logging.set_verbosity(tf.compat.v1.logging.INFO)
         config = ConfigProto()
         config.gpu_options.allow_growth = True
-        self.model_path = model_path
         self.d_graph = tf.Graph()
         with self.d_graph.as_default():
             od_graph_def = tf.compat.v1.GraphDef()
-            with tf.io.gfile.GFile(self.model_path, 'rb') as fid:
+            with tf.io.gfile.GFile(str(self.model_path), 'rb') as fid:
                 serialized_graph = fid.read()
                 od_graph_def.ParseFromString(serialized_graph)
                 tf.import_graph_def(od_graph_def, name='')
