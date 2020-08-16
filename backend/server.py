@@ -141,7 +141,7 @@ class Server:
         # e.g. for object detection, detections is Regions()
         # note that we originally used simulate_low_query for this part
         detections, regions_to_query = self.app.generate_feedback(
-            start_fid, end_fid, "server_temp", batch_results,
+            start_fid, end_fid, "server_temp", batch_results.regions_dict,
             False, self.config.rpn_enlarge_ratio, False)
 
         self.last_requested_regions = regions_to_query

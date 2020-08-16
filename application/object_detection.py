@@ -71,7 +71,7 @@ class Object_Detection(Application):
 
     # (Stream A) drive function for generating feedback
     def generate_feedback(self, start_fid, end_fid, images_direc,
-                           results, simulation=True,
+                           results_dict, simulation=True,
                            rpn_enlarge_ratio=0.0, extract_regions=True):
         # note that rpn_enlarge_ratio is specific to object detection
 
@@ -86,7 +86,6 @@ class Object_Detection(Application):
             extract_images_from_video(images_direc, base_req_regions)
         
         batch_results = Regions()
-        results_dict = results.regions_dict
 
         # Extract relevant results
         for fid in range(start_fid, end_fid):

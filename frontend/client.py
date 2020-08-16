@@ -57,10 +57,13 @@ class Client:
                              f"in base phase using {self.config.low_qp}QP")
             extract_images_from_video(f"{video_name}-base-phase-cropped",
                                       req_regions)
-            results, rpn_results = (
-                self.server.perform_detection(
+            results_dict = (
+                self.server.app.run_inference( 
+                    self.server.model,
                     f"{video_name}-base-phase-cropped",
-                    self.config.low_resolution, batch_fnames))
+                    self.config.low_resolution, batch_fnames)) # perviously perform_detection
+            results = results_dict["results"]
+            rpn_results = results_dict["rpn_regions"]
 
             self.logger.info(f"Detection {len(results)} regions for "
                              f"batch {start_frame} to {end_frame} with a "
@@ -124,9 +127,9 @@ class Client:
 
             # Low resolution phase
             low_images_path = f"{video_name}-base-phase-cropped"
-            r1, req_regions = self.server.simulate_low_query(
+            r1, req_regions = self.server.app.generate_feedback(
                 start_fid, end_fid, low_images_path, low_results_dict, False,
-                self.config.rpn_enlarge_ratio)
+                self.config.rpn_enlarge_ratio) # previously simulate_low_query
             total_regions_count += len(req_regions)
 
             low_phase_results.combine_results(
