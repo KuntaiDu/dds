@@ -34,8 +34,11 @@ class Client:
         number_of_frames = len(
             [f for f in os.listdir(raw_images_path) if ".png" in f])
 
+        logger = logging.getLogger(f'client:{self.config.application}:mpeg')
+        logger.addHandler(logging.NullHandler())
+
         final_results = Regions()
-        final_rpn_results = Regions()
+        final_feedback_regions = Regions()
         total_size = 0
         for i in range(0, number_of_frames, self.config.batch_size):
             start_frame = i
@@ -53,8 +56,8 @@ class Client:
                 req_regions, f"{video_name}-base-phase", raw_images_path,
                 self.config.low_resolution, self.config.low_qp,
                 enforce_iframes, True)
-            self.logger.info(f"{batch_video_size / 1024}KB sent "
-                             f"in base phase using {self.config.low_qp}QP")
+            logger.info(f"{batch_video_size / 1024}KB sent "
+                        f"in base phase using {self.config.low_qp}QP")
             extract_images_from_video(f"{video_name}-base-phase-cropped",
                                       req_regions)
             results_dict = (
@@ -63,15 +66,14 @@ class Client:
                     f"{video_name}-base-phase-cropped",
                     self.config.low_resolution, batch_fnames)) # perviously perform_detection
             results = results_dict["results"]
-            rpn_results = results_dict["feedback_regions"]
+            feedback_regions = results_dict["feedback_regions"]
 
-            self.logger.info(f"Detection {len(results)} regions for "
-                             f"batch {start_frame} to {end_frame} with a "
-                             f"total size of {batch_video_size / 1024}KB")
+            logger.info(f"Processed batch {start_frame} to {end_frame} with a "
+                        f"total video size of {batch_video_size / 1024}KB")
             final_results.combine_results(
                 results, self.config.intersection_threshold)
-            final_rpn_results.combine_results(
-                rpn_results, self.config.intersection_threshold)
+            final_feedback_regions.combine_results(
+                feedback_regions, self.config.intersection_threshold)
 
             # Remove encoded video manually
             shutil.rmtree(f"{video_name}-base-phase-cropped")
@@ -83,7 +85,7 @@ class Client:
 
         # Add RPN regions
         final_results.combine_results(
-            final_rpn_results, self.config.intersection_threshold)
+            final_feedback_regions, self.config.intersection_threshold)
 
         final_results.write(video_name)
 
@@ -260,7 +262,7 @@ class Client:
                 self.config.low_resolution, self.config.low_qp,
                 enforce_iframes, True)
             low_phase_size += batch_video_size
-            self.logger.info(f"{batch_video_size / 1024}KB sent in base phase."
+            self.logger.info(f"{batch_video_size // 1024}KB sent in base phase."
                              f"Using QP {self.config.low_qp} and "
                              f"Resolution {self.config.low_resolution}.")
             results, feedback_regions = self.get_first_phase_results(vid_name)
@@ -276,7 +278,7 @@ class Client:
                     self.config.high_resolution, self.config.high_qp,
                     enforce_iframes, True)
                 high_phase_size += batch_video_size
-                self.logger.info(f"{batch_video_size / 1024}KB sent in second "
+                self.logger.info(f"{batch_video_size // 1024}KB sent in second "
                                  f"phase. Using QP {self.config.high_qp} and "
                                  f"Resolution {self.config.high_resolution}.")
                 results = self.get_second_phase_results(vid_name)
