@@ -63,7 +63,7 @@ class Client:
                     f"{video_name}-base-phase-cropped",
                     self.config.low_resolution, batch_fnames)) # perviously perform_detection
             results = results_dict["results"]
-            rpn_results = results_dict["rpn_regions"]
+            rpn_results = results_dict["feedback_regions"]
 
             self.logger.info(f"Detection {len(results)} regions for "
                              f"batch {start_frame} to {end_frame} with a "
@@ -263,16 +263,16 @@ class Client:
             self.logger.info(f"{batch_video_size / 1024}KB sent in base phase."
                              f"Using QP {self.config.low_qp} and "
                              f"Resolution {self.config.low_resolution}.")
-            results, rpn_regions = self.get_first_phase_results(vid_name)
+            results, feedback_regions = self.get_first_phase_results(vid_name)
             final_results.combine_results(
                 results, self.config.intersection_threshold)
             all_required_regions.combine_results(
-                rpn_regions, self.config.intersection_threshold)
+                feedback_regions, self.config.intersection_threshold)
 
             # Second Iteration
-            if len(rpn_regions) > 0:
+            if len(feedback_regions) > 0:
                 batch_video_size, _ = compute_regions_size(
-                    rpn_regions, vid_name, raw_images,
+                    feedback_regions, vid_name, raw_images,
                     self.config.high_resolution, self.config.high_qp,
                     enforce_iframes, True)
                 high_phase_size += batch_video_size
