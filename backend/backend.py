@@ -5,6 +5,7 @@ from dds_utils import ServerConfig
 import json
 import yaml
 from .server import Server
+import coloredlogs
 
 app = Flask(__name__)
 server = None
@@ -21,16 +22,14 @@ def index():
 
 @app.route("/initialize_server", methods=["POST"])
 def initialize_server():
+    coloredlogs.install(fmt="%(asctime)s [%(levelname)s] %(name)s:%(funcName)s[%(lineno)s] -- %(message)s", level='INFO')
     args = yaml.load(request.data, Loader=yaml.SafeLoader)
     global server
     if not server:
-        logging.basicConfig(
-            format="%(name)s -- %(levelname)s -- %(lineno)s -- %(message)s",
-            level="INFO")
-        server = Server(args, args["nframes"])
+        server = Server(args)
         return "New Init"
     else:
-        server.reset_state(int(args["nframes"]))
+        server.reset_state()
         return "Reset"
 
 

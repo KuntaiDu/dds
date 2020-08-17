@@ -18,7 +18,7 @@ class Server:
        on low resolution images, tracking to find regions of interest and
        running DNN on the high resolution regions of interest"""
 
-    def __init__(self, config, nframes=None):
+    def __init__(self, config):
         self.config = config
 
         self.logger = logging.getLogger("server")
@@ -26,61 +26,22 @@ class Server:
         self.logger.addHandler(handler)
 
         # Initialize a neural network model to be used
-        self.model_creator = Model_Creator()
-        mod_creator_functions = {
-            'object_detection': self.model_creator.create_object_detector}
-        self.model = mod_creator_functions[config['application']]()
+        self.model = Model_Creator()(config)
 
         # Initialize an Application object
-        self.app_creator = Application_Creator()
-        app_creator_functions = {'object_detection': self.app_creator.create_object_detection}
-        self.app = app_creator_functions[config['application']](config)
+        self.app = Application_Creator()(self)
 
-        self.curr_fid = 0
-        self.nframes = nframes
         self.first_phase_folder = 'server_temp_dds'
         self.second_phase_folder = 'server_temp_dds-cropped'
 
         self.logger.info("Server started")
 
-    def reset_state(self, nframes):
-        self.curr_fid = 0
-        self.nframes = nframes
+    def reset_state(self):
         self.perform_server_cleanup()
 
     def perform_server_cleanup(self):
         os.system('rm -r -f server_temp*')
 
-    def emulate_high_query(self, vid_name, low_images_direc, feedback_regions):
-        images_direc = vid_name + "-cropped"
-        # Extract images from encoded video
-        extract_images_from_video(images_direc, feedback_regions)
-
-        if not os.path.isdir(images_direc):
-            self.logger.error("Images directory was not found but the "
-                              "second iteration was called anyway")
-            return Regions()
-
-        fnames = sorted([f for f in os.listdir(images_direc) if "png" in f])
-
-        # Make seperate directory and copy all images to that directory
-        merged_images_direc = os.path.join(images_direc, "merged")
-        os.makedirs(merged_images_direc, exist_ok=True)
-        for img in fnames:
-            shutil.copy(os.path.join(images_direc, img), merged_images_direc)
-
-        merged_images = merge_images(
-            merged_images_direc, low_images_direc, feedback_regions)
-
-        # (modified) run inference
-        inference_results = self.app.run_inference(
-                        self.model, merged_images_direc, 
-                        self.config.high_resolution, fnames, merged_images)
-        results = inference_results["results"]
-
-        shutil.rmtree(merged_images_direc)
-
-        return results
 
     def extract_video_to_folder(self, folder, start_fid, end_fid):
         feedback_regions = Regions()
@@ -90,6 +51,7 @@ class Server:
         extract_images_from_video(folder, feedback_regions)
 
     def run_inference(self, start_fid, end_fid, video_data):
+
         # Write in-memory video to file
         video_folder = Path('server_temp_inference')
         video_folder.mkdir(exist_ok = True)
@@ -116,22 +78,46 @@ class Server:
         # generate feedback
         detection_feedback_dic, feedback = self.app.run_inference_with_feedback(start_fid, end_fid, self.model, self.first_phase_folder, fnames, self.config)
 
-        self.curr_fid = end_fid
 
         return detection_feedback_dic
 
     def perform_high_query(self, file_data, json_data):
+
+        # dealing with the arguments and paths
         low_images_direc = self.first_phase_folder
         cropped_images_direc = self.second_phase_folder
         Path(cropped_images_direc).mkdir(exist_ok=True)
         with open(os.path.join(cropped_images_direc, "temp.mp4"), "wb") as f:
             f.write(file_data.read())
-
-
-        # results here can be Regions(), Classes(), etc.
         images_direc = low_images_direc + "-cropped"
-        results = self.emulate_high_query(
-            low_images_direc, low_images_direc, Regions(json.load(json_data)))
+        feedback_regions = Regions(json.load(json_data))
+
+        # Extract images from encoded video
+        extract_images_from_video(images_direc, feedback_regions)
+
+        if not os.path.isdir(images_direc):
+            self.logger.error("Images directory was not found but the "
+                              "second iteration was called anyway")
+            return Regions()
+
+        fnames = sorted([f for f in os.listdir(images_direc) if "png" in f])
+
+        # Make seperate directory and copy all images to that directory
+        merged_images_direc = os.path.join(images_direc, "merged")
+        os.makedirs(merged_images_direc, exist_ok=True)
+        for img in fnames:
+            shutil.copy(os.path.join(images_direc, img), merged_images_direc)
+
+        merged_images = merge_images(
+            merged_images_direc, low_images_direc, feedback_regions)
+
+        # (modified) run inference
+        inference_results = self.app.run_inference(
+                        self.model, merged_images_direc, 
+                        self.config.high_resolution, fnames, merged_images)
+        results = inference_results["results"]
+
+        shutil.rmtree(merged_images_direc)
 
         # Perform server side cleanup for the next batch
         self.perform_server_cleanup()

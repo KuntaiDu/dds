@@ -8,12 +8,16 @@ from results.regions import (calc_iou, merge_images,
                        extract_images_from_video, merge_boxes_in_results,
                        compute_area_of_frame, calc_area, read_results_dict)
 from .application import Application
+import logging
 
 
 class Object_Detection(Application):
-    def __init__(self, config):
-        self.config = config # configuration, same as server's
+    def __init__(self, server):
+        self.server = server
         self.type_app = "object_detection" # application type
+        self.logger = logging.getLogger("object_detection")
+        handler = logging.NullHandler()
+        self.logger.addHandler(handler)
 
     # return an object of a child class of Results() based on application type
     def create_empty_results(self):
@@ -26,7 +30,7 @@ class Object_Detection(Application):
 
         if fnames is None:
             fnames = sorted(os.listdir(images_direc))
-        # self.logger.info(f"Running inference on {len(fnames)} frames")
+        self.logger.info(f"Running inference on {len(fnames)} frames")
         for fname in fnames:
 
             if "png" not in fname:
@@ -105,7 +109,7 @@ class Object_Detection(Application):
             for fid in range(start_fid, end_fid):
                 base_req_regions.append(
                     Region(fid, 0, 0, 1, 1, 1.0, 2,
-                        self.config.high_resolution))
+                        self.server.config.high_resolution))
             extract_images_from_video(images_direc, base_req_regions)
         
         batch_results = Regions()
@@ -116,19 +120,19 @@ class Object_Detection(Application):
             for single_result in fid_results:
                 single_result.origin = "low-res"
                 batch_results.add_single_result(
-                    single_result, self.config.intersection_threshold)
+                    single_result, self.server.config.intersection_threshold)
 
         detections = Regions()
         rpn_regions = Regions()
         # Divide RPN results into detections and RPN regions
         for single_result in batch_results.regions:
-            if (single_result.conf > self.config.prune_score and
+            if (single_result.conf > self.server.config.prune_score and
                     single_result.label == "vehicle"):
                 detections.add_single_result(
-                    single_result, self.config.intersection_threshold)
+                    single_result, self.server.config.intersection_threshold)
             else:
                 rpn_regions.add_single_result(
-                    single_result, self.config.intersection_threshold)
+                    single_result, self.server.config.intersection_threshold)
 
         regions_to_query = self.get_regions_to_query(rpn_regions, detections)
 
@@ -143,7 +147,7 @@ class Object_Detection(Application):
         req_regions = Regions()
         for region in rpn_regions.regions:
             # Continue if the size of region is too large
-            if region.w * region.h > self.config.size_obj:
+            if region.w * region.h > self.server.config.size_obj:
                 continue
 
             # If there are positive detections and they match a region
@@ -152,7 +156,7 @@ class Object_Detection(Application):
                 matches = 0
                 for detection in detections.regions:
                     if (calc_iou(detection, region) >
-                            self.config.objfilter_iou and
+                            self.server.config.objfilter_iou and
                             detection.fid == region.fid and
                             region.label == 'object'):
                         matches += 1
@@ -160,9 +164,9 @@ class Object_Detection(Application):
                     continue
 
             # Enlarge and add to regions to be queried
-            region.enlarge(self.config.rpn_enlarge_ratio)
+            region.enlarge(self.server.config.rpn_enlarge_ratio)
             req_regions.add_single_result(
-                region, self.config.intersection_threshold)
+                region, self.server.config.intersection_threshold)
         return req_regions
         
 
@@ -174,6 +178,6 @@ class Object_Detection(Application):
             if r.label == "no obj":
                 continue
             results_with_detections_only.add_single_result(
-                r, self.config.intersection_threshold)
+                r, self.server.config.intersection_threshold)
 
         return results_with_detections_only

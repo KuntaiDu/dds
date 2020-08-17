@@ -1,9 +1,12 @@
 from .object_detector import Detector
 
 class Model_Creator():
-    def create_object_detector(self):
-        return Detector()
 
-    def create_semantic_segmenter():
-        print("semantic segmentation under construction")
-        return None
+    def __call__(self, config):
+
+        application_dict = {
+            'object_detection': Detector,
+            'semantic_segmentation': None
+        }
+
+        return application_dict[config['application']]()
