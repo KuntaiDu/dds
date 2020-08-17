@@ -25,7 +25,8 @@ class Server:
 
         # Initialize a neural network model to be used
         self.model_creator = Model_Creator()
-        mod_creator_functions = {'object_detection': self.model_creator.create_object_detector}
+        mod_creator_functions = {
+            'object_detection': self.model_creator.create_object_detector}
         self.model = mod_creator_functions[config['application']]()
 
         # Initialize an Application object
@@ -117,6 +118,7 @@ class Server:
         self.last_requested_regions = feedback
         self.curr_fid = end_fid
 
+        print(detection_feedback_dic.keys())
         return detection_feedback_dic
 
     def perform_high_query(self, file_data):
@@ -137,6 +139,5 @@ class Server:
         self.perform_server_cleanup()
 
         return {
-            "results": results_list,
-            "req_region": []
+            "inference_results": results_list,
         }

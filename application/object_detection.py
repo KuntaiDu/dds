@@ -175,8 +175,8 @@ class Object_Detection(Application):
                 [r.fid, r.x, r.y, r.w, r.h, r.conf, r.label])
 
         return {
-            "results": detections_list,
-            "req_regions": req_regions_list
+            "inference_results": detections_list,
+            "feedback_regions": req_regions_list
         }
 
     # (Stream B) generate final results with detections only
