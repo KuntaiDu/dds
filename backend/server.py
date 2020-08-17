@@ -10,6 +10,7 @@ from results.regions import (calc_iou, merge_images,
 from models.model_creator import Model_Creator
 from application.application_creator import Application_Creator
 from pathlib import Path
+import json
 
 
 class Server:
@@ -37,7 +38,6 @@ class Server:
 
         self.curr_fid = 0
         self.nframes = nframes
-        self.last_requested_regions = None
         self.first_phase_folder = 'server_temp_dds'
         self.second_phase_folder = 'server_temp_dds-cropped'
 
@@ -46,16 +46,15 @@ class Server:
     def reset_state(self, nframes):
         self.curr_fid = 0
         self.nframes = nframes
-        self.last_requested_regions = None
         self.perform_server_cleanup()
 
     def perform_server_cleanup(self):
         os.system('rm -r -f server_temp*')
 
-    def emulate_high_query(self, vid_name, low_images_direc, req_regions):
+    def emulate_high_query(self, vid_name, low_images_direc, feedback_regions):
         images_direc = vid_name + "-cropped"
         # Extract images from encoded video
-        extract_images_from_video(images_direc, req_regions)
+        extract_images_from_video(images_direc, feedback_regions)
 
         if not os.path.isdir(images_direc):
             self.logger.error("Images directory was not found but the "
@@ -71,7 +70,7 @@ class Server:
             shutil.copy(os.path.join(images_direc, img), merged_images_direc)
 
         merged_images = merge_images(
-            merged_images_direc, low_images_direc, req_regions)
+            merged_images_direc, low_images_direc, feedback_regions)
 
         # (modified) run inference
         inference_results = self.app.run_inference(
@@ -79,23 +78,16 @@ class Server:
                         self.config.high_resolution, fnames, merged_images)
         results = inference_results["results"]
 
-        # generate results_with_detections_only
-        results_with_detections_only = self.app.generate_results_with_detections_only(results)
-
-        # generate results just from the high query
-        high_only_results = self.app.generate_high_only_results(
-                                results_with_detections_only, req_regions)
-
         shutil.rmtree(merged_images_direc)
 
-        return results_with_detections_only
+        return results
 
     def extract_video_to_folder(self, folder, start_fid, end_fid):
-        req_regions = Regions()
+        feedback_regions = Regions()
         for fid in range(start_fid, end_fid):
-            req_regions.append(
+            feedback_regions.append(
                 Region(fid, 0, 0, 1, 1, 1.0, 2, self.config.low_resolution))
-        extract_images_from_video(folder, req_regions)
+        extract_images_from_video(folder, feedback_regions)
 
     def run_inference(self, start_fid, end_fid, video_data):
         # Write in-memory video to file
@@ -113,10 +105,10 @@ class Server:
         with open(os.path.join(self.first_phase_folder, "temp.mp4"), "wb") as f:
             f.write(vid_data.read())
 
-        # note: This serves as initialization of req_regions (feedback for client)
+        # note: This serves as initialization of feedback_regions (feedback for client)
         # Extract images
         # Make req regions for extraction
-        # req_regions, fnames = self.app.initialize_req_regions()
+        # feedback_regions, fnames = self.app.initialize_feedback_regions()
         self.logger.info(f"Processing frames from {start_fid} to {end_fid}")
         self.extract_video_to_folder(self.first_phase_folder, start_fid, end_fid)
         fnames = [f for f in os.listdir(self.first_phase_folder) if "png" in f]
@@ -124,28 +116,26 @@ class Server:
         # generate feedback
         detection_feedback_dic, feedback = self.app.run_inference_with_feedback(start_fid, end_fid, self.model, self.first_phase_folder, fnames, self.config)
 
-        self.last_requested_regions = feedback
         self.curr_fid = end_fid
 
         return detection_feedback_dic
 
-    def perform_high_query(self, file_data):
+    def perform_high_query(self, file_data, json_data):
         low_images_direc = self.first_phase_folder
         cropped_images_direc = self.second_phase_folder
         Path(cropped_images_direc).mkdir(exist_ok=True)
         with open(os.path.join(cropped_images_direc, "temp.mp4"), "wb") as f:
             f.write(file_data.read())
 
-        # results here can be Regions(), Classes(), etc.
-        results = self.emulate_high_query(
-            low_images_direc, low_images_direc, self.last_requested_regions)
 
-        # generate final result to send back to client
-        results_list = self.app.generate_final_results(results)
+        # results here can be Regions(), Classes(), etc.
+        images_direc = low_images_direc + "-cropped"
+        results = self.emulate_high_query(
+            low_images_direc, low_images_direc, Regions(json.load(json_data)))
 
         # Perform server side cleanup for the next batch
         self.perform_server_cleanup()
 
         return {
-            "inference_results": results_list,
+            "inference_results": results.toJSON()
         }

@@ -53,6 +53,7 @@ def run_inference():
 @app.route("/perform_high_query", methods=["POST"])
 def high_query():
     file_data = request.files["media"]
-    results = server.perform_high_query(file_data)
+    json_data = request.files["json"]
+    results = server.perform_high_query(file_data, json_data)
 
     return jsonify(results)

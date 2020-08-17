@@ -100,27 +100,27 @@ class Client:
             # Need to add exception handling
             exit()
 
-    def post_video_to_server(self, vid_name, function_name, deserializer, **kwargs):
+    def post_video_to_server(self, vid_name, function_name, deserializer, json_object=None, **kwargs):
+
+        # stream to the server
         encoded_vid_path = os.path.join(
             vid_name, "temp.mp4")
-        video_to_send = {"media": open(encoded_vid_path, "rb")}
+        video_to_send = {"media": open(encoded_vid_path, "rb"), "json": json.dumps(json_object)}
         response = self.session.post(
             "http://" + self.hname + f"/{function_name}", files=video_to_send, params=kwargs)
         response_json = json.loads(response.text)
 
+        # deserialize from json results
         for key in deserializer.keys():
-            results = Regions()
-            for region in response_json[key]:
-                results.append(deserializer[key](region))
-            response_json[key] = results
+            response_json[key] = deserializer[key](response_json[key])
 
         return response_json
 
 
     def get_first_phase_results(self, vid_name, start_fid, end_fid):
 
-        deserializer_results = lambda x: Region.convert_from_server_response(x, self.config.low_resolution, "inference_results")
-        deserializer_feedbacks = lambda x: Region.convert_from_server_response(x, self.config.high_resolution, "feedback_regions")
+        deserializer_results = lambda x: Regions(x)
+        deserializer_feedbacks = lambda x: Regions(x)
 
         deserializer = {
             'inference_results': deserializer_results,
@@ -131,11 +131,11 @@ class Client:
 
         return response_json['inference_results'], response_json['feedback_regions']
 
-    def get_second_phase_results(self, vid_name):
+    def get_second_phase_results(self, vid_name, feedback):
 
-        deserializer = {'inference_results': lambda x: Region.convert_from_server_response(x, self.config.high_resolution, 'high-res')}
+        deserializer = {'inference_results': lambda x: Regions(x)}
 
-        response_json = self.post_video_to_server(vid_name + "-cropped", 'perform_high_query', deserializer)
+        response_json = self.post_video_to_server(vid_name + "-cropped", 'perform_high_query', deserializer, feedback.toJSON())
 
         return response_json['inference_results']
 
@@ -189,7 +189,7 @@ class Client:
                 logger.info(f"{batch_video_size // 1024}KB sent in second "
                                  f"phase. Using QP {self.config.high_qp} and "
                                  f"resolution {self.config.high_resolution}.")
-                results = self.get_second_phase_results(vid_name)
+                results = self.get_second_phase_results(vid_name, feedback_regions)
                 final_results.combine_results(
                     results, self.config.intersection_threshold)
 

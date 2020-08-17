@@ -11,17 +11,26 @@ from .results import Results
 
 
 class Region:
-    def __init__(self, fid, x, y, w, h, conf, label, resolution,
-                 origin="generic"):
-        self.fid = int(fid)
-        self.x = float(x)
-        self.y = float(y)
-        self.w = float(w)
-        self.h = float(h)
-        self.conf = float(conf)
-        self.label = label
-        self.resolution = float(resolution)
-        self.origin = origin
+    def __init__(self, *args):
+        if len(args) == 1:
+            # construct the class from JSON
+            json_rep = args[0]
+            for attr in json_rep:
+                setattr(self, attr, json_rep[attr])
+        else:
+            self.fid = int(args[0])
+            self.x = float(args[1])
+            self.y = float(args[2])
+            self.w = float(args[3])
+            self.h = float(args[4])
+            self.conf = float(args[5])
+            self.label = args[6]
+            self.resolution = args[7]
+            try:
+                self.origin = args[8]
+            except IndexError:
+                self.origin = 'generic'
+
 
     @staticmethod
     def convert_from_server_response(r, res, phase):
@@ -33,12 +42,24 @@ class Region:
                       f"{self.label}, {self.origin}")
         return string_rep
 
+    def toJSON(self):
+        return {
+            'fid': self.fid,
+            'x': self.x,
+            'y': self.y,
+            'w': self.w,
+            'h': self.h,
+            'conf': self.conf,
+            'label': self.label,
+            'resolution': self.resolution,
+            'origin': self.origin
+        }
+
     def is_same(self, region_to_check, threshold=0.5):
         # If the fids or labels are different
         # then not the same
         if (self.fid != region_to_check.fid or
-                ((self.label != "-1" and region_to_check.label != "-1") and
-                 (self.label != region_to_check.label))):
+                ((self.label != region_to_check.label))):
             return False
 
         # If the intersection to union area
@@ -65,12 +86,35 @@ class Region:
 
 
 class Regions(Results):
-    def __init__(self):
+    def __init__(self, json_rep = None):
         self.regions = []
         self.regions_dict = {}
 
+        if json_rep is not None:
+            # construct the class from json representation
+            json_rep = sorted(json_rep, key = lambda region: region['fid'])
+            for region_rep in json_rep:
+                region = Region(region_rep)
+                self.regions.append(region)
+                if region.fid not in self.regions_dict:
+                    self.regions_dict[region.fid] = [region]
+                else:
+                    self.regions_dict[region.fid].append(region)
+
     def __len__(self):
         return len(self.regions)
+
+    def __str__(self):
+        ret = ''
+        for fid in regions_dict:
+            ret += f'Proposed {len(regions_dict[fid])} regions for frame {fid}\n'
+        return ret
+
+    def toJSON(self):
+        # The json format here aligns with pandas.DataFrame
+        return [region.toJSON() for region in self.regions]
+
+        
 
     def results_high_len(self, threshold):
         count = 0

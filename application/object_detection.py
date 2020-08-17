@@ -51,12 +51,12 @@ class Object_Detection(Application):
                 if w * h == 0.0:
                     continue
                 r = Region(fid, x, y, w, h, conf, label,
-                        resolution, origin="mpeg")
+                        resolution, "mpeg")
                 final_results.append(r)
                 frame_with_no_results = False
             for label, conf, (x, y, w, h) in rpn_results:
                 r = Region(fid, x, y, w, h, conf, label,
-                        resolution, origin="generic")
+                        resolution, "generic")
                 rpn_regions.append(r)
                 frame_with_no_results = False
 
@@ -85,7 +85,10 @@ class Object_Detection(Application):
         # get feedback regions
         detection, feedback = self.generate_feedback(start_fid, end_fid, images_direc, merged_results.regions_dict, False, config.rpn_enlarge_ratio, False)
 
-        return self.combine_feedback(detection, feedback), feedback
+        return {
+            "inference_results": detection.toJSON(),
+            "feedback_regions": feedback.toJSON()
+        }, feedback
 
 
 
@@ -161,23 +164,7 @@ class Object_Detection(Application):
             req_regions.add_single_result(
                 region, self.config.intersection_threshold)
         return req_regions
-    
-    # (Stream A) combine detection results and feedback regions in a dictionary
-    # and send the dic back to the client through network
-    def combine_feedback(self, detections, regions_to_query):
-        detections_list = []
-        for r in detections.regions:
-            detections_list.append(
-                [r.fid, r.x, r.y, r.w, r.h, r.conf, r.label])
-        req_regions_list = []
-        for r in regions_to_query.regions:
-            req_regions_list.append(
-                [r.fid, r.x, r.y, r.w, r.h, r.conf, r.label])
-
-        return {
-            "inference_results": detections_list,
-            "feedback_regions": req_regions_list
-        }
+        
 
     # (Stream B) generate final results with detections only
     def generate_results_with_detections_only(self, results):
@@ -190,33 +177,3 @@ class Object_Detection(Application):
                 r, self.config.intersection_threshold)
 
         return results_with_detections_only
-
-    # (Stream B) generate results just from the high query
-    def generate_high_only_results(self, results_with_detections_only, req_regions):
-        high_only_results = self.create_empty_results()
-        area_dict = {}
-
-        for r in results_with_detections_only.regions:
-            frame_regions = req_regions.regions_dict[r.fid]
-            regions_area = 0
-            if r.fid in area_dict:
-                regions_area = area_dict[r.fid]
-            else:
-                regions_area = compute_area_of_frame(frame_regions)
-                area_dict[r.fid] = regions_area
-            regions_with_result = frame_regions + [r]
-            total_area = compute_area_of_frame(regions_with_result)
-            extra_area = total_area - regions_area
-            if extra_area < 0.05 * calc_area(r):
-                r.origin = "high-res"
-                high_only_results.append(r)
-
-        return high_only_results
-
-    # (Stream B) combine final results in a dictionary to send back
-    def generate_final_results(self, results):
-        results_list = []
-        for r in results.regions:
-            results_list.append([r.fid, r.x, r.y, r.w, r.h, r.conf, r.label])
-        
-        return results_list
