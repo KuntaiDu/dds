@@ -91,109 +91,6 @@ class Client:
 
         return final_results, [total_size, 0]
 
-    # def analyze_video_emulate(self, video_name, high_images_path,
-    #                           enforce_iframes, low_results_path=None,
-    #                           debug_mode=False):
-    #     final_results = Regions()
-    #     low_phase_results = Regions()
-    #     high_phase_results = Regions()
-
-    #     number_of_frames = len(
-    #         [x for x in os.listdir(high_images_path) if "png" in x])
-
-    #     low_results_dict = None
-    #     if low_results_path:
-    #         low_results_dict = read_results_dict(low_results_path)
-
-    #     total_size = [0, 0]
-    #     total_regions_count = 0
-    #     for i in range(0, number_of_frames, self.config.batch_size):
-    #         start_fid = i
-    #         end_fid = min(number_of_frames, i + self.config.batch_size)
-    #         self.logger.info(f"Processing batch from {start_fid} to {end_fid}")
-
-    #         # Encode frames in batch and get size
-    #         # Make temporary frames to downsize complete frames
-    #         base_req_regions = Regions()
-    #         for fid in range(start_fid, end_fid):
-    #             base_req_regions.append(
-    #                 Region(fid, 0, 0, 1, 1, 1.0, 2,
-    #                        self.config.high_resolution))
-    #         encoded_batch_video_size, batch_pixel_size = compute_regions_size(
-    #             base_req_regions, f"{video_name}-base-phase", high_images_path,
-    #             self.config.low_resolution, self.config.low_qp,
-    #             enforce_iframes, True)
-    #         self.logger.info(f"Sent {encoded_batch_video_size / 1024} "
-    #                          f"in base phase")
-    #         total_size[0] += encoded_batch_video_size
-
-    #         # Low resolution phase
-    #         low_images_path = f"{video_name}-base-phase-cropped"
-    #         r1, req_regions = self.server.app.generate_feedback(
-    #             start_fid, end_fid, low_images_path, low_results_dict, False,
-    #             self.config.rpn_enlarge_ratio) # previously simulate_low_query
-    #         total_regions_count += len(req_regions)
-
-    #         low_phase_results.combine_results(
-    #             r1, self.config.intersection_threshold)
-    #         final_results.combine_results(
-    #             r1, self.config.intersection_threshold)
-
-    #         # High resolution phase
-    #         if len(req_regions) > 0:
-    #             # Crop, compress and get size
-    #             regions_size, _ = compute_regions_size(
-    #                 req_regions, video_name, high_images_path,
-    #                 self.config.high_resolution, self.config.high_qp,
-    #                 enforce_iframes, True)
-    #             self.logger.info(f"Sent {len(req_regions)} regions which have "
-    #                              f"{regions_size / 1024}KB in second phase "
-    #                              f"using {self.config.high_qp}")
-    #             total_size[1] += regions_size
-
-    #             # High resolution phase every three filter
-    #             r2 = self.server.emulate_high_query(
-    #                 video_name, low_images_path, req_regions)
-    #             self.logger.info(f"Got {len(r2)} results in second phase "
-    #                              f"of batch")
-
-    #             high_phase_results.combine_results(
-    #                 r2, self.config.intersection_threshold)
-    #             final_results.combine_results(
-    #                 r2, self.config.intersection_threshold)
-
-    #         # Cleanup for the next batch
-    #         cleanup(video_name, debug_mode, start_fid, end_fid)
-
-    #     self.logger.info(f"Got {len(low_phase_results)} unique results "
-    #                      f"in base phase")
-    #     self.logger.info(f"Got {len(high_phase_results)} positive "
-    #                      f"identifications out of {total_regions_count} "
-    #                      f"requests in second phase")
-
-    #     # Fill gaps in results
-    #     final_results.fill_gaps(number_of_frames)
-
-    #     # Write results
-    #     final_results.write(f"{video_name}")
-
-    #     '''
-    #     # change to Results()
-        
-    #     '''
-
-    #     self.logger.info(f"Writing results for {video_name}")
-    #     self.logger.info(f"{len(final_results)} objects detected "
-    #                      f"and {total_size[1]} total size "
-    #                      f"of regions sent in high resolution")
-
-    #     rdict = read_results_dict(f"{video_name}")
-    #     final_results = merge_boxes_in_results(rdict, 0.3, 0.3)
-
-    #     final_results.fill_gaps(number_of_frames)
-    #     final_results.write(f"{video_name}")
-    #     return final_results, total_size
-
     def init_server(self, nframes):
         self.config['nframes'] = nframes
         response = self.session.post(
@@ -203,15 +100,17 @@ class Client:
             # Need to add exception handling
             exit()
 
-    def post_video_to_server(self, vid_name, function_name, deserializer):
+    def post_video_to_server(self, vid_name, function_name, deserializer, **kwargs):
         encoded_vid_path = os.path.join(
             vid_name + "-base-phase-cropped", "temp.mp4")
         video_to_send = {"media": open(encoded_vid_path, "rb")}
         response = self.session.post(
-            "http://" + self.hname + f"/{function_name}", files=video_to_send)
+            "http://" + self.hname + f"/{function_name}", files=video_to_send, params=kwargs)
         response_json = json.loads(response.text)
 
         for key in response_json.keys():
+            if 'do_not_deserialize' in key:
+                continue
             results = Regions()
             for region in response_json[key]:
                 results.append(deserializer(region))
@@ -220,11 +119,11 @@ class Client:
         return response_json
 
 
-    def get_first_phase_results(self, vid_name):
+    def get_first_phase_results(self, vid_name, start_fid, end_fid):
 
         deserializer = lambda x: Region.convert_from_server_response(x, self.config.low_resolution, "low_res")
 
-        response_json = self.post_video_to_server(vid_name, 'perform_low_query', deserializer)
+        response_json = self.post_video_to_server(vid_name, 'perform_low_query', deserializer, start_fid = start_fid, end_fid = end_fid)
 
         return response_json['inference_results'], response_json['feedback_regions']
 
@@ -267,7 +166,10 @@ class Client:
             logger.info(f"{batch_video_size // 1024}KB sent in base phase."
                              f" Using QP {self.config.low_qp} and "
                              f"resolution {self.config.low_resolution}.")
-            results, feedback_regions = self.get_first_phase_results(vid_name)
+
+            # stream to the server
+            results, feedback_regions = self.get_first_phase_results(vid_name, start_frame, end_frame)
+
             final_results.combine_results(
                 results, self.config.intersection_threshold)
             all_required_regions.combine_results(

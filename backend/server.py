@@ -9,6 +9,7 @@ from results.regions import (calc_iou, merge_images,
                        compute_area_of_frame, calc_area, read_results_dict)
 from models.model_creator import Model_Creator
 from application.application_creator import Application_Creator
+from pathlib import Path
 
 
 class Server:
@@ -37,6 +38,8 @@ class Server:
         self.curr_fid = 0
         self.nframes = nframes
         self.last_requested_regions = None
+        self.first_phase_folder = 'server_temp_dds'
+        self.second_phase_folder = 'server_temp_dds-cropped'
 
         self.logger.info("Server started")
 
@@ -44,16 +47,10 @@ class Server:
         self.curr_fid = 0
         self.nframes = nframes
         self.last_requested_regions = None
-        for f in os.listdir("server_temp"):
-            os.remove(os.path.join("server_temp", f))
-        for f in os.listdir("server_temp-cropped"):
-            os.remove(os.path.join("server_temp-cropped", f))
+        self.perform_server_cleanup()
 
     def perform_server_cleanup(self):
-        for f in os.listdir("server_temp"):
-            os.remove(os.path.join("server_temp", f))
-        for f in os.listdir("server_temp-cropped"):
-            os.remove(os.path.join("server_temp-cropped", f))
+        os.system('rm -r -f server_temp*')
 
     def emulate_high_query(self, vid_name, low_images_direc, req_regions):
         images_direc = vid_name + "-cropped"
@@ -93,38 +90,49 @@ class Server:
 
         return results_with_detections_only
 
-    def perform_low_query(self, vid_data):
+    def extract_video_to_folder(self, folder, start_fid, end_fid):
+        req_regions = Regions()
+        for fid in range(start_fid, end_fid):
+            req_regions.append(
+                Region(fid, 0, 0, 1, 1, 1.0, 2, self.config.low_resolution))
+        extract_images_from_video(folder, req_regions)
+
+    def run_inference(self, start_fid, end_fid, video_data):
+        # Write in-memory video to file
+        video_folder = Path('server_temp_inference')
+        video_folder.mkdir(exist_ok = True)
+        with open(video_folder / 'temp.mp4', 'wb') as f:
+            f.write(video_data.read())
+
+        self.logger.info(f"Processing frames from {start_fid} to {end_fid}")
+        self.extract_video_to_folder(str(video_folder), 0, self.config.batch_size)
+        
+    def perform_low_query(self, start_fid, end_fid, vid_data):
         # Write video to file
-        with open(os.path.join("server_temp", "temp.mp4"), "wb") as f:
+        Path(self.first_phase_folder).mkdir(exist_ok=True)
+        with open(os.path.join(self.first_phase_folder, "temp.mp4"), "wb") as f:
             f.write(vid_data.read())
 
         # note: This serves as initialization of req_regions (feedback for client)
         # Extract images
         # Make req regions for extraction
         # req_regions, fnames = self.app.initialize_req_regions()
-        start_fid = self.curr_fid
-        end_fid = min(self.curr_fid + self.config.batch_size, self.nframes)
         self.logger.info(f"Processing frames from {start_fid} to {end_fid}")
-        req_regions = Regions()
-        for fid in range(start_fid, end_fid):
-            req_regions.append(
-                Region(fid, 0, 0, 1, 1, 1.0, 2, self.config.low_resolution))
-        extract_images_from_video("server_temp", req_regions)
-        fnames = [f for f in os.listdir("server_temp") if "png" in f]
+        self.extract_video_to_folder(self.first_phase_folder, start_fid, end_fid)
+        fnames = [f for f in os.listdir(self.first_phase_folder) if "png" in f]
 
         # generate feedback
-        detection_feedback_dic, feedback = self.app.run_inference_with_feedback(start_fid, end_fid, self.model, "server_temp", fnames, self.config)
+        detection_feedback_dic, feedback = self.app.run_inference_with_feedback(start_fid, end_fid, self.model, self.first_phase_folder, fnames, self.config)
 
         self.last_requested_regions = feedback
         self.curr_fid = end_fid
 
-        print(detection_feedback_dic.keys())
         return detection_feedback_dic
 
     def perform_high_query(self, file_data):
-        low_images_direc = "server_temp"
-        cropped_images_direc = "server_temp-cropped"
-
+        low_images_direc = self.first_phase_folder
+        cropped_images_direc = self.second_phase_folder
+        Path(cropped_images_direc).mkdir(exist_ok=True)
         with open(os.path.join(cropped_images_direc, "temp.mp4"), "wb") as f:
             f.write(file_data.read())
 

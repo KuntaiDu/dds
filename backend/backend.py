@@ -28,8 +28,6 @@ def initialize_server():
             format="%(name)s -- %(levelname)s -- %(lineno)s -- %(message)s",
             level="INFO")
         server = Server(args, args["nframes"])
-        os.makedirs("server_temp", exist_ok=True)
-        os.makedirs("server_temp-cropped", exist_ok=True)
         return "New Init"
     else:
         server.reset_state(int(args["nframes"]))
@@ -39,10 +37,18 @@ def initialize_server():
 @app.route("/perform_low_query", methods=["POST"])
 def low_query():
     file_data = request.files["media"]
-    results = server.perform_low_query(file_data)
+    start_fid = int(request.args['start_fid'])
+    end_fid = int(request.args['end_fid'])
+    results = server.perform_low_query(start_fid, end_fid, file_data)
 
     return jsonify(results)
 
+@app.route("/run_inference", methods=["POST"])
+def run_inference():
+    file_data = request.files["media"]
+    results = server.run_inference(file_data)
+
+    return jsonify(results)
 
 @app.route("/perform_high_query", methods=["POST"])
 def high_query():
