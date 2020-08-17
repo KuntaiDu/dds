@@ -28,8 +28,10 @@ class Object_Detection(Application):
             fnames = sorted(os.listdir(images_direc))
         # self.logger.info(f"Running inference on {len(fnames)} frames")
         for fname in fnames:
+
             if "png" not in fname:
                 continue
+
             fid = int(fname.split(".")[0])
             image = None
             if images:
@@ -39,12 +41,14 @@ class Object_Detection(Application):
                 image = cv.imread(image_path)
             image = cv.cvtColor(image, cv.COLOR_BGR2RGB)
 
+            # perform inference
             detection_results, rpn_results = (
                 detector.infer(image))
+
+            # filter those strange objects
             frame_with_no_results = True
             for label, conf, (x, y, w, h) in detection_results:
-                if (self.config.min_object_size and
-                        w * h < self.config.min_object_size) or w * h == 0.0:
+                if w * h == 0.0:
                     continue
                 r = Region(fid, x, y, w, h, conf, label,
                         resolution, origin="mpeg")
@@ -55,9 +59,6 @@ class Object_Detection(Application):
                         resolution, origin="generic")
                 rpn_regions.append(r)
                 frame_with_no_results = False
-            #self.logger.debug(
-            #    f"Got {len(final_results)} results "
-            #    f"and {len(rpn_regions)} for {fname}")
 
             if frame_with_no_results:
                 final_results.append(
@@ -66,8 +67,27 @@ class Object_Detection(Application):
         # return final_results, rpn_regions
         return {
             "results": final_results,
-            "rpn_regions": rpn_regions
+            "feedback_regions": rpn_regions
         }
+
+    # run inference and generate feedback regions
+    def run_inference_with_feedback(self, start_fid, end_fid, detector, images_direc, fnames, config):
+        
+        # run object detection
+        results = self.run_inference(detector, images_direc, config.low_resolution, fnames)
+
+        # merge several results
+        merged_results = self.create_empty_results()
+        merged_results.combine_results(results['results'], config.intersection_threshold)
+        merged_results = merge_boxes_in_results(merged_results.regions_dict, 0.3, 0.3)
+        merged_results.combine_results(results['feedback_regions'], config.intersection_threshold)
+
+        # get feedback regions
+        detection, feedback = self.generate_feedback(start_fid, end_fid, images_direc, merged_results.regions_dict, False, config.rpn_enlarge_ratio, False)
+
+        return self.combine_feedback(detection, feedback), feedback
+
+
 
     # (Stream A) drive function for generating feedback
     def generate_feedback(self, start_fid, end_fid, images_direc,

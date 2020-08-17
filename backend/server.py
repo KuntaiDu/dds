@@ -111,46 +111,13 @@ class Server:
         extract_images_from_video("server_temp", req_regions)
         fnames = [f for f in os.listdir("server_temp") if "png" in f]
 
-        # results for current batch of images
-        # WARNING: there might be some issue here!
-        batch_results = self.app.create_empty_results() 
+        # generate feedback
+        detection_feedback_dic, feedback = self.app.run_inference_with_feedback(start_fid, end_fid, self.model, "server_temp", fnames, self.config)
 
-        # run inference
-        inference_results = self.app.run_inference(self.model, "server_temp",
-                                            self.config.low_resolution, fnames)
-        results = inference_results["results"]
-
-        # combine these results to final_results
-        batch_results.combine_results(results, self.config.intersection_threshold)
-
-        # note: in fact using ifs here is not the optimal design
-        #       but currently I have no better idea
-        #       since merging bounding boxes is specific to object detection
-        if self.app.type_app == 'object_detection': # object_detection
-            # need to merge this because all previous experiments assumed
-            # that low (mpeg) results are already merged
-            rpn_regions = inference_results["rpn_regions"]
-            batch_results = merge_boxes_in_results(
-                batch_results.regions_dict, 0.3, 0.3)
-            # combine results in rpn regions
-            batch_results.combine_results(rpn_regions, self.config.intersection_threshold)
-
-        # let Application object generate feedback (detections results and feedback regions)
-        # ideally, generate_feedback should replace simulate_low_query
-        # detections here is an object of a child class of Results, determined by Application
-        # e.g. for object detection, detections is Regions()
-        # note that we originally used simulate_low_query for this part
-        detections, regions_to_query = self.app.generate_feedback(
-            start_fid, end_fid, "server_temp", batch_results.regions_dict,
-            False, self.config.rpn_enlarge_ratio, False)
-
-        self.last_requested_regions = regions_to_query
+        self.last_requested_regions = feedback
         self.curr_fid = end_fid
 
-        # Make dictionary to be sent back
-        feedback_dic = self.app.combine_feedback(detections, regions_to_query)
-        
-        return feedback_dic # this contains detection results and feedback regions
+        return detection_feedback_dic
 
     def perform_high_query(self, file_data):
         low_images_direc = "server_temp"

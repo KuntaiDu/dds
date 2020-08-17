@@ -197,7 +197,7 @@ class Client:
     def init_server(self, nframes):
         self.config['nframes'] = nframes
         response = self.session.post(
-            "http://" + self.hname + "/init", data=yaml.dump(self.config))
+            "http://" + self.hname + "/initialize_server", data=yaml.dump(self.config))
         if response.status_code != 200:
             self.logger.fatal("Could not initialize server")
             # Need to add exception handling
@@ -208,7 +208,7 @@ class Client:
             vid_name + "-base-phase-cropped", "temp.mp4")
         video_to_send = {"media": open(encoded_vid_path, "rb")}
         response = self.session.post(
-            "http://" + self.hname + "/low", files=video_to_send)
+            "http://" + self.hname + "/perform_low_query", files=video_to_send)
         response_json = json.loads(response.text)
 
         results = Regions()
@@ -226,7 +226,7 @@ class Client:
         encoded_vid_path = os.path.join(vid_name + "-cropped", "temp.mp4")
         video_to_send = {"media": open(encoded_vid_path, "rb")}
         response = self.session.post(
-            "http://" + self.hname + "/high", files=video_to_send)
+            "http://" + self.hname + "/perform_high_query", files=video_to_send)
         response_json = json.loads(response.text)
 
         results = Regions()

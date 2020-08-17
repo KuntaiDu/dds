@@ -19,7 +19,7 @@ def index():
     return "Much to do!"
 
 
-@app.route("/init", methods=["POST"])
+@app.route("/initialize_server", methods=["POST"])
 def initialize_server():
     args = yaml.load(request.data, Loader=yaml.SafeLoader)
     global server
@@ -36,7 +36,7 @@ def initialize_server():
         return "Reset"
 
 
-@app.route("/low", methods=["POST"])
+@app.route("/perform_low_query", methods=["POST"])
 def low_query():
     file_data = request.files["media"]
     results = server.perform_low_query(file_data)
@@ -44,7 +44,7 @@ def low_query():
     return jsonify(results)
 
 
-@app.route("/high", methods=["POST"])
+@app.route("/perform_high_query", methods=["POST"])
 def high_query():
     file_data = request.files["media"]
     results = server.perform_high_query(file_data)

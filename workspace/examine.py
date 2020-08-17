@@ -4,6 +4,7 @@ import sys
 import os
 import yaml
 
+sys.path.append('../')
 
 video_name = sys.argv[1]
 results_direc = sys.argv[2]
