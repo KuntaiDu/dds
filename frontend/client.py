@@ -102,18 +102,16 @@ class Client:
 
     def post_video_to_server(self, vid_name, function_name, deserializer, **kwargs):
         encoded_vid_path = os.path.join(
-            vid_name + "-base-phase-cropped", "temp.mp4")
+            vid_name, "temp.mp4")
         video_to_send = {"media": open(encoded_vid_path, "rb")}
         response = self.session.post(
             "http://" + self.hname + f"/{function_name}", files=video_to_send, params=kwargs)
         response_json = json.loads(response.text)
 
-        for key in response_json.keys():
-            if 'do_not_deserialize' in key:
-                continue
+        for key in deserializer.keys():
             results = Regions()
             for region in response_json[key]:
-                results.append(deserializer(region))
+                results.append(deserializer[key](region))
             response_json[key] = results
 
         return response_json
@@ -121,17 +119,23 @@ class Client:
 
     def get_first_phase_results(self, vid_name, start_fid, end_fid):
 
-        deserializer = lambda x: Region.convert_from_server_response(x, self.config.low_resolution, "low_res")
+        deserializer_results = lambda x: Region.convert_from_server_response(x, self.config.low_resolution, "inference_results")
+        deserializer_feedbacks = lambda x: Region.convert_from_server_response(x, self.config.high_resolution, "feedback_regions")
 
-        response_json = self.post_video_to_server(vid_name, 'perform_low_query', deserializer, start_fid = start_fid, end_fid = end_fid)
+        deserializer = {
+            'inference_results': deserializer_results,
+            'feedback_regions': deserializer_feedbacks
+        }
+
+        response_json = self.post_video_to_server(vid_name + "-base-phase-cropped", 'perform_low_query', deserializer, start_fid = start_fid, end_fid = end_fid)
 
         return response_json['inference_results'], response_json['feedback_regions']
 
     def get_second_phase_results(self, vid_name):
 
-        deserializer = lambda x: Region.convert_from_server_response(x, self.config.high_resolution, 'high-res')
+        deserializer = {'inference_results': lambda x: Region.convert_from_server_response(x, self.config.high_resolution, 'high-res')}
 
-        response_json = self.post_video_to_server(vid_name, 'perform_high_query', deserializer)
+        response_json = self.post_video_to_server(vid_name + "-cropped", 'perform_high_query', deserializer)
 
         return response_json['inference_results']
 
