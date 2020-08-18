@@ -170,15 +170,3 @@ class Object_Detection(Application):
                 region, self.server.config.intersection_threshold)
         return req_regions
         
-
-    # (Stream B) generate final results with detections only
-    def generate_results_with_detections_only(self, results):
-        results_with_detections_only = self.create_empty_results()
-
-        for r in results.regions:
-            if r.label == "no obj":
-                continue
-            results_with_detections_only.add_single_result(
-                r, self.server.config.intersection_threshold)
-
-        return results_with_detections_only
