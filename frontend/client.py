@@ -7,6 +7,7 @@ from results.regions import (Regions, Region)
 from results.regions import (read_results_dict, cleanup,
                        compute_regions_size, extract_images_from_video,
                        merge_boxes_in_results)
+from application.application_creator import Application_Creator
 import yaml
 
 class Client:
@@ -22,6 +23,9 @@ class Client:
         else:
             self.server = server_handle
         self.config = config
+
+        # Initialize an Application object
+        self.app = Application_Creator()(self)
 
         self.logger = logging.getLogger("client")
         handler = logging.NullHandler()
@@ -78,7 +82,7 @@ class Client:
 
     def analyze_video(
             self, vid_name, raw_images, config, enforce_iframes):
-        final_results = Regions()
+        final_results = self.app.create_empty_results()
         all_required_regions = Regions()
         low_phase_size = 0
         high_phase_size = 0
@@ -149,7 +153,7 @@ class Client:
         number_of_frames = len(
             [f for f in os.listdir(raw_images_path) if ".png" in f])
 
-        final_results = Regions()
+        final_results = self.app.create_empty_results()
         final_feedback_regions = Regions()
         total_size = 0
         for i in range(0, number_of_frames, self.config.batch_size):
