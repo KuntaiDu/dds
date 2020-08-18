@@ -33,7 +33,7 @@ class Client:
 
         self.logger.info(f"Client initialized")
 
-    def init_server(self, nframes):
+    def init_server(self):
         response = self.session.post(
             "http://" + self.hname + "/initialize_server", data=yaml.dump(self.config))
         if response.status_code != 200:
@@ -89,7 +89,7 @@ class Client:
         nframes = sum(map(lambda e: "png" in e, os.listdir(raw_images)))
 
         # initialize server
-        self.init_server(nframes)
+        self.init_server()
 
         for i in range(0, nframes, self.config.batch_size):
             start_frame = i
@@ -149,19 +149,18 @@ class Client:
         return final_results, (low_phase_size, high_phase_size)
 
         
-    def analyze_video_mpeg(self, video_name, raw_images_path, enforce_iframes):
+    def analyze_video_mpeg(self, video_name, raw_images_path, enforce_iframes):        
         number_of_frames = len(
             [f for f in os.listdir(raw_images_path) if ".png" in f])
-
         final_results = self.app.create_empty_results()
-        final_feedback_regions = Regions()
         total_size = 0
+
+        # initialize server
+        self.init_server()
+
         for i in range(0, number_of_frames, self.config.batch_size):
             start_frame = i
             end_frame = min(number_of_frames, i + self.config.batch_size)
-
-            batch_fnames = sorted([f"{str(idx).zfill(10)}.png"
-                                   for idx in range(start_frame, end_frame)])
 
             req_regions = Regions()
             for fid in range(start_frame, end_frame):
@@ -172,16 +171,9 @@ class Client:
                 req_regions, f"{video_name}-base-phase", raw_images_path,
                 self.config.low_resolution, self.config.low_qp,
                 enforce_iframes, True)
-            self.logger.info(f"{batch_video_size / 1024}KB sent "
+            self.logger.info(f"{batch_video_size // 1024}KB sent "
                         f"in base phase using {self.config.low_qp}QP")
-            extract_images_from_video(f"{video_name}-base-phase-cropped",
-                                      req_regions)
-            results_dict = (
-                self.server.app.run_inference( 
-                    self.server.model,
-                    f"{video_name}-base-phase-cropped",
-                    self.config.low_resolution, batch_fnames)) # perviously perform_detection
-            results = results_dict["results"]
+            results, feedback_regions = self.get_first_phase_results(video_name, start_frame, end_frame)
 
             self.logger.info(f"Processed batch {start_frame} to {end_frame} with a "
                         f"total video size of {batch_video_size / 1024}KB")

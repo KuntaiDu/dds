@@ -89,6 +89,7 @@ class Object_Detection(Application):
         # get feedback regions
         detection, feedback = self.generate_feedback(start_fid, end_fid, images_direc, merged_results.regions_dict, False, config.rpn_enlarge_ratio, False)
 
+
         return {
             "inference_results": detection.toJSON(),
             "feedback_regions": feedback.toJSON()
@@ -109,7 +110,7 @@ class Object_Detection(Application):
             for fid in range(start_fid, end_fid):
                 base_req_regions.append(
                     Region(fid, 0, 0, 1, 1, 1.0, 2,
-                        self.server.config.high_resolution))
+                        self.server.config.low_resolution))
             extract_images_from_video(images_direc, base_req_regions)
         
         batch_results = Regions()
@@ -126,13 +127,13 @@ class Object_Detection(Application):
         rpn_regions = Regions()
         # Divide RPN results into detections and RPN regions
         for single_result in batch_results.regions:
-            if (single_result.conf > self.server.config.prune_score and
-                    single_result.label == "vehicle"):
+            if single_result.label == "vehicle":
+                # these are detection results
                 detections.add_single_result(
                     single_result, self.server.config.intersection_threshold)
-            else:
-                rpn_regions.add_single_result(
-                    single_result, self.server.config.intersection_threshold)
+        
+            rpn_regions.add_single_result(
+                single_result, self.server.config.intersection_threshold)
 
         regions_to_query = self.get_regions_to_query(rpn_regions, detections)
 

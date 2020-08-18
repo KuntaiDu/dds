@@ -45,7 +45,8 @@ default:
   debug_mode: False
   # The path to the ground truth. Will be automatically set in entrance.py
   ground_truth: False
-  mode: emulation
+  mode: implementation
+  hname: 127.0.0.1:5001
   application: object_detection
 #
 # Specify each instance here

@@ -11,12 +11,12 @@ import sys
 from munch import *
 import yaml
 
-def main(args):
-    logging.basicConfig(
-        format="%(name)s -- %(levelname)s -- %(lineno)s -- %(message)s",
-        level=args.verbosity.upper())
+import coloredlogs
 
-    logger = logging.getLogger("dds")
+def main(args):
+    coloredlogs.install(fmt="%(asctime)s [%(levelname)s] %(name)s:%(funcName)s[%(lineno)s] -- %(message)s", level=args.verbosity.upper())
+
+    logger = logging.getLogger("platform")
     logger.addHandler(logging.NullHandler())
 
     # Make simulation objects
@@ -51,17 +51,16 @@ def main(args):
         results, bw = client.analyze_video_emulate(
             args.video_name, args.high_images_path,
             args.enforce_iframes, args.low_results_path, args.debug_mode)
-    elif not args.simulate and not args.hname:
+    elif not args.simulate and args.hname and args.method in ['mpeg', 'gt']:
         mode = "mpeg"
         logger.warning(f"Running in MPEG mode with resolution "
                        f"{args.low_resolution} on {args.video_name}")
-        server = Server(config)
 
         logger.info("Starting client")
         client = Client(args.hname, config, server)
         results, bw = client.analyze_video_mpeg(
             args.video_name, args.high_images_path, args.enforce_iframes)
-    elif not args.simulate and args.hname:
+    elif not args.simulate and args.hname and args.method == 'dds':
         mode = "implementation"
         logger.warning(
             f"Running DDS using a server client implementation with "
@@ -79,6 +78,7 @@ def main(args):
     stats = (0, 0, 0)
     number_of_frames = len(
         [x for x in os.listdir(args.high_images_path) if "png" in x])
+    # Write evaluation results to file
     if args.ground_truth:
         ground_truth_dict = read_results_dict(args.ground_truth)
         logger.info("Reading ground truth results complete")
