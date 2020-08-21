@@ -12,28 +12,21 @@ import seaborn as sns; sns.set()
 import glob
 import os
 import logging
-import threading
-from .segmenter_rpn import RPN
 import cv2
 import numpy as np
-matplotlib.use('Agg')
+
+from .application import Application
 
 import shutil
 import yaml
 
-class Segmenter(object):
+class Segmenter(Application):
 
     def __init__(self):
 
         self.logger = logging.getLogger("semantic_segmentation")
         handler = logging.NullHandler()
         self.logger.addHandler(handler)
-
-        self.logger.info("loading fcn_resnet101...")
-        self.model = fcn_resnet101(pretrained=True)
-        self.logger.info("fcn_resnet101 loaded")
-
-        self.model.eval().cuda()
 
         # image normalization
         self.im2tensor = T.Compose([
@@ -52,31 +45,84 @@ class Segmenter(object):
             images = torch.cat([self.im2tensor(i)[None,:,:,:].cuda() for i in images], dim=0)
         return images
 
-    def infer(self, images, video_name, fid, requires_grad = False, requires_features = False, requires_full = False):
+    def run_inference(self, model, images_direc, resolution, fnames=None, images=None, require_full = False, config = None):
 
-        x = self.transform(images)
+        if fnames is None:
+            fnames = sorted(ost.listdir(images_direc))
 
-        self.features = []
-        self.requires_features = requires_features
+        if model == None:
+            if not hasattr(self, 'model'):
+                self.logger.warning("Segmentation model not found, use pytorch official model fcn_resnet101 instead.")
+                self.model = fcn_resnet101(pretrained=True)
+                self.logger.info("fcn_resnet101 loaded")
+            model = self.model 
 
-        with torch.no_grad():
+        self.model.eval().cuda()
 
-            output = self.model(x)['out']
-            output = output[:, [0] + dds_env['class_ids'], :, :]
-            ret = None
-            if requires_full:
-                ret = output
-            else:
-                output = torch.argmax(output, 1)
-                ret = output.byte()
+        self.logger.info(f"Running semantic segmentation on {len(fnames)} frames")
 
-            print(time.time() - st)
-            return ret
+        results = {}
+
+        for fname in fnames:
+
+            if "png" not in fnames:
+                continue
+            
+            fid = int(fname.split(".")[0])
+
+            image = plt.imread(Path(images_direc) / fname)
+            normalized_image = self.transform([image])
+
+            # inference, gradient not needed
+            with torch.no_grad():
+                output = self.model(normalized_image)['out']
+                # filter out classes of interest
+                output = output[:, [0] + config['class_id']]
+                ret = None
+                if requires_full:
+                    # require full inference results, return the probabilities
+                    ret = output
+                else:
+                    # require inference results, return the label of each pixel
+                    output = torch.argmax(output, 1)
+                    # use byte to save space
+                    ret = output.byte().cpu().tolist()
+
+            results[fid] = ret
+
+        return {
+            "results": results[fid]
+        }
 
 
-    def region_proposal(self, image, fid, resolution, k = dds_env['kernel_size'], topk = dds_env['num_sqrt'] * dds_env['num_sqrt']):
+
+    def run_inference_with_feedback(self, start_fid, end_fid, segmenter, images_direc, fnames, config):
+
+        results = self.run_inference(segmenter, images_direc, config.low_resolution, fnames, config=config, require_full=True)['results']
+
+        inference_results = {}
+        feedback_regions = {}
+
+        for key in results.keys():
+            result = results[fid]
+            inference_results[fid] = torch.argmax(result, 1).byte().cpu().tolist()
+            feedback_regions[fid] = self.feedback_region_proposal(fid, result, config)
+
+        return {
+            'inference_results': inference_results,
+            'feedback_regions': feedback_regions
+        }
+            
+
+        
+
+    def feedback_region_proposal(self, fid, pred, config):
+
+        k = config['kernel_size']
+        topk = config['num_sqrt'] * config['num_sqrt']
 
         def unravel_index(index, shape):
+            # To get the coordinate of the maximum element
             out = []
             for dim in reversed(shape):
                 out.append(index % dim)
@@ -84,14 +130,16 @@ class Segmenter(object):
             return tuple(reversed(out))
 
         def area_sum(grad):
+            # get the sum of objectness score of k*k rectangles.
             grad = torch.cumsum(torch.cumsum(grad, axis = 0), axis = 1)
+            # pad with -1 to let the bounding box lie inside the image
             grad_pad = F.pad(grad, (k,k,k,k), value=-1)
             x, y = grad.shape
             grad_sum = grad[:, :] + grad_pad[0: x, 0:y] - grad_pad[k:x+k, 0:y] - grad_pad[0:x, k:y+k]
             return grad_sum
 
-        def generate_regions(grad, results, mask):
-            x, y = grad.shape
+        def generate_regions(objectness, results, mask):
+            x, y = objectness.shape
 
             def get_max(tensor, i, j):
                 return tensor[max(0,i-k+1) : min(i+1,x), max(0,j-k+1):min(j+1,y)].max()
@@ -101,88 +149,56 @@ class Segmenter(object):
 
             cnt = 0
             while cnt < topk:
-                index = unravel_index(torch.argmax(area_sum(grad)), grad.shape)
+                index = unravel_index(torch.argmax(area_sum(objectness)), objectness.shape)
 
-                # index = unravel_index(torch.argmax(grad), grad.shape)
+                # this part is used for segmenting motorcycle.
+                # index = unravel_index(torch.argmax(objectness), objectness.shape)
                 # index = [min(index[0].item() + k // 2, x-1), min(index[1].item() + k // 2, y-1)]
 
                 index = [min(index[0].item() , x-1), min(index[1].item(), y-1)]
 
-                #if get_max(grad, index[0], index[1]) < dds_env['max_threshold']:
-                #    return cnt
-                if area_sum(grad)[index[0], index[1]] / (k*k) < dds_env['max_threshold']:
-                    return cnt
+                region = torch.zeros_like(objectness).byte().cuda()
 
-                region = torch.zeros_like(grad).byte().cuda()
                 region[index[0] - k + 1: index[0], index[1] - k + 1: index[1]] = 1
                 if torch.max(region + mask) == 1:
                     results.append(Region(fid, (index[1] - k + 1) / y, (index[0] - k + 1) / x, k / y, k / x, 1.0, 'pass', resolution))
                     cnt += 1
-                set_zero(grad, index[0], index[1])
+                set_zero(objectness, index[0], index[1])
+
             return cnt
 
-        def clean(x, entropy, mask):
+        def clean(x, objectness, mask):
+            # filter out those objects that are too large
             from skimage import measure
             import numpy as np
             assert isinstance(x, np.ndarray)
-            low, high = dds_env['low_runtime'], dds_env['high_runtime']
+            high = config['high_segmentation']
             # cast to int to prevent overflow
             x = torch.tensor(measure.label(x.astype(int))).cuda()
             nclass = torch.max(x).item()
-            # cleaning
+            # perform the filter
             for i in range(1, nclass + 1):
                 size = torch.sum(x == i) * 1.0 / x.numel()
-                # these areas are large enough. Dont expand it.
                 if size> high:
                     mask[x == i] = 1
-                    entropy[x == i] = 0
-
+                    objectness[x == i] = 0
 
         with torch.no_grad():
 
-            # prediction
-            pred = self.infer(image, None, None, requires_full = True)
-
-            # obtain entropy
-            # import pdb; pdb.set_trace()
+            # softmax to get probability
             prob = F.softmax(pred, 1)
 
-            # import pdb; pdb.set_trace()
-            entropy = 1 - torch.abs(prob[0,0:1, :, :] - prob[0, 1:2, :, :])
-            # entropy = prob[0, 1:2, :, :]
+            # obtain objectness score
+            objectness = 1 - torch.abs(prob[0,0:1, :, :] - prob[0, 1:2, :, :])
 
-            # assert (1 - torch.sum(prob, dim=1)).norm() < 1e-4
-            # entropy = -torch.sum(prob * torch.log(prob), dim = 1)
-            original_entropy = entropy[0,:,:].clone()
-
-
-
-            # get label and do cleaning
-            # label = torch.argmax(pred, 1).cpu().numpy()
+            # obtain mask
             mask = torch.zeros_like(entropy).byte().cuda()
-            # clean(label, entropy, mask)
+            clean(label, objectness, mask)
 
-            entropy = entropy[0, :, :]
-            # entropy[entropy < dds_env['entropy_thresh']] = 0
-            # mask = mask[0, :, :]
+            # obtain 2-D-shaped objectness
+            objectness = objectness[0, :, :].type(torch.DoubleTensor)
 
-            '''
-            # encourage edges
-            pred = self.infer(image)
-            pred = pred[0,:,:]
-            pred[pred != 0] = 1
-            pred = pred.cpu().data.numpy().astype(np.uint8)
-            kernel = np.ones((16, 16), np.uint8)
-            pred = cv2.morphologyEx(pred, cv2.MORPH_CLOSE, kernel)
-            pred = pred - cv2.erode(pred, kernel)
-            pred = torch.from_numpy(pred)
-            grad[pred != 0] += 1
-            '''
+            regions = []
+            num_regions = generate_regions(objectness, regions, mask)
 
-            grad = entropy.type(torch.DoubleTensor)
-            grad_ret = grad.clone()
-
-            results = []
-            num_regions = generate_regions(grad, results, mask)
-
-        return results, grad_ret.cpu().numpy(), grad.cpu().numpy(), original_entropy.cpu().numpy(), num_regions
+        return regions
