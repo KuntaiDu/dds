@@ -6,7 +6,8 @@ from results.results import Results
 from models.object_detector import Detector
 from results.regions import (calc_iou, merge_images,
                        extract_images_from_video, merge_boxes_in_results,
-                       compute_area_of_frame, calc_area, read_results_dict)
+                       compute_area_of_frame, calc_area, read_results_dict, 
+                       dict_to_list)
 from .application import Application
 import logging
 
@@ -126,14 +127,15 @@ class Object_Detection(Application):
         detections = Regions()
         rpn_regions = Regions()
         # Divide RPN results into detections and RPN regions
-        for single_result in batch_results.regions:
-            if single_result.label == "vehicle":
-                # these are detection results
-                detections.add_single_result(
-                    single_result, self.server.config.intersection_threshold)
+        for fid in batch_results.regions_dict:
+            for single_result in batch_results.regions_dict[fid]:
+                if single_result.label == "vehicle":
+                    # these are detection results
+                    detections.add_single_result(
+                        single_result, self.server.config.intersection_threshold)
         
-            rpn_regions.add_single_result(
-                single_result, self.server.config.intersection_threshold)
+                rpn_regions.add_single_result(
+                    single_result, self.server.config.intersection_threshold)
 
         regions_to_query = self.get_regions_to_query(rpn_regions, detections)
 
@@ -146,7 +148,9 @@ class Object_Detection(Application):
 
         rpn_regions = regions # change variable name later
         req_regions = Regions()
-        for region in rpn_regions.regions:
+
+        rpn_regions_list = dict_to_list(rpn_regions.regions_dict)
+        for region in rpn_regions_list:
             # Continue if the size of region is too large
             if region.w * region.h > self.server.config.size_obj:
                 continue
@@ -155,7 +159,8 @@ class Object_Detection(Application):
             # skip that region
             if len(detections) > 0:
                 matches = 0
-                for detection in detections.regions:
+                detection_regions_list = dict_to_list(detections.regions_dict)
+                for detection in detection_regions_list:
                     if (calc_iou(detection, region) >
                             self.server.config.objfilter_iou and
                             detection.fid == region.fid and

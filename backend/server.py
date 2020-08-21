@@ -34,6 +34,9 @@ class Server:
         self.first_phase_folder = 'server_temp_dds'
         self.second_phase_folder = 'server_temp_dds-cropped'
 
+        # clean up existing tmp files
+        self.perform_server_cleanup()
+
         self.logger.info("Server started")
 
     def reset_state(self):
@@ -111,7 +114,7 @@ class Server:
         merged_images = merge_images(
             merged_images_direc, low_images_direc, feedback_regions)
 
-        # (modified) run inference
+        # run inference
         inference_results = self.app.run_inference(
                         self.model, merged_images_direc, 
                         self.config.high_resolution, fnames, merged_images)

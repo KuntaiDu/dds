@@ -87,7 +87,6 @@ class Region:
 
 class Regions(Results):
     def __init__(self, json_rep = None):
-        self.regions = []
         self.regions_dict = {}
 
         if json_rep is not None:
@@ -95,32 +94,36 @@ class Regions(Results):
             json_rep = sorted(json_rep, key = lambda region: region['fid'])
             for region_rep in json_rep:
                 region = Region(region_rep)
-                self.regions.append(region)
+                #self.regions.append(region)
                 if region.fid not in self.regions_dict:
                     self.regions_dict[region.fid] = [region]
                 else:
                     self.regions_dict[region.fid].append(region)
 
     def __len__(self):
-        return len(self.regions)
+        length = 0
+        for fid in self.regions_dict:
+            length += len(self.regions_dict[fid])
+        return length
 
     def __str__(self):
         ret = ''
-        for fid in regions_dict:
+        for fid in self.regions_dict:
             ret += f'Proposed {len(regions_dict[fid])} regions for frame {fid}\n'
         return ret
 
     def toJSON(self):
         # The json format here aligns with pandas.DataFrame
-        return [region.toJSON() for region in self.regions]
+        region_list = dict_to_list(self.regions_dict)
+        return [region.toJSON() for region in region_list]
 
-        
-
+    
     def results_high_len(self, threshold):
         count = 0
-        for r in self.regions:
-            if r.conf > threshold:
-                count += 1
+        for fid in self.regions_dict:
+            for region in self.regions_dict[fid]:
+                if results.conf > threshold:
+                    count += 1
         return count
 
     def is_dup(self, result_to_add, threshold=0.5):
@@ -139,8 +142,9 @@ class Regions(Results):
         return max_conf_result
 
     def combine_results(self, additional_results, threshold=0.5):
-        for result_to_add in additional_results.regions:
-            self.add_single_result(result_to_add, threshold)
+        for fid in additional_results.regions_dict:
+            for region in additional_results.regions_dict[fid]:
+                self.add_single_result(region, threshold)
 
     def add_single_result(self, region_to_add, threshold=0.5):
         if threshold == 1:
@@ -150,7 +154,7 @@ class Regions(Results):
         if (not dup_region or
                 ("tracking" in region_to_add.origin and
                  "tracking" in dup_region.origin)):
-            self.regions.append(region_to_add)
+            #self.regions.append(region_to_add)
             if region_to_add.fid not in self.regions_dict:
                 self.regions_dict[region_to_add.fid] = []
             self.regions_dict[region_to_add.fid].append(region_to_add)
@@ -172,69 +176,51 @@ class Regions(Results):
             dup_region.conf = final_object.conf
             dup_region.origin = final_object.origin
 
-    def suppress(self, threshold=0.5):
-        new_regions_list = []
-        while len(self.regions) > 0:
-            max_conf_obj = max(self.regions, key=lambda e: e.conf)
-            new_regions_list.append(max_conf_obj)
-            self.remove(max_conf_obj)
-            objs_to_remove = []
-            for r in self.regions:
-                if r.fid != max_conf_obj.fid:
-                    continue
-                if calc_iou(r, max_conf_obj) > threshold:
-                    objs_to_remove.append(r)
-            for r in objs_to_remove:
-                self.remove(r)
-        new_regions_list.sort(key=lambda e: e.fid)
-        for r in new_regions_list:
-            self.append(r)
-
     def append(self, region_to_add):
-        self.regions.append(region_to_add)
+        #self.regions.append(region_to_add)
         if region_to_add.fid not in self.regions_dict:
             self.regions_dict[region_to_add.fid] = []
         self.regions_dict[region_to_add.fid].append(region_to_add)
 
     def remove(self, region_to_remove):
         self.regions_dict[region_to_remove.fid].remove(region_to_remove)
-        self.regions.remove(region_to_remove)
-        self.regions_dict[region_to_remove.fid].remove(region_to_remove)
 
     def fill_gaps(self, number_of_frames):
-        if len(self.regions) == 0:
+        if len(self.regions_dict.items()) == 0:
             return
         results_to_add = Regions()
-        max_resolution = max([e.resolution for e in self.regions])
-        fids_in_results = [e.fid for e in self.regions]
+        list_regions = dict_to_list(self.regions_dict)
+        max_resolution = max([e.resolution for e in list_regions])
+        fids_in_results = [e.fid for e in list_regions]
         for i in range(number_of_frames):
             if i not in fids_in_results:
-                results_to_add.regions.append(Region(i, 0, 0, 0, 0,
+                results_to_add.regions_dict[i].append(Region(i, 0, 0, 0, 0,
                                                      0.1, "no obj",
                                                      max_resolution))
         self.combine_results(results_to_add)
-        self.regions.sort(key=lambda r: r.fid)
 
     def write_results_txt(self, fname):
         results_file = open(fname, "w")
-        for region in self.regions:
-            # prepare the string to write
-            str_to_write = (f"{region.fid},{region.x},{region.y},"
-                            f"{region.w},{region.h},"
-                            f"{region.label},{region.conf},"
-                            f"{region.resolution},{region.origin}\n")
-            results_file.write(str_to_write)
+        for fid in self.regions_dict:
+            for region in self.regions_dict[fid]:
+                # prepare the string to write
+                str_to_write = (f"{region.fid},{region.x},{region.y},"
+                                f"{region.w},{region.h},"
+                                f"{region.label},{region.conf},"
+                                f"{region.resolution},{region.origin}\n")
+                results_file.write(str_to_write)
         results_file.close()
 
     def write_results_csv(self, fname):
         results_files = open(fname, "w")
         csv_writer = csv.writer(results_files)
-        for region in self.regions:
-            row = [region.fid, region.x, region.y,
-                   region.w, region.h,
-                   region.label, region.conf,
-                   region.resolution, region.origin]
-            csv_writer.writerow(row)
+        for fid in self.regions_dict:
+            for region in self.regions_dict[fid]:
+                row = [region.fid, region.x, region.y,
+                        region.w, region.h,
+                        region.label, region.conf,
+                        region.resolution, region.origin]
+                csv_writer.writerow(row)
         results_files.close()
 
     def write(self, fname):
@@ -243,6 +229,13 @@ class Regions(Results):
         else:
             self.write_results_txt(fname)
 
+
+def dict_to_list(in_dict):
+    res_list = []
+    for fid in in_dict:
+        for region in in_dict[fid]:
+            res_list.append(region)
+    return res_list
 
 def to_graph(l):
     G = networkx.Graph()
@@ -319,7 +312,6 @@ def simple_merge(single_result_frame, index_to_merge):
 
 
 def merge_boxes_in_results(results_dict, min_conf_threshold, iou_threshold):
-    # final_results = Results()
     final_results = Regions()
 
     # Clean dict to remove min_conf_threshold
@@ -498,15 +490,18 @@ def compute_area_of_frame(regions):
 
 
 def compute_area_of_regions(results):
-    if len(results.regions) == 0:
+    # convert regions_dict to a list for further use
+    regions = dict_to_list(results.regions_dict)
+
+    if len(regions) == 0:
         return 0
 
-    min_frame = min([r.fid for r in results.regions])
-    max_frame = max([r.fid for r in results.regions])
+    min_frame = min([r.fid for r in regions])
+    max_frame = max([r.fid for r in regions])
 
     total_area = 0
     for fid in range(min_frame, max_frame + 1):
-        regions_for_frame = [r for r in results.regions if r.fid == fid]
+        regions_for_frame = [r for r in regions if r.fid == fid]
         total_area += compute_area_of_frame(regions_for_frame)
 
     return total_area
@@ -604,7 +599,8 @@ def extract_images_from_video(images_path, req_regions):
     fnames = sorted(
         [os.path.join(images_path, name)
          for name in os.listdir(images_path) if "png" in name])
-    fids = sorted(list(set([r.fid for r in req_regions.regions])))
+    regions_list = dict_to_list(req_regions.regions_dict)
+    fids = sorted(list(set([r.fid for r in regions_list])))
     fids_mapping = zip(fids, fnames)
     for fname in fnames:
         # Rename temporarily
@@ -619,31 +615,32 @@ def crop_images(results, vid_name, images_direc, resolution=None):
     cached_image = None
     cropped_images = {}
 
-    for region in results.regions:
-        if not (cached_image and
-                cached_image[0] == region.fid):
-            image_path = os.path.join(images_direc,
+    for fid in results.regions_dict:
+        for region in results.regions_dict[fid]:
+            if not (cached_image and
+                    cached_image[0] == region.fid):
+                image_path = os.path.join(images_direc,
                                       f"{str(region.fid).zfill(10)}.png")
-            cached_image = (region.fid, cv.imread(image_path))
+                cached_image = (region.fid, cv.imread(image_path))
 
-        # Just move the complete image
-        if region.x == 0 and region.y == 0 and region.w == 1 and region.h == 1:
-            cropped_images[region.fid] = cached_image[1]
-            continue
+            # Just move the complete image
+            if region.x == 0 and region.y == 0 and region.w == 1 and region.h == 1:
+                cropped_images[region.fid] = cached_image[1]
+                continue
 
-        width = cached_image[1].shape[1]
-        height = cached_image[1].shape[0]
-        x0 = int(region.x * width)
-        y0 = int(region.y * height)
-        x1 = int((region.w * width) + x0 - 1)
-        y1 = int((region.h * height) + y0 - 1)
+            width = cached_image[1].shape[1]
+            height = cached_image[1].shape[0]
+            x0 = int(region.x * width)
+            y0 = int(region.y * height)
+            x1 = int((region.w * width) + x0 - 1)
+            y1 = int((region.h * height) + y0 - 1)
 
-        if region.fid not in cropped_images:
-            cropped_images[region.fid] = np.zeros_like(cached_image[1])
+            if region.fid not in cropped_images:
+                cropped_images[region.fid] = np.zeros_like(cached_image[1])
 
-        cropped_image = cropped_images[region.fid]
-        cropped_image[y0:y1, x0:x1, :] = cached_image[1][y0:y1, x0:x1, :]
-        cropped_images[region.fid] = cropped_image
+            cropped_image = cropped_images[region.fid]
+            cropped_image[y0:y1, x0:x1, :] = cached_image[1][y0:y1, x0:x1, :]
+            cropped_images[region.fid] = cropped_image
 
     os.makedirs(vid_name, exist_ok=True)
     frames_count = len(cropped_images)
@@ -679,15 +676,17 @@ def merge_images(cropped_images_direc, low_images_direc, req_regions):
         enlarged_image = cv.resize(low_image, (width, height), fx=0, fy=0,
                                    interpolation=cv.INTER_CUBIC)
         # Put regions in place
-        for r in req_regions.regions:
+        #for fid in req_regions.regions_dict:
+        for r in req_regions.regions_dict[fid]:
             if fid != r.fid:
-                continue
+                continue 
             x0 = int(r.x * width)
             y0 = int(r.y * height)
             x1 = int((r.w * width) + x0 - 1)
             y1 = int((r.h * height) + y0 - 1)
 
             enlarged_image[y0:y1, x0:x1, :] = high_image[y0:y1, x0:x1, :]
+
         cv.imwrite(os.path.join(cropped_images_direc, fname), enlarged_image,
                    [cv.IMWRITE_PNG_COMPRESSION, 0])
         images[fid] = enlarged_image

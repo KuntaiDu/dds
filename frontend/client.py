@@ -119,6 +119,7 @@ class Client:
                 feedback_regions, self.config.intersection_threshold)
 
             # Second Iteration
+            print("length of feedback region is: {}".format(len(feedback_regions)))
             if len(feedback_regions) > 0:
                 batch_video_size, _ = compute_regions_size(
                     feedback_regions, vid_name, raw_images,
