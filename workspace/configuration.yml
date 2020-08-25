@@ -15,7 +15,7 @@ default:
   overwrite: False
   # the video name you want to run
   video_name: trafficcam_1
-  # several configurations
+  # several configurations for object detection
   max_object_size: 0.3
   low_threshold: 0.3
   high_threshold: 0.8
@@ -41,13 +41,18 @@ default:
   prune_score: 1.1
   objfilter_iou: 1.1
   size_obj: 1.1
+  # configuration for semantic segmentation
+  class_id: 7
+  num_sqrt: 3
+  kernel_size: 64
+  high_obj_size_semantic_segmentation: 0.007
   # Turn on debug_mode to show what DDS sends in second iteration.
   debug_mode: False
   # The path to the ground truth. Will be automatically set in entrance.py
   ground_truth: False
   mode: implementation
   hname: 127.0.0.1:5001
-  application: object_detection
+  application: semantic_segmentation
 #
 # Specify each instance here
 # You could overwrite the default configuration for each instance
@@ -66,13 +71,13 @@ instances:
   low_qp:
   - 36
   - 26
-  low_resolution: 0.8
+  low_resolution: 1.0
 - batch_size: 15
   # the configuration for the Stream A (low) and Stream B (high)
   high_qp: 26
-  high_resolution: 0.8
+  high_resolution: 1.0
   low_qp: 36
-  low_resolution: 0.8
+  low_resolution: 1.0
   method: dds
   # Two regions will be treated as the same region if the intersection-over-union (IoU) is larger than this threshold
   objfilter_iou: 0.3

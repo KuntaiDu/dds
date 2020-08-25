@@ -26,6 +26,7 @@ class Client:
 
         # Initialize an Application object
         self.app = Application_Creator()(self)
+        self.deserializer = self.app.get_deserializer()
 
         self.logger = logging.getLogger("client")
         handler = logging.NullHandler()
@@ -60,12 +61,10 @@ class Client:
 
     def get_first_phase_results(self, vid_name, start_fid, end_fid):
 
-        deserializer_results = lambda x: Regions(x)
-        deserializer_feedbacks = lambda x: Regions(x)
 
         deserializer = {
-            'inference_results': deserializer_results,
-            'feedback_regions': deserializer_feedbacks
+            'inference_results': self.deserializer,
+            'feedback_regions': lambda x: Regions(x)
         }
 
         response_json = self.post_video_to_server(vid_name + "-base-phase-cropped", 'perform_low_query', deserializer, start_fid = start_fid, end_fid = end_fid)
@@ -74,7 +73,7 @@ class Client:
 
     def get_second_phase_results(self, vid_name, feedback):
 
-        deserializer = {'inference_results': lambda x: Regions(x)}
+        deserializer = {'inference_results': self.deserializer}
 
         response_json = self.post_video_to_server(vid_name + "-cropped", 'perform_high_query', deserializer, feedback.toJSON())
 
@@ -174,20 +173,18 @@ class Client:
                 enforce_iframes, True)
             self.logger.info(f"{batch_video_size // 1024}KB sent "
                         f"in base phase using {self.config.low_qp}QP")
-            results, feedback_regions = self.get_first_phase_results(video_name, start_frame, end_frame)
+            results, _ = self.get_first_phase_results(video_name, start_frame, end_frame)
 
             self.logger.info(f"Processed batch {start_frame} to {end_frame} with a "
                         f"total video size of {batch_video_size / 1024}KB")
             final_results.combine_results(
-                results, self.config.intersection_threshold)
+                results, self.config)
 
             # Remove encoded video manually
             shutil.rmtree(f"{video_name}-base-phase-cropped")
             total_size += batch_video_size
 
-        final_results = merge_boxes_in_results(
-            final_results.regions_dict, 0.3, 0.3)
-        final_results.fill_gaps(number_of_frames)
+        final_results = self.app.postprocess_results()(final_results, number_of_frames)
 
         final_results.write(video_name)
 

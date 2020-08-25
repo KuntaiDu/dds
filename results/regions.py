@@ -141,10 +141,13 @@ class Regions(Results):
                     max_conf_result = existing_result
         return max_conf_result
 
-    def combine_results(self, additional_results, threshold=0.5):
+    def combine_results(self, additional_results, config=None):
+        default_threshold = 0.5
+        if hasattr(config, 'intersection_threshold'):
+            default_threshold = config.intersection_threshold
         for fid in additional_results.regions_dict:
             for region in additional_results.regions_dict[fid]:
-                self.add_single_result(region, threshold)
+                self.add_single_result(region, default_threshold)
 
     def add_single_result(self, region_to_add, threshold=0.5):
         if threshold == 1:

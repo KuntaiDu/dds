@@ -79,7 +79,7 @@ class Server:
         fnames = [f for f in os.listdir(self.first_phase_folder) if "png" in f]
 
         # generate feedback
-        detection_feedback_dic, feedback = self.app.run_inference_with_feedback(start_fid, end_fid, self.model, self.first_phase_folder, fnames, self.config)
+        detection_feedback_dic = self.app.run_inference_with_feedback(start_fid, end_fid, self.model, self.first_phase_folder, fnames, self.config)
 
 
         return detection_feedback_dic

@@ -6,13 +6,9 @@ import pickle
 class Results:
     def __init__(self):
         self.inference_results = {}
-        
-    @abstractmethod
-    def add_single_result(self, region_to_add, threshold):
-        pass
 
     @abstractmethod
-    def combine_results(self, additional_results, threshold=0.5):
+    def toJSON():
         pass
 
     def load(self, fname):
