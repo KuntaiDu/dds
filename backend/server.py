@@ -117,7 +117,7 @@ class Server:
         # run inference
         inference_results = self.app.run_inference(
                         self.model, merged_images_direc, 
-                        self.config.high_resolution, fnames, merged_images)
+                        self.config.high_resolution, fnames, merged_images, config=self.config)
         results = inference_results["results"]
 
         shutil.rmtree(merged_images_direc)

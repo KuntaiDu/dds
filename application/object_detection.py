@@ -24,6 +24,9 @@ class Object_Detection(Application):
     def create_empty_results(self):
         return Regions()
 
+    def get_deserializer(self):
+        return lambda x: Regions(x)
+
     # run inference (previously known as perform_detection)
     def run_inference(self, detector, images_direc, resolution, fnames=None, images=None):
         final_results = Regions() # results in the form of regions
@@ -31,7 +34,7 @@ class Object_Detection(Application):
 
         if fnames is None:
             fnames = sorted(os.listdir(images_direc))
-        self.logger.info(f"Running inference on {len(fnames)} frames")
+        self.logger.info(f"Running object detection on {len(fnames)} frames")
         for fname in fnames:
 
             if "png" not in fname:
@@ -94,7 +97,7 @@ class Object_Detection(Application):
         return {
             "inference_results": detection.toJSON(),
             "feedback_regions": feedback.toJSON()
-        }, feedback
+        }
 
 
 
@@ -175,3 +178,13 @@ class Object_Detection(Application):
                 region, self.server.config.intersection_threshold)
         return req_regions
         
+    def postprocess_results(self):
+        
+        def helper(self, results, number_of_frames):
+            
+            final_results = merge_boxes_in_results(results.regions_dict, 0.3, 0.3)
+            final_results.fill_gaps(number_of_frames)
+
+            return final_results
+
+        return helper

@@ -28,7 +28,8 @@ class Masks(Results):
 
     def combine_results(self, additional_results, config=None):
         
-        assert isinstance(additional_results, Masks), f'Must combine masks with masks, rather than {type(additional_results)}'
+        if not isinstance(additional_results, Masks):
+            return
 
         self.masks.update(additional_results.masks)
 

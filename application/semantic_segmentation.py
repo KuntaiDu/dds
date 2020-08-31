@@ -4,26 +4,30 @@ from torchvision.models.segmentation import fcn_resnet101
 import torchvision.transforms as T
 import torch.nn.functional as F
 import torch.nn as nn
-from dds_utils import Region, Results
 from pathlib import Path
 import yaml
-import matplotlib.pyplot as plt
-import seaborn as sns; sns.set()
 import glob
 import os
 import logging
-import cv2
 import numpy as np
+import matplotlib.pyplot as plt
+from skimage import measure
 
 from .application import Application
 
 import shutil
 import yaml
 
-class Segmenter(Application):
+from results.regions import (Regions, Region)
+from results.masks import Masks
 
-    def __init__(self):
 
+
+class Semantic_Segmentation(Application):
+
+    def __init__(self, server):
+
+        self.server = server
         self.logger = logging.getLogger("semantic_segmentation")
         handler = logging.NullHandler()
         self.logger.addHandler(handler)
@@ -45,6 +49,12 @@ class Segmenter(Application):
             images = torch.cat([self.im2tensor(i)[None,:,:,:].cuda() for i in images], dim=0)
         return images
 
+    def create_empty_results(self):
+        return Masks()
+
+    def get_deserializer(self):
+        return lambda x: Masks(x)
+
     def run_inference(self, model, images_direc, resolution, fnames=None, images=None, require_full = False, config = None):
 
         if fnames is None:
@@ -65,7 +75,9 @@ class Segmenter(Application):
 
         for fname in fnames:
 
-            if "png" not in fnames:
+            #import pdb; pdb.set_trace()
+
+            if "png" not in fname:
                 continue
             
             fid = int(fname.split(".")[0])
@@ -77,21 +89,24 @@ class Segmenter(Application):
             with torch.no_grad():
                 output = self.model(normalized_image)['out']
                 # filter out classes of interest
-                output = output[:, [0] + config['class_id']]
+                output = output[:, [0] + [config['class_id']]]
                 ret = None
-                if requires_full:
+                if require_full:
                     # require full inference results, return the probabilities
                     ret = output
                 else:
                     # require inference results, return the label of each pixel
                     output = torch.argmax(output, 1)
                     # use byte to save space
-                    ret = output.byte().cpu().tolist()
+                    ret = output.byte().cpu()
 
             results[fid] = ret
 
+        if not require_full:
+            results = Masks(results)
+
         return {
-            "results": results[fid]
+            "results": results
         }
 
 
@@ -100,18 +115,24 @@ class Segmenter(Application):
 
         results = self.run_inference(segmenter, images_direc, config.low_resolution, fnames, config=config, require_full=True)['results']
 
-        inference_results = {}
-        feedback_regions = {}
+        inference_results = Masks()
+        feedback_regions = Regions()
 
-        for key in results.keys():
+        for fid in results.keys():
             result = results[fid]
-            inference_results[fid] = torch.argmax(result, 1).byte().cpu().tolist()
-            feedback_regions[fid] = self.feedback_region_proposal(fid, result, config)
+            inference_results.masks[fid] = torch.argmax(result, 1).byte().cpu()
+            for region in self. feedback_region_proposal(fid, result, config):
+                print(region.toJSON())
+                feedback_regions.append(region)
+            # import pdb; pdb.set_trace()
 
         return {
-            'inference_results': inference_results,
-            'feedback_regions': feedback_regions
+            'inference_results': inference_results.toJSON(),
+            'feedback_regions': feedback_regions.toJSON()
         }
+
+    def postprocess_results(self):
+        return lambda x, y: x
             
 
         
@@ -120,6 +141,10 @@ class Segmenter(Application):
 
         k = config['kernel_size']
         topk = config['num_sqrt'] * config['num_sqrt']
+        resolution = config['low_resolution']
+
+        if fid % 10 == 15:
+            self.logger.info(f'Using kernel size {k} and propose {topk} regions.')
 
         def unravel_index(index, shape):
             # To get the coordinate of the maximum element
@@ -169,10 +194,8 @@ class Segmenter(Application):
 
         def clean(x, objectness, mask):
             # filter out those objects that are too large
-            from skimage import measure
-            import numpy as np
             assert isinstance(x, np.ndarray)
-            high = config['high_segmentation']
+            high = config['high_obj_size_semantic_segmentation']
             # cast to int to prevent overflow
             x = torch.tensor(measure.label(x.astype(int))).cuda()
             nclass = torch.max(x).item()
@@ -191,8 +214,9 @@ class Segmenter(Application):
             # obtain objectness score
             objectness = 1 - torch.abs(prob[0,0:1, :, :] - prob[0, 1:2, :, :])
 
-            # obtain mask
-            mask = torch.zeros_like(entropy).byte().cuda()
+            # clean those large objects
+            label = torch.argmax(pred, 1).cpu().numpy()
+            mask = torch.zeros_like(objectness).byte().cuda()
             clean(label, objectness, mask)
 
             # obtain 2-D-shaped objectness

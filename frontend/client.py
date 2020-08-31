@@ -118,7 +118,7 @@ class Client:
                 feedback_regions, self.config.intersection_threshold)
 
             # Second Iteration
-            print("length of feedback region is: {}".format(len(feedback_regions)))
+            self.logger.info("Contain {} feedback regions".format(len(feedback_regions)))
             if len(feedback_regions) > 0:
                 batch_video_size, _ = compute_regions_size(
                     feedback_regions, vid_name, raw_images,
@@ -135,11 +135,7 @@ class Client:
             # Cleanup for the next batch
             cleanup(vid_name, False, start_frame, end_frame)
 
-        self.logger.info(f"Merging results")
-        final_results = merge_boxes_in_results(
-            final_results.regions_dict, 0.3, 0.3)
-        self.logger.info(f"Writing results for {vid_name}")
-        final_results.fill_gaps(nframes)
+        final_results = self.app.postprocess_results()(final_results, nframes)
 
         final_results.combine_results(
             all_required_regions, self.config.intersection_threshold)

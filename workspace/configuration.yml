@@ -47,7 +47,7 @@ default:
   kernel_size: 64
   high_obj_size_semantic_segmentation: 0.007
   # Turn on debug_mode to show what DDS sends in second iteration.
-  debug_mode: False
+  debug_mode: True
   # The path to the ground truth. Will be automatically set in entrance.py
   ground_truth: False
   mode: implementation
@@ -71,6 +71,8 @@ instances:
   low_qp:
   - 36
   - 26
+  - 34
+  - 32
   low_resolution: 1.0
 - batch_size: 15
   # the configuration for the Stream A (low) and Stream B (high)
