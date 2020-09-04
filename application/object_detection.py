@@ -28,7 +28,7 @@ class Object_Detection(Application):
         return lambda x: Regions(x)
 
     # run inference (previously known as perform_detection)
-    def run_inference(self, detector, images_direc, resolution, fnames=None, images=None):
+    def run_inference(self, detector, images_direc, resolution, fnames=None, images=None, config=None):
         final_results = Regions() # results in the form of regions
         rpn_regions = Regions()
 
@@ -59,7 +59,7 @@ class Object_Detection(Application):
                 if w * h == 0.0:
                     continue
                 r = Region(fid, x, y, w, h, conf, label,
-                        resolution, "mpeg")
+                        resolution, "high-mpeg")
                 final_results.append(r)
                 frame_with_no_results = False
             for label, conf, (x, y, w, h) in rpn_results:
@@ -180,7 +180,7 @@ class Object_Detection(Application):
         
     def postprocess_results(self):
         
-        def helper(self, results, number_of_frames):
+        def helper(results, number_of_frames):
             
             final_results = merge_boxes_in_results(results.regions_dict, 0.3, 0.3)
             final_results.fill_gaps(number_of_frames)

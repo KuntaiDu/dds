@@ -109,7 +109,7 @@ class Regions(Results):
     def __str__(self):
         ret = ''
         for fid in self.regions_dict:
-            ret += f'Proposed {len(regions_dict[fid])} regions for frame {fid}\n'
+            ret += f'Proposed {len(self.regions_dict[fid])} regions for frame {fid}\n'
         return ret
 
     def toJSON(self):
@@ -147,6 +147,8 @@ class Regions(Results):
             default_threshold = config.intersection_threshold
         for fid in additional_results.regions_dict:
             for region in additional_results.regions_dict[fid]:
+                if region is None:
+                    print(f"note: frame {fid} has a None region")
                 self.add_single_result(region, default_threshold)
 
     def add_single_result(self, region_to_add, threshold=0.5):
