@@ -718,6 +718,14 @@ def compute_regions_size(results, vid_name, images_direc, resolution, qp,
         return size
 
 
+def calc_frame_difference(prev_frame, curr_frame, p_threshold=35):
+    if prev_frame is None or curr_frame is None:
+        return None
+    diff_array = np.absolute(prev_frame - curr_frame)
+    diff_pixels_count = len(diff_array[diff_array > p_threshold])
+    return diff_pixels_count
+
+
 def cleanup(vid_name, debug_mode=False, start_id=None, end_id=None):
     if not os.path.isdir(vid_name + "-cropped"):
         return

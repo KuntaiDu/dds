@@ -32,9 +32,6 @@ def execute_single(single_instance):
     # unpacking
     baseline = single_instance['method']
 
-    # to be fixed:
-    # gt and mpeg must be run for dds regardless of whether they are in config
-
     # branching based on baselines
     if baseline == 'gt':
         # unpacking
@@ -110,6 +107,25 @@ def execute_single(single_instance):
             subprocess.run(['python', '../play_video.py',
                                 yaml.dump(single_instance)])
     
+    elif baseline == 'glimpse':
+        # unpacking
+        video_name = single_instance['video_name']
+        glimpse_qp = single_instance['low_qp']
+        glimpse_resolution = single_instance['low_resolution']
+        original_images_dir = os.path.join(data_dir, video_name, 'src')
+
+        # skip if result file already exists
+        result_file_name = f"{video_name}_glimpse_{glimpse_resolution}_{glimpse_qp}"
+        if single_instance['overwrite'] == False and os.path.exists(os.path.join("results", result_file_name)):
+            print(f"Skipping {result_file_name}")
+        else:
+            single_instance['video_name'] = f'results/{result_file_name}'
+            single_instance['high_images_path'] = f'{original_images_dir}'
+            single_instance['outfile'] = 'stats'
+            single_instance['ground_truth'] = f'results/{video_name}_gt'
+
+            subprocess.run(['python', '../play_video.py',
+                            yaml.dump(single_instance)])
 
 def parameter_sweeping(instances, new_instance, keys):
     """recursive function for parameter sweeping

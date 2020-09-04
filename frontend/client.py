@@ -1,12 +1,14 @@
 import logging
 import os
+import cv2 as cv
 import shutil
+import time
 import requests
 import json
 from results.regions import (Regions, Region)
 from results.regions import (read_results_dict, cleanup,
                        compute_regions_size, extract_images_from_video,
-                       merge_boxes_in_results)
+                       merge_boxes_in_results, calc_frame_difference)
 from application.application_creator import Application_Creator
 import yaml
 
@@ -31,6 +33,8 @@ class Client:
         self.logger = logging.getLogger("client")
         handler = logging.NullHandler()
         self.logger.addHandler(handler)
+
+        self.trackers = {}
 
         self.logger.info(f"Client initialized")
 
@@ -185,3 +189,138 @@ class Client:
         final_results.write(video_name)
 
         return final_results, [total_size, 0]
+
+
+    def initialize_trackers(self, results, fid, images_path):
+        self.trackers = {}
+        init_fname = f"{str(fid).zfill(10)}.png"
+        init_frame_path = os.path.join(images_path, init_fname)
+        init_frame = cv.imread(init_frame_path)
+        im_height, im_width, _ = init_frame.shape
+        for idx, r in enumerate(results.regions_dict[fid]):
+            tracker = cv.TrackerKCF_create()
+            self.trackers[f"{fid}_{idx}"] = tracker
+            x = r.x * im_width
+            y = r.y * im_height
+            w = r.w * im_width
+            h = r.h * im_height
+            bbox = (x, y, w, h)
+            tracker.init(init_frame, bbox)
+
+    def is_trigger_frame_glimpse(self, last_sent, curr_frame):
+        if last_sent is None:
+            return True
+        width = last_sent.shape[1]
+        height = last_sent.shape[0]
+        diff = calc_frame_difference(last_sent, curr_frame)
+        print(diff, (width * height) / 2)
+        if diff > (width * height) / 2:
+            return True
+        else:
+            return False
+    
+
+    def track(self, final_results, curr_fid, images_path):
+        tracking_results = self.app.create_empty_results()
+        tracking_success = True
+
+        curr_fname = f"{str(curr_fid).zfill(10)}.png"
+        curr_frame_path = os.path.join(images_path, curr_fname)
+        curr_frame = cv.imread(curr_frame_path)
+
+        to_remove = []
+        im_height, im_width, _ = curr_frame.shape
+        for key, tracker in self.trackers.items():
+            fid, idx = [int(e) for e in key.split("_")]
+            obj = final_results.regions_dict[fid][idx]
+            # Initialize using prev frame
+            t = time.time()
+            status, bbox = tracker.update(curr_frame)
+            tracking_time = time.time() - t
+            if tracking_time > 1.5:
+                to_remove.append(key)
+            tracking_success = tracking_success & status
+            if status:
+                x = bbox[0] / im_width
+                y = bbox[1] / im_height
+                w = bbox[2] / im_width
+                h = bbox[3] / im_height
+                region = Region(curr_fid, x, y, w, h,
+                                obj.conf, obj.label,
+                                obj.resolution, "tracking")
+                tracking_results.append(region)
+            else:
+                to_remove.append(key)
+        for k in to_remove:
+            if k in self.trackers:
+                del self.trackers[k]
+
+        return tracking_results, tracking_success
+    
+
+    # Currently only supports object detection
+    def analyze_video_glimpse(self, video_name, images_path, enforce_iframes,
+                              im_width=640, im_height=480):
+        final_results = self.app.create_empty_results()
+        number_of_frames = len(
+            [e for e in os.listdir(images_path) if "png" in e])
+        last_sent = None
+        tracking_success = True
+        total_sent = 0
+        last_sent_id = None
+
+        # initialize server
+        self.init_server()
+
+        for fid in range(0, number_of_frames):
+            fname = f"{str(fid).zfill(10)}.png"
+            frame_path = os.path.join(images_path, fname)
+            curr_frame = cv.imread(frame_path)
+            curr_gray = cv.cvtColor(curr_frame, cv.COLOR_BGR2GRAY)
+
+            if (self.is_trigger_frame_glimpse(
+                    last_sent, curr_gray) or not tracking_success) and (
+                        not last_sent_id or (fid - last_sent_id > 5)):
+
+                self.logger.info(f"Sending frame {fid} to server")
+                req_regions = Regions()
+                req_regions.append(
+                    Region(fid, 0, 0, 1, 1, 1.0, 2,
+                        self.config.low_resolution))
+                batch_video_size, _ = compute_regions_size(
+                    req_regions, f"{video_name}-base-phase", images_path,
+                    self.config.low_resolution, self.config.low_qp,
+                    enforce_iframes, True)
+                self.logger.info(f"{batch_video_size // 1024}KB sent "
+                            f"in base phase using {self.config.low_qp}QP")
+                results, _ = self.get_first_phase_results(video_name, fid, fid + 1)
+                #for r in detection_results.regions:
+                #    r.origin = "glimpse-detection"
+                last_sent = curr_gray
+                final_results.combine_results(results, self.config)
+                last_sent_id = fid
+                tracking_success = True
+                self.initialize_trackers(results, fid, images_path)
+
+                #total_sent += os.path.getsize(f"{video_name}_temp.jpg")
+                #os.remove(f"{video_name}_temp.jpg")
+
+            # Pick objects in last frame and perform tracking in current frame
+            if fid > 0 and fid != last_sent_id:
+                tracking_results, tracking_success = self.track(
+                    final_results, fid, images_path)
+                self.logger.info(f"Got {len(tracking_results)} from tracking frame {fid}")
+                #for r in tracking_results.regions:
+                #    r.origin = "glimpse-tracking"
+                final_results.combine_results(tracking_results, self.config)
+
+        final_results = merge_boxes_in_results(
+            final_results.regions_dict, 0.3, 0.3)
+        final_results.write(video_name)
+
+        return final_results, [total_sent, 0]
+
+
+    def analyze_video_vigil(self):
+        print("Vigil under construction")
+        return

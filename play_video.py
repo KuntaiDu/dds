@@ -54,7 +54,7 @@ def main(args):
     elif not args.simulate and args.hname and args.method in ['mpeg', 'gt']:
         mode = "mpeg"
         logger.warning(f"Running in MPEG mode with resolution "
-                       f"{args.low_resolution} on {args.video_name}")
+                    f"{args.low_resolution} on {args.video_name}")
 
         logger.info("Starting client")
         client = Client(args.hname, config, server)
@@ -70,6 +70,20 @@ def main(args):
         results, bw = client.analyze_video(
             args.video_name, args.high_images_path, config,
             args.enforce_iframes)
+    
+    elif args.method == 'glimpse':
+        if not args.hname:
+            mode = "Glimpse emulation"
+            logger.warning(f"Running in Glimpse emulation mode")
+            logger.warning(f"Under construction")
+            #results, bw = client.analyze_video_glimpse(
+            #    args.video_name, args.high_images_path)
+        elif args.hname:
+            mode = "Glimpse implementation"
+            logger.warning(f"Running in Glimpse implementation mode")
+            client = Client(args.hname, config, server)
+            results, bw = client.analyze_video_glimpse(
+                args.video_name, args.high_images_path, args.enforce_iframes)
 
     # Evaluation and writing results
     # Read Groundtruth results
