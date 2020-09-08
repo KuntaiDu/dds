@@ -5,6 +5,7 @@ import shutil
 import time
 import requests
 import json
+from .local_object_detector import LocalObjectDetector
 from results.regions import (Regions, Region)
 from results.regions import (read_results_dict, cleanup,
                        compute_regions_size, extract_images_from_video,
@@ -259,6 +260,71 @@ class Client:
     
 
     # Currently only supports object detection
+    def analyze_video_glimpse_emulate(self, video_name, images_path,
+                                      im_width=640, im_height=480):
+        number_of_frames = len(
+            [e for e in os.listdir(images_path) if "png" in e])
+        last_sent = None
+        final_results = Regions()
+        tracking_success = True
+        total_sent = 0
+        last_sent_id = None
+        for fid in range(0, number_of_frames):
+            fname = f"{str(fid).zfill(10)}.png"
+            frame_path = os.path.join(images_path, fname)
+            curr_frame = cv.imread(frame_path)
+            curr_gray = cv.cvtColor(curr_frame, cv.COLOR_BGR2GRAY)
+            if (self.is_trigger_frame_glimpse(
+                    last_sent, curr_gray) or not tracking_success) and (
+                        not last_sent_id or (fid - last_sent_id > 5)):
+                resized_frame = cv.resize(curr_frame, (im_height, im_width))
+                self.logger.info(f"Sending frame to server {fid}")
+                cv.imwrite(f"{video_name}_temp.jpg", resized_frame,
+                           [cv.IMWRITE_JPEG_QUALITY, 70])
+                resized_frame = cv.imread(f"{video_name}_temp.jpg")
+
+                # run inference
+                results = self.app.run_inference(
+                    self.server.model, None, 1.0, [fname], {fid: resized_frame}, config=self.config)
+                detection_results = results["results"]
+                
+                for fid in detection_results.regions_dict:
+                    for r in detection_results.regions_dict[fid]:
+                        r.origin = "glimpse-detection"
+                last_sent = curr_gray
+                final_results.combine_results(detection_results, 1.0)
+                last_sent_id = fid
+                tracking_success = True
+                # WARNING: a bug here when combining results
+                # Some regions are not combined since exisiting results are better
+                # This leads to an index out of range error
+                #self.initialize_trackers(detection_results, fid, images_path)
+                self.initialize_trackers(final_results, fid, images_path)
+                # for debugging purposes
+                #print(len(detection_results.regions_dict[fid]))
+                #print(len(final_results.regions_dict[fid]))
+
+                total_sent += os.path.getsize(f"{video_name}_temp.jpg")
+                os.remove(f"{video_name}_temp.jpg")
+
+            # Pick objects in last frame and perform tracking in current frame
+            if fid > 0 and fid != last_sent_id:
+                tracking_results, tracking_success = self.track(
+                    final_results, fid, images_path)
+                self.logger.info(f"Got {len(tracking_results)} from tracking frame {fid}")
+                for fid in tracking_results.regions_dict:
+                    for r in tracking_results.regions_dict[fid]:
+                        r.origin = "glimpse-tracking"
+                final_results.combine_results(tracking_results, 1.0)
+
+        final_results = merge_boxes_in_results(
+            final_results.regions_dict, 0.3, 0.3)
+        final_results.write(video_name)
+
+        return final_results, [total_sent, 0]
+
+
+    # Currently only supports object detection
     def analyze_video_glimpse(self, video_name, images_path, enforce_iframes,
                               im_width=640, im_height=480):
         final_results = self.app.create_empty_results()
@@ -321,6 +387,134 @@ class Client:
         return final_results, [total_sent, 0]
 
 
-    def analyze_video_vigil(self):
-        print("Vigil under construction")
-        return
+    def analyze_video_vigil_emulate(self, video_name, images_path):
+        local_detector = LocalObjectDetector(
+            "../MobileNetSSD.pb", "../ssd_graph.pbtxt", 0.5)
+        number_of_frames = len(
+            [e for e in os.listdir(images_path) if "png" in e])
+        last_count = None
+        final_results = Regions()
+        tracking_success = False
+        total_size = 0
+        last_sent_id = None
+
+        for fid in range(0, number_of_frames):
+            fname = f"{str(fid).zfill(10)}.png"
+            frame_path = os.path.join(images_path, fname)
+            curr_frame = cv.imread(frame_path)
+            _, num_objects_in_frame = local_detector.infer(curr_frame)
+            if (self.is_important_frame(
+                    last_count, num_objects_in_frame) or not tracking_success) and (
+                        not last_sent_id or (fid - last_sent_id > 5)):
+                cv.imwrite(f"{video_name}_temp.jpg", curr_frame,
+                           [cv.IMWRITE_JPEG_QUALITY, 70])
+                reread_current_frame = cv.imread(f"{video_name}_temp.jpg")
+
+                # run inference
+                results = self.app.run_inference(
+                    self.server.model, None, 1.0, [fname], {fid: reread_current_frame}, config=self.config)
+                detection_results = results["results"]
+
+                for fid in detection_results.regions_dict:
+                    for r in detection_results.regions_dict[fid]:
+                        r.origin = "vigil-detection"
+                final_results.combine_results(detection_results, 1.0)
+                last_sent_id = fid
+                tracking_success = True
+                # WARNING: same issue as in glimpse
+                #self.initialize_trackers(detection_results, fid, images_path)
+                self.initialize_trackers(final_results, fid, images_path)
+
+                total_size += os.path.getsize(f"{video_name}_temp.jpg")
+                os.remove(f"{video_name}_temp.jpg")
+            last_count = num_objects_in_frame
+
+            if fid > 0 and fid != last_sent_id:
+                tracking_results, tracking_success = self.track(
+                    final_results, fid, images_path)
+                self.logger.info(f"Got {len(tracking_results)} from tracking frame {fid}")
+                for fid in tracking_results.regions_dict:
+                    for r in tracking_results.regions_dict[fid]:
+                        r.origin = "tracking-vigil"
+                final_results.combine_results(tracking_results, 1.0)
+
+        final_results = merge_boxes_in_results(
+            final_results.regions_dict, 0.3, 0.3)
+        final_results.write(video_name)
+
+        return final_results, [total_size, 0]
+    
+
+    def analyze_video_vigil(self, video_name, images_path, enforce_iframes):
+        local_detector = LocalObjectDetector(
+            "../MobileNetSSD.pb", "../ssd_graph.pbtxt", 0.5)
+        number_of_frames = len(
+            [e for e in os.listdir(images_path) if "png" in e])
+        last_count = None
+        final_results = Regions()
+        tracking_success = False
+        total_size = 0
+        last_sent_id = None
+
+        # initialize server
+        self.init_server()
+
+        for fid in range(0, number_of_frames):
+            fname = f"{str(fid).zfill(10)}.png"
+            frame_path = os.path.join(images_path, fname)
+            curr_frame = cv.imread(frame_path)
+            _, num_objects_in_frame = local_detector.infer(curr_frame)
+
+            if (self.is_important_frame(
+                    last_count, num_objects_in_frame) or not tracking_success) and (
+                        not last_sent_id or (fid - last_sent_id > 5)):
+
+                self.logger.info(f"Sending frame {fid} to server")
+                req_regions = Regions()
+                req_regions.append(
+                    Region(fid, 0, 0, 1, 1, 1.0, 2,
+                        self.config.low_resolution))
+                batch_video_size, _ = compute_regions_size(
+                    req_regions, f"{video_name}-base-phase", images_path,
+                    self.config.low_resolution, self.config.low_qp,
+                    enforce_iframes, True)
+                self.logger.info(f"{batch_video_size // 1024}KB sent "
+                            f"in base phase using {self.config.low_qp}QP")
+                detection_results, _ = self.get_first_phase_results(video_name, fid, fid + 1)
+
+                for fid in detection_results.regions_dict:
+                    for r in detection_results.regions_dict[fid]:
+                        r.origin = "vigil-detection"
+                final_results.combine_results(detection_results, 1.0)
+                last_sent_id = fid
+                tracking_success = True
+                # WARNING: same issue as in glimpse
+                #self.initialize_trackers(detection_results, fid, images_path)
+                self.initialize_trackers(final_results, fid, images_path)
+
+                # WARNING: no bandwidth estimation for now
+                #total_size += os.path.getsize(f"{video_name}_temp.jpg")
+                #os.remove(f"{video_name}_temp.jpg")
+            last_count = num_objects_in_frame
+
+            if fid > 0 and fid != last_sent_id:
+                tracking_results, tracking_success = self.track(
+                    final_results, fid, images_path)
+                self.logger.info(f"Got {len(tracking_results)} from tracking frame {fid}")
+                for fid in tracking_results.regions_dict:
+                    for r in tracking_results.regions_dict[fid]:
+                        r.origin = "tracking-vigil"
+                final_results.combine_results(tracking_results, 1.0)
+
+        final_results = merge_boxes_in_results(
+            final_results.regions_dict, 0.3, 0.3)
+        final_results.write(video_name)
+
+        return final_results, [total_size, 0]
+    
+
+    def is_important_frame(self, last_count, curr_count):
+        if not last_count or abs(curr_count - last_count):
+            return True
+        else:
+            return False

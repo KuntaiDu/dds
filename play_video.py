@@ -72,17 +72,33 @@ def main(args):
             args.enforce_iframes)
     
     elif args.method == 'glimpse':
-        if not args.hname:
+        if args.mode == 'emulation':
             mode = "Glimpse emulation"
             logger.warning(f"Running in Glimpse emulation mode")
-            logger.warning(f"Under construction")
-            #results, bw = client.analyze_video_glimpse(
-            #    args.video_name, args.high_images_path)
-        elif args.hname:
+            server = Server(config)
+            client = Client(args.hname, config, server)
+            results, bw = client.analyze_video_glimpse_emulate(
+                args.video_name, args.high_images_path)
+        elif args.hname and args.mode == 'implementation':
             mode = "Glimpse implementation"
             logger.warning(f"Running in Glimpse implementation mode")
             client = Client(args.hname, config, server)
             results, bw = client.analyze_video_glimpse(
+                args.video_name, args.high_images_path, args.enforce_iframes)
+    
+    elif args.method == 'vigil':
+        if args.mode == 'emulation':
+            mode = "Vigil emulation"
+            logger.warning(f"Running in Vigil emulation mode")
+            server = Server(config)
+            client = Client(args.hname, config, server)
+            results, bw = client.analyze_video_vigil_emulate(
+                args.video_name, args.high_images_path)
+        elif args.hname and args.mode == 'implementation':
+            mode = "Vigil implementation"
+            logger.warning(f"Running in Vigil implementation mode")
+            client = Client(args.hname, config, server)
+            results, bw = client.analyze_video_vigil(
                 args.video_name, args.high_images_path, args.enforce_iframes)
 
     # Evaluation and writing results

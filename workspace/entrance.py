@@ -126,6 +126,27 @@ def execute_single(single_instance):
 
             subprocess.run(['python', '../play_video.py',
                             yaml.dump(single_instance)])
+    
+    elif baseline == 'vigil':
+        # unpacking
+        video_name = single_instance['video_name']
+        vigil_qp = single_instance['low_qp']
+        vigil_resolution = single_instance['low_resolution']
+        original_images_dir = os.path.join(data_dir, video_name, 'src')
+
+        # skip if result file already exists
+        result_file_name = f"{video_name}_vigil_{vigil_resolution}_{vigil_qp}"
+        if single_instance['overwrite'] == False and os.path.exists(os.path.join("results", result_file_name)):
+            print(f"Skipping {result_file_name}")
+        else:
+            single_instance['video_name'] = f'results/{result_file_name}'
+            single_instance['high_images_path'] = f'{original_images_dir}'
+            single_instance['outfile'] = 'stats'
+            single_instance['ground_truth'] = f'results/{video_name}_gt'
+
+            subprocess.run(['python', '../play_video.py',
+                            yaml.dump(single_instance)])
+
 
 def parameter_sweeping(instances, new_instance, keys):
     """recursive function for parameter sweeping
