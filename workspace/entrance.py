@@ -119,6 +119,7 @@ def execute_single(single_instance):
         if single_instance['overwrite'] == False and os.path.exists(os.path.join("results", result_file_name)):
             print(f"Skipping {result_file_name}")
         else:
+            single_instance['root'] = root
             single_instance['video_name'] = f'results/{result_file_name}'
             single_instance['high_images_path'] = f'{original_images_dir}'
             single_instance['outfile'] = 'stats'
@@ -139,6 +140,7 @@ def execute_single(single_instance):
         if single_instance['overwrite'] == False and os.path.exists(os.path.join("results", result_file_name)):
             print(f"Skipping {result_file_name}")
         else:
+            single_instance['root'] = root
             single_instance['video_name'] = f'results/{result_file_name}'
             single_instance['high_images_path'] = f'{original_images_dir}'
             single_instance['outfile'] = 'stats'
@@ -197,5 +199,6 @@ if __name__ == "__main__":
     # load configuration information (only once)
     config_info = load_configuration()
     data_dir = config_info['data_dir']
+    root = config_info['root']
     
     execute_all(config_info)

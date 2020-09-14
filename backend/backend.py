@@ -33,6 +33,14 @@ def initialize_server():
         return "Reset"
 
 
+@app.route("/infer_single_frame", methods=["POST"])
+def single_frame():
+    img_path = request.args["img_path"]
+    fid = int(request.args['fid'])
+    results = server.infer_single_frame(img_path, fid)
+
+    return jsonify(results)
+
 @app.route("/perform_low_query", methods=["POST"])
 def low_query():
     file_data = request.files["media"]

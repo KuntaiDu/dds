@@ -63,6 +63,29 @@ class Client:
 
         return response_json
 
+    def post_image_to_server(self, function_name, deserializer, json_object=None, **kwargs):
+
+        # stream to the server
+        response = self.session.post(
+            "http://" + self.hname + f"/{function_name}", params=kwargs)
+        response_json = json.loads(response.text)
+
+        # deserialize from json results
+        for key in deserializer.keys():
+            response_json[key] = deserializer[key](response_json[key])
+
+        return response_json
+
+    def get_single_frame_result(self, img_path, fid):
+        
+        deserializer = {
+            'results': self.deserializer,
+            'feedback_regions': lambda x: Regions(x)
+        }
+
+        response_json = self.post_image_to_server('infer_single_frame', deserializer, fid = fid, img_path = img_path)
+
+        return response_json['results'], response_json['feedback_regions']
 
     def get_first_phase_results(self, vid_name, start_fid, end_fid):
 
@@ -295,14 +318,7 @@ class Client:
                 final_results.combine_results(detection_results, 1.0)
                 last_sent_id = fid
                 tracking_success = True
-                # WARNING: a bug here when combining results
-                # Some regions are not combined since exisiting results are better
-                # This leads to an index out of range error
-                #self.initialize_trackers(detection_results, fid, images_path)
                 self.initialize_trackers(final_results, fid, images_path)
-                # for debugging purposes
-                #print(len(detection_results.regions_dict[fid]))
-                #print(len(final_results.regions_dict[fid]))
 
                 total_sent += os.path.getsize(f"{video_name}_temp.jpg")
                 os.remove(f"{video_name}_temp.jpg")
@@ -324,7 +340,6 @@ class Client:
         return final_results, [total_sent, 0]
 
 
-    # Currently only supports object detection
     def analyze_video_glimpse(self, video_name, images_path, enforce_iframes,
                               im_width=640, im_height=480):
         final_results = self.app.create_empty_results()
@@ -348,36 +363,36 @@ class Client:
                     last_sent, curr_gray) or not tracking_success) and (
                         not last_sent_id or (fid - last_sent_id > 5)):
 
+                # resizing frame
+                resized_frame = cv.resize(curr_frame, (im_height, im_width))
+                resized_frame_name = f"{video_name}_temp.jpg"
+                cv.imwrite(resized_frame_name, resized_frame,
+                           [cv.IMWRITE_JPEG_QUALITY, 70])
+
+                # send frame to server
                 self.logger.info(f"Sending frame {fid} to server")
-                req_regions = Regions()
-                req_regions.append(
-                    Region(fid, 0, 0, 1, 1, 1.0, 2,
-                        self.config.low_resolution))
-                batch_video_size, _ = compute_regions_size(
-                    req_regions, f"{video_name}-base-phase", images_path,
-                    self.config.low_resolution, self.config.low_qp,
-                    enforce_iframes, True)
-                self.logger.info(f"{batch_video_size // 1024}KB sent "
-                            f"in base phase using {self.config.low_qp}QP")
-                results, _ = self.get_first_phase_results(video_name, fid, fid + 1)
-                #for r in detection_results.regions:
-                #    r.origin = "glimpse-detection"
+                results, _ = self.get_single_frame_result(resized_frame_name, fid)
+                
+                for frame in results.regions_dict:
+                    for r in results.regions_dict[frame]:
+                        r.origin = "glimpse-detection"
                 last_sent = curr_gray
                 final_results.combine_results(results, self.config)
                 last_sent_id = fid
                 tracking_success = True
                 self.initialize_trackers(results, fid, images_path)
 
-                #total_sent += os.path.getsize(f"{video_name}_temp.jpg")
-                #os.remove(f"{video_name}_temp.jpg")
+                total_sent += os.path.getsize(f"{video_name}_temp.jpg")
+                os.remove(f"{video_name}_temp.jpg")
 
             # Pick objects in last frame and perform tracking in current frame
             if fid > 0 and fid != last_sent_id:
                 tracking_results, tracking_success = self.track(
                     final_results, fid, images_path)
                 self.logger.info(f"Got {len(tracking_results)} from tracking frame {fid}")
-                #for r in tracking_results.regions:
-                #    r.origin = "glimpse-tracking"
+                for frame in tracking_results.regions_dict:
+                    for r in tracking_results.regions_dict[frame]:
+                        r.origin = "glimpse-tracking"
                 final_results.combine_results(tracking_results, self.config)
 
         final_results = merge_boxes_in_results(
@@ -468,19 +483,12 @@ class Client:
             if (self.is_important_frame(
                     last_count, num_objects_in_frame) or not tracking_success) and (
                         not last_sent_id or (fid - last_sent_id > 5)):
+                curr_frame_path = f"{video_name}_temp.jpg"
+                cv.imwrite(curr_frame_path, curr_frame,
+                           [cv.IMWRITE_JPEG_QUALITY, 70])
 
                 self.logger.info(f"Sending frame {fid} to server")
-                req_regions = Regions()
-                req_regions.append(
-                    Region(fid, 0, 0, 1, 1, 1.0, 2,
-                        self.config.low_resolution))
-                batch_video_size, _ = compute_regions_size(
-                    req_regions, f"{video_name}-base-phase", images_path,
-                    self.config.low_resolution, self.config.low_qp,
-                    enforce_iframes, True)
-                self.logger.info(f"{batch_video_size // 1024}KB sent "
-                            f"in base phase using {self.config.low_qp}QP")
-                detection_results, _ = self.get_first_phase_results(video_name, fid, fid + 1)
+                detection_results, _ = self.get_single_frame_result(curr_frame_path, fid)
 
                 for fid in detection_results.regions_dict:
                     for r in detection_results.regions_dict[fid]:
@@ -488,13 +496,10 @@ class Client:
                 final_results.combine_results(detection_results, 1.0)
                 last_sent_id = fid
                 tracking_success = True
-                # WARNING: same issue as in glimpse
-                #self.initialize_trackers(detection_results, fid, images_path)
                 self.initialize_trackers(final_results, fid, images_path)
 
-                # WARNING: no bandwidth estimation for now
-                #total_size += os.path.getsize(f"{video_name}_temp.jpg")
-                #os.remove(f"{video_name}_temp.jpg")
+                total_size += os.path.getsize(f"{video_name}_temp.jpg")
+                os.remove(f"{video_name}_temp.jpg")
             last_count = num_objects_in_frame
 
             if fid > 0 and fid != last_sent_id:

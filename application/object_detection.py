@@ -78,6 +78,45 @@ class Object_Detection(Application):
             "feedback_regions": rpn_regions
         }
 
+    def run_inference_single_frame(self, img_path, fid, detector, img_direc, config):
+        final_results = Regions() # results in the form of regions
+        rpn_regions = Regions()
+        
+        self.logger.info(f"Running object detection on frame {fid}")
+        #img_path = os.path.join("/home/ddsuser/qizheng/dds/workspace", img_path)
+        img_path = os.path.join(config.root, "workspace", img_path)
+        image = cv.imread(img_path)
+        image = cv.cvtColor(image, cv.COLOR_BGR2RGB)
+        # perform inference
+        detection_results, rpn_results = (
+            detector.infer(image))
+        
+        # filter those strange objects
+        resolution = config.low_resolution
+        frame_with_no_results = True
+        for label, conf, (x, y, w, h) in detection_results:
+            if w * h == 0.0:
+                continue
+            r = Region(fid, x, y, w, h, conf, label,
+                    resolution, "high-mpeg")
+            final_results.append(r)
+            frame_with_no_results = False
+        for label, conf, (x, y, w, h) in rpn_results:
+            r = Region(fid, x, y, w, h, conf, label,
+                    resolution, "generic")
+            rpn_regions.append(r)
+            frame_with_no_results = False
+
+        if frame_with_no_results:
+            final_results.append(
+                Region(fid, 0, 0, 0, 0, 0.1, "no obj", resolution))
+        
+        # return final_results, rpn_regions
+        return {
+            "results": final_results.toJSON(),
+            "feedback_regions": rpn_regions.toJSON()
+        }
+
     # run inference and generate feedback regions
     def run_inference_with_feedback(self, start_fid, end_fid, detector, images_direc, fnames, config):
         

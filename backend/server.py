@@ -64,6 +64,14 @@ class Server:
         self.logger.info(f"Processing frames from {start_fid} to {end_fid}")
         self.extract_video_to_folder(str(video_folder), 0, self.config.batch_size)
         
+    def infer_single_frame(self, img_data, fid):
+        
+        # run inference
+        self.logger.info(f"Processing frame {fid}")
+        detection_feedback_dic = self.app.run_inference_single_frame(img_data, fid, self.model, self.first_phase_folder, self.config)
+
+        return detection_feedback_dic
+
     def perform_low_query(self, start_fid, end_fid, vid_data):
         # Write video to file
         Path(self.first_phase_folder).mkdir(exist_ok=True)
