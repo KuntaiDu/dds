@@ -63,11 +63,12 @@ class Client:
 
         return response_json
 
-    def post_image_to_server(self, function_name, deserializer, json_object=None, **kwargs):
+    def post_image_to_server(self, img_path, function_name, deserializer, json_object=None, **kwargs):
 
         # stream to the server
+        image_to_send = {"media": open(img_path, "rb"), "json": json.dumps(json_object)}
         response = self.session.post(
-            "http://" + self.hname + f"/{function_name}", params=kwargs)
+            "http://" + self.hname + f"/{function_name}", files=image_to_send, params=kwargs)
         response_json = json.loads(response.text)
 
         # deserialize from json results
@@ -83,7 +84,7 @@ class Client:
             'feedback_regions': lambda x: Regions(x)
         }
 
-        response_json = self.post_image_to_server('infer_single_frame', deserializer, fid = fid, img_path = img_path)
+        response_json = self.post_image_to_server(img_path, 'infer_single_frame', deserializer, fid = fid)
 
         return response_json['results'], response_json['feedback_regions']
 

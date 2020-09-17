@@ -35,9 +35,9 @@ def initialize_server():
 
 @app.route("/infer_single_frame", methods=["POST"])
 def single_frame():
-    img_path = request.args["img_path"]
+    file_data = request.files["media"]
     fid = int(request.args['fid'])
-    results = server.infer_single_frame(img_path, fid)
+    results = server.infer_single_frame(file_data, fid)
 
     return jsonify(results)
 

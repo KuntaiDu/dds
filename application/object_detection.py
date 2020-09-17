@@ -78,13 +78,12 @@ class Object_Detection(Application):
             "feedback_regions": rpn_regions
         }
 
-    def run_inference_single_frame(self, img_path, fid, detector, img_direc, config):
+    def run_inference_single_frame(self, fid, detector, img_direc, config):
         final_results = Regions() # results in the form of regions
         rpn_regions = Regions()
         
         self.logger.info(f"Running object detection on frame {fid}")
-        #img_path = os.path.join("/home/ddsuser/qizheng/dds/workspace", img_path)
-        img_path = os.path.join(config.root, "workspace", img_path)
+        img_path = os.path.join(img_direc, "temp.jpg")
         image = cv.imread(img_path)
         image = cv.cvtColor(image, cv.COLOR_BGR2RGB)
         # perform inference

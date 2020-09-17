@@ -65,10 +65,15 @@ class Server:
         self.extract_video_to_folder(str(video_folder), 0, self.config.batch_size)
         
     def infer_single_frame(self, img_data, fid):
-        
+        # write image to file
+        Path(self.first_phase_folder).mkdir(exist_ok=True)
+        img_path = os.path.join(self.first_phase_folder, "temp.jpg")
+        with open(img_path, "wb") as f:
+            f.write(img_data.read())
+
         # run inference
         self.logger.info(f"Processing frame {fid}")
-        detection_feedback_dic = self.app.run_inference_single_frame(img_data, fid, self.model, self.first_phase_folder, self.config)
+        detection_feedback_dic = self.app.run_inference_single_frame(fid, self.model, self.first_phase_folder, self.config)
 
         return detection_feedback_dic
 
