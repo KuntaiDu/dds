@@ -146,7 +146,7 @@ class Server:
         # Divide RPN results into detections and RPN regions
         for single_result in batch_results.regions:
             if (single_result.conf > self.config.prune_score and
-                    single_result.label == "vehicle"):
+                    single_result.label in [3, 6, 7, 8]):
                 detections.add_single_result(
                     single_result, self.config.intersection_threshold)
             else:

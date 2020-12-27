@@ -14,7 +14,7 @@ default:
   # overwrite existing results or not
   overwrite: False
   # the video name you want to run. Can be a list or a single string
-  video_name: trafficcam_1
+  video_name: traffic
   # several configurations, a lot of them are ... just issues left over from history.
   max_object_size: 0.3
   low_threshold: 0.3
@@ -62,15 +62,15 @@ instances:
   low_resolution: 1.0
 - method: mpeg
   low_qp:
-  - 36
-  - 26
-  low_resolution: 0.8
+  - 34
+  - 24
+  low_resolution: 1.0
 - batch_size: 15
   # the configuration for the Stream A (low) and Stream B (high)
-  high_qp: 26
-  high_resolution: 0.8
-  low_qp: 36
-  low_resolution: 0.8
+  high_qp: 24
+  high_resolution: 1.0
+  low_qp: 34
+  low_resolution: 1.0
   method: dds
   # Two regions will be treated as the same region if the intersection-over-union (IoU) is larger than this threshold
   objfilter_iou: 0.3

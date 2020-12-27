@@ -1,0 +1,7 @@
+video-name,low-resolution,high-resolution,low_qp,high_qp,batch-size,low-threshold,high-threshold,tracker-length,TP,FP,FN,F1,low-size,high-size,total-size,frames,mode
+results/trafficcam_1_dds_1.0_1.0_36_26_0.0_twosides_batch_15_0.5_0.3_0.01,1.0,1.0,36,26,15,0.3,0.8,4,0,0,0,0,3309538,1922801,5232339,306,implementation
+results/traffic_gt,1.0,-1,24,-1,15,0.3,0.8,4,0,0,0,0,58711125,0,58711125,2348,mpeg
+results/traffic_mpeg_1.0_34,1.0,-1,34,-1,15,0.3,0.8,4,35705,264,9154,0.883,18217541,0,18217541,2348,mpeg
+results/traffic_mpeg_1.0_24,1.0,-1,24,-1,15,0.3,0.8,4,36522,0,8367,0.897,58711125,0,58711125,2348,mpeg
+results/traffic_dds_1.0_1.0_24_24_0.0_twosides_batch_15_0.5_0.3_0.01,1.0,1.0,24,24,15,0.3,0.8,4,37288,88,7572,0.907,58711125,12049461,70760586,2348,emulation
+results/traffic_gt,1.0,-1,24,-1,15,0.3,0.8,4,0,0,0,0,58711125,0,58711125,2348,mpeg

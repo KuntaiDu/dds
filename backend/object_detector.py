@@ -111,11 +111,10 @@ class Detector:
         # The results array will have (class, (xmin, xmax, ymin, ymax)) tuples
         results = []
         for i in range(len(output_dict['detection_boxes'])):
-            object_class = output_dict['detection_classes'][i]
+            object_class = int(output_dict['detection_classes'][i])
             relevant_class = False
             for k in Detector.classes.keys():
                 if object_class in Detector.classes[k]:
-                    object_class = k
                     relevant_class = True
                     break
             if not relevant_class:
