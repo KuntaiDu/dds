@@ -12,17 +12,23 @@ results_direc = sys.argv[2]
 stats_file = sys.argv[3]
 gt_mode = sys.argv[4]
 # video_name = results_direc[11:]
-print(video_name)
+# print(video_name)
 dirs = os.listdir(results_direc)
 from dds_utils import *
 
 
 gt_confid_thresh_list = [0.3]
+#gt_confid_thresh_list=[0.5]
+#gt_confid_thresh_list=[0.4]
 mpeg_confid_thresh_list = [0.5]
+#mpeg_confid_thresh_list=[0.3]
 max_area_thresh_gt_list = [0.04]
-max_area_thresh_mpeg_list = [0.04]
-iou_thresh = 0.3
+max_area_thresh_mpeg_list = max_area_thresh_gt_list
 
+max_area_thresh_cloudseg = 0.04
+cloudseg_confid_thresh = 0.4
+iou_thresh = 0.3
+cloudseg_iou_thresh = 0.2
 relevant_classes = dds_env['relevant_classes']
 
 def parse_stats(stats_path):
@@ -180,5 +186,11 @@ if gt_mode == 'gt':
 						if key not in fname_to_size:
 							continue
 						print(key, fname_to_size[key], end = ' ')
-						tp, fp, fn, count, pr, recall, f1 = eval(MAX_FID, fid_to_bboxes_dict[key], gt, gt_confid_thresh, mpeg_confid_thresh, max_area_thresh_gt, max_area_thresh_mpeg)
-						print(f1, tp+fp)
+
+						if True:
+							tp, fp, fn, count, pr, recall, f1 = eval(MAX_FID, fid_to_bboxes_dict[key], gt, gt_confid_thresh, mpeg_confid_thresh, max_area_thresh_gt, max_area_thresh_mpeg)
+						else:
+							iou_thresh = cloudseg_iou_thresh
+							tp, fp, fn, count, pr, recall, f1 = eval(MAX_FID, fid_to_bboxes_dict[key], gt, gt_confid_thresh,  cloudseg_confid_thresh, max_area_thresh_gt, max_area_thresh_cloudseg)
+							iou_thresh = 0.3
+						print(f1, tp, fp, fn, count)

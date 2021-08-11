@@ -712,6 +712,7 @@ def merge_images(cropped_images_direc, low_images_direc, req_regions):
         fid = int(fname.split(".")[0])
 
         # Read high resolution image
+        # print(os.path.join(cropped_images_direc, fname))
         high_image = cv.imread(os.path.join(cropped_images_direc, fname))
         width = high_image.shape[1]
         height = high_image.shape[0]

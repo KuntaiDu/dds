@@ -8,7 +8,6 @@ import glob
 import sys
 sys.path.append("../")
 from merger import *
-from dds_utils import read_results_txt_dict
 # from object_detection.utils import ops as utils_ops
 os.environ['TF_CPP_MIN_VLOG_LEVEL'] = '3'
 
@@ -18,6 +17,7 @@ assert os.path.exists('dds_env.yaml')
 with open('dds_env.yaml', 'r') as f:
     dds_env = yaml.load(f.read())
 
+from dds_utils import read_results_txt_dict
 relevant_classes = dds_env['relevant_classes']
 print(relevant_classes)
 
@@ -121,6 +121,7 @@ def run_rpn_inference(video, threshold_RPN, threshold_RCNN, threshold_GT, low_sc
     # PATH_TO_FROZEN_GRAPH = SAVE_BASE + MODEL_NAME + '/frozen_inference_graph.pb'
 
     PATH_TO_FROZEN_GRAPH = dds_env['resnet_101_coco']
+    print(f'RPN threshold is {threshold_RPN}')
 
     # download the model
     # if not os.path.isfile(SAVE_BASE + MODEL_FILE):
@@ -139,8 +140,8 @@ def run_rpn_inference(video, threshold_RPN, threshold_RCNN, threshold_GT, low_sc
 
     VIDEO_NAME = video
     threshold_RPN = threshold_RPN
-    threshold_RCNN = 0.3
-    threshold_GT = 0.3
+    threshold_RCNN = threshold_RCNN
+    threshold_GT = threshold_GT
     scale = low_scale
     qp = low_qp
     high_scale = high_scale
@@ -175,6 +176,7 @@ def run_rpn_inference(video, threshold_RPN, threshold_RCNN, threshold_GT, low_sc
     final_results = Results()
     RCNN_results = Results()
     for idx, image_path in enumerate(TEST_IMAGE_PATHS):
+        print(idx)
         image = cv2.imread(image_path)
         image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
         # rpn detection, return a dict
@@ -298,8 +300,13 @@ def run_rpn_inference(video, threshold_RPN, threshold_RCNN, threshold_GT, low_sc
     final_results.write(os.path.join(f"{PROJ_ROOT_DIR}/results_{VIDEO_NAME}/no_filter_combined_bboxes", f'{VIDEO_NAME}_mpeg_{scale}_{qp}'))
     # read
     rdict = read_results_txt_dict(os.path.join(f"{PROJ_ROOT_DIR}/results_{VIDEO_NAME}/no_filter_combined_bboxes", f'{VIDEO_NAME}_mpeg_{scale}_{qp}'))
-    results = merge_boxes_in_results(rdict, 0.3, 0.3)
+    results = merge_boxes_in_results(rdict, threshold_RPN, 0.3)
     results.fill_gaps(len(TEST_IMAGE_PATHS))
     os.system(f"mkdir -p {PROJ_ROOT_DIR}/results_{VIDEO_NAME}/no_filter_combined_merged_bboxes")
     results.write(os.path.join(f"{PROJ_ROOT_DIR}/results_{VIDEO_NAME}/no_filter_combined_merged_bboxes", f'{VIDEO_NAME}_mpeg_{scale}_{qp}'))
+
+    print(len(results.regions))
     print("RPN Done")
+
+if __name__ == '__main__':
+    run_rpn_inference('trafficcam_1', 0.5, 0.3, 0.3, 0.8, 36, 0.8, 26, 'results_trafficcam_1')

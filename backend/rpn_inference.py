@@ -292,6 +292,8 @@ def main():
     results.fill_gaps(len(TEST_IMAGE_PATHS))
     results.write(os.path.join("no_filter_combined_merged_bboxes", f'{VIDEO_NAME}_mpeg_{scale}_{qp}'))
 
+    print(len(results.regions))
+
 
 if __name__== "__main__":
     main()

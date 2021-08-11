@@ -3,6 +3,8 @@ import logging
 import numpy as np
 import tensorflow as tf
 from tensorflow.compat.v1 import ConfigProto
+import torchvision.transforms as T
+import torch
 # from object_detection.utils import ops as utils_ops
 os.environ['TF_CPP_MIN_VLOG_LEVEL'] = '3'
 
@@ -231,16 +233,18 @@ class Detector:
 
     def infer(self, image_np):
         # imgae_crops, offsets = self.split_image_no_overlapping(image_np)
-        imgae_crops = image_np
+
+        # secretly super-resolute image here
+        image_crops = image_np
         offsets = None
         multi_scan_results = None
         if not offsets:
-            output_dict = self.run_inference_for_single_image(imgae_crops,
+            output_dict = self.run_inference_for_single_image(image_crops,
                                                             self.d_graph)
         else:
             output_dict_list = []
             for i in range(len(offsets)):
-                output_dict_list.append(self.run_inference_for_single_image(imgae_crops[i],
+                output_dict_list.append(self.run_inference_for_single_image(image_crops[i],
                                                                 self.d_graph))
 
             output_dict, multi_scan_results = self.collect_results_from_all_images_no_overlapping(image_np, output_dict_list, offsets)
@@ -264,4 +268,4 @@ class Detector:
             box_tuple = (xmin, ymin, xmax - xmin, ymax - ymin)
             results.append((object_class, confidence, box_tuple))
 
-        return results, multi_scan_results, offsets
+        return results, image_crops, offsets

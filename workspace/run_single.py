@@ -49,6 +49,14 @@ elif mode == 'dds':
         rpn_box_source, batch_size, prune_score, objfilter_iou, size_obj = args
     low_results = Path(f'results_{video}')/rpn_box_source/f'{video}_mpeg_{low}_{low_qp}'
 
+    print(f"python play_video.py --vid-name {results_dir/vname} --high-src {original_images} "\
+    f"--resolutions {low} {high} --low-results {low_results} --output-file {output_file} "\
+    f"--ground-truth {results_dir/(video + '_gt')} --max-size 0.3 "\
+    f"--low-threshold 0.3 --high-threshold 0.3 --enforce-iframes --qp {low_qp} {high_qp} "\
+    f"--verbosity info --rpn_enlarge_ratio {rpn_enlarge_ratio} "\
+    f"--batch-size {batch_size} --prune-score {prune_score} --objfilter-iou {objfilter_iou} "\
+    f" --size-obj {size_obj}")
+
     os.system(f"python play_video.py --vid-name {results_dir/vname} --high-src {original_images} "\
     f"--resolutions {low} {high} --low-results {low_results} --output-file {output_file} "\
     f"--ground-truth {results_dir/(video + '_gt')} --max-size 0.3 "\

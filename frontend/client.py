@@ -59,9 +59,35 @@ class Client:
                              f"in base phase using {self.config.low_qp}QP")
             extract_images_from_video(f"{video_name}-base-phase-cropped",
                                       req_regions)
-            results, multi_scan_final_results, offsets = self.server.perform_detection(
+            results, images, offsets = self.server.perform_detection(
                 f"{video_name}-base-phase-cropped", self.config.low_resolution,
                 batch_fnames)
+
+
+            '''
+            os.system(f"mkdir -p {video_name}-detection-results")
+            for region in results.regions:
+                x, y, w, h, fid = region.x, region.y, region.w, region.h, region.fid
+                ysize, xsize, _ = images[fid].shape
+
+                color = (255,0,0)
+#                if w * h <= 0.04:
+#                    color = (0, 255, 0)
+#                else:
+#                    continue
+#                if region.conf <= 0.5:
+#                    continue
+
+                x = int(round(x * xsize))
+                y = int(round(y * ysize))
+                w = int(round(w * xsize))
+                h = int(round(h * ysize))
+
+                images[fid] = cv2.rectangle(images[fid], (x,y), (x+w,y+h), color, 4)
+
+            for fid in images:
+                cv2.imwrite(f'{video_name}-detection-results/%010d.png' % fid, cv2.cvtColor(images[fid], cv2.COLOR_RGB2BGR))
+            '''
             stop = timeit.default_timer()
             batch_time =  stop-start
 
@@ -262,6 +288,8 @@ class Client:
                         if cnt > 0:
                             accepted_r2_results.add_single_result(single_result, self.config.intersection_threshold)
             segment_size_file.write(f"{encoded_batch_video_size},{regions_size},{len(accepted_results)},{len(accepted_r2_results)}\n")
+            req_regions.write('results_demonstrate/final_rpn.txt')
+
             final_r1_results.combine_results(accepted_results,1.0)
             final_r2_results.combine_results(accepted_r2_results,1.0)
             # import pdb; pdb.set_trace()

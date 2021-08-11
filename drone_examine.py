@@ -1,15 +1,18 @@
 
 import subprocess
+import yaml
 
-name_format = 'drone_%d'
+lst = [14,15,16,17,18,19,20,21,22,23,24,29,30]
 
-for i in [1,11,65,84]:
-    name = name_format % i
+for i in lst:
+
+    j = i
+
     subprocess.run([
         'python',
         'examine.py',
-        name,
-        'results_' + name,
-        'stats_' + name,
-        'gt',
-        '>' + name + '.txt'])
+        f'drone_{j}',
+        f'results_drone_{j}',
+        f'stats_drone_{j}',
+        'gt'
+    ])

@@ -10,9 +10,12 @@ dds_config:
   - 0.5
   - 0.0
   - 0.01
+  - 1.0
+enable_cloudseg: false
 gt_config:
 - - 1.0
   - 24
+height: 720
 mpeg_configs:
 - - 0.8
   - 36
@@ -21,5 +24,8 @@ mpeg_configs:
 relevant_classes:
 - vehicle
 resnet_101_coco: /data2/kuntai/code/dds/model/frozen_inference_graph.pb
-root: /data2/kuntai/code/dds
-video_list: /data2/kuntai/code/dds/video_list.yaml
+root: /data2/kuntai/code/dds-detection
+super_resoluter: /tank/kuntai/code/CARN-pytorch/checkpoint/carn.pth
+super_resoluter_cuda_id: 0
+video_list: /data2/kuntai/code/dds-detection/video_list.yaml
+width: 1280

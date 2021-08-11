@@ -7,6 +7,14 @@ from dds_utils import (Results, Region, calc_intersection_area,
                        calc_area, merge_images_with_zeros, merge_images, extract_images_from_video)
 from .object_detector import Detector
 
+import yaml
+import torchvision.transforms.functional as F
+from PIL import Image
+from backend.CARN.interface import CARN
+
+with open('dds_env.yaml', 'r') as f:
+    dds_env = yaml.load(f.read())
+
 
 class Server:
     """The server component of DDS protocol. Responsible for running DNN
@@ -23,11 +31,29 @@ class Server:
         if not self.config.simulation:
             self.detector = Detector()
 
+        if dds_env['enable_cloudseg']:
+            self.sr = CARN()
+
         self.logger.info("Server started")
+
+    def preprocess(self, image):
+        # Must be RGB image
+        image = image.convert('RGB')
+        # super resolute the image if cloudseg is enabled.
+        if dds_env['enable_cloudseg']:
+            import time
+            start = time.time()
+            image = self.sr(image)
+            ed = time.time()
+            #print(start - ed)
+        # Resize the image to 720p, for evaluating the result.
+        image = F.resize(image, (dds_env['height'], dds_env['width']))
+        return image
 
     def perform_detection(self, images_direc, resolution, fnames=None,
                           images=None):
         final_results = Results()
+        ret_images = {}
 
         if fnames is None:
             fnames = sorted(os.listdir(images_direc))
@@ -37,15 +63,21 @@ class Server:
                 continue
             fid = int(fname.split(".")[0])
             image = None
-            if images:
-                image = images[fid]
-            else:
-                image_path = os.path.join(images_direc, fname)
-                image = cv.imread(image_path)
-            image = cv.cvtColor(image, cv.COLOR_BGR2RGB)
+            #if images:
+            #    assert False
+            #else:
+            image_path = os.path.join(images_direc, fname)
+            image = Image.open(image_path)
+            image = self.preprocess(image)
 
             self.logger.debug(f"Running detection for {fname}")
-            detection_results, multi_scan_results, offsets = self.detector.infer(image)
+            import time
+            st = time.time()
+            detection_results, processed_image, offsets = self.detector.infer(image)
+            ed = time.time()
+            print(ed-st)
+            # image = image.cpu()
+            ret_images[fid] = processed_image
             # if fid == 5:
                 # import pdb; pdb.set_trace()
             self.logger.info(f"Running inference on {len(fnames)} frames")
@@ -63,7 +95,7 @@ class Server:
             if frame_with_no_results:
                 final_results.append(
                     Region(fid, 0, 0, 0, 0, 0.1, "no obj", resolution))
-        return final_results, None, None
+        return final_results, ret_images, None
 
     def simulate_low_query(self, start_fid, end_fid, images_direc,
                            results_dict, simulation=True, rpn_enlarge_ratio=0.):

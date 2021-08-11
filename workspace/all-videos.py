@@ -41,9 +41,13 @@ for video_target in vid_names:
     # Run MPEG
     if CODE==0:
         for res, qp in mpeg_configs[video]:
-            print(str(res) + '/' + str(qp))
+            if dds_env['enable_cloudseg']:
+                res = res / 4
             vname = f"{video}_mpeg_{res}_{qp}"
-            if True:
+            if dds_env['enable_cloudseg']:
+                vname = vname + '_cloudseg'
+            print(f'Running {vname}')
+            if True or not os.path.exists(os.path.join(result_target, vname)):
                 os.system(f"python ./workspace/run_single.py mpeg {video} {vname} {qp} {res}")
             else:
                 print(f"Skipping {vname}")
@@ -53,26 +57,41 @@ for video_target in vid_names:
     # before running DDS, you must have rpn results for 2nd iteration
     if CODE==1:
         from backend.rpn_inference_func import run_rpn_inference
-        for low_res, low_qp, high_res, high_qp, rpn_enlarge_ratio, batch_size, rpn_box_source, prune_score, objfilter_iou, size_obj in dds_config[video]:
+        for low_res, low_qp, high_res, high_qp, rpn_enlarge_ratio, batch_size, rpn_box_source, prune_score, objfilter_iou, size_obj, threshold_ratio in dds_config[video]:
             low_cofig_src = os.path.join(dataset_root, f"{video}_{low_res}_{low_qp}/src")
             if (not os.path.exists(low_cofig_src)) or (os.path.exists(low_cofig_src) and len(os.listdir(low_cofig_src))!=num_frames):
              # create dataset
                 print(f"create {video}_{low_res}_{low_qp} for RPN")
-                scale=f"{1280*low_res}:{int(720*low_res)}"
+                scale=f"{dds_env['width']*low_res}:{int(dds_env['height']*low_res)}"
                 os.system(f"python ./experiment-scripts-xin/prepare_data_for_RPN.py {video} {low_res} {low_qp} {num_frames} {scale}" )
              # run RPN
-            print(f"DO {video}_{low_res}_{low_qp}_{high_res}_{high_qp} RPN")
-            run_rpn_inference(video, 0.5, 0.3, 0.3, low_res, low_qp, high_res, high_qp, result_target)
+
+            vname = f"{video}_dds_{low_res}_{high_res}_{low_qp}_{high_qp}_{rpn_enlarge_ratio}_twosides_{rpn_box_source}_batch_{batch_size}_{prune_score}_{objfilter_iou}_{size_obj}"
+            print((video, 0.5 * threshold_ratio, 0.3 * threshold_ratio, 0.3 * threshold_ratio, low_res, low_qp, high_res, high_qp, result_target))
+            if threshold_ratio != 1.0:
+                vname = f"{vname}_ratio_{threshold_ratio}"
+
+            if not os.path.exists(os.path.join(result_target, vname)):
+                print(f"DO {video}_{low_res}_{low_qp}_{high_res}_{high_qp} RPN")
+                run_rpn_inference(video, 0.5 * threshold_ratio, 0.3 * threshold_ratio, 0.3 * threshold_ratio, low_res, low_qp, high_res, high_qp, result_target)
 
     if CODE==2:
-        for low_res, low_qp, high_res, high_qp, rpn_enlarge_ratio, batch_size, rpn_box_source, prune_score, objfilter_iou, size_obj in dds_config[video]:
+        for low_res, low_qp, high_res, high_qp, rpn_enlarge_ratio, batch_size, rpn_box_source, prune_score, objfilter_iou, size_obj, threshold_ratio in dds_config[video]:
+            # prune_score = prune_score * threshold_ratio
             if batch_size:
                 vname = f"{video}_dds_{low_res}_{high_res}_{low_qp}_{high_qp}_{rpn_enlarge_ratio}_twosides_{rpn_box_source}_batch_{batch_size}_{prune_score}_{objfilter_iou}_{size_obj}"
-                os.system(f"python ./workspace/run_single.py dds {video} {vname} {low_qp} {high_qp} {low_res} {high_res} {rpn_enlarge_ratio} {rpn_box_source} {batch_size} {prune_score} {objfilter_iou} {size_obj}")
+                if threshold_ratio != 1.0:
+                    vname = f"{vname}_ratio_{threshold_ratio}"
+
+                if not os.path.exists(os.path.join(result_target, vname)):
+                    os.system(f"python ./workspace/run_single.py dds {video} {vname} {low_qp} {high_qp} {low_res} {high_res} {rpn_enlarge_ratio} {rpn_box_source} {batch_size} {prune_score} {objfilter_iou} {size_obj}")
             else:
                 vname = f"{video}_dds_{low_res}_{high_res}_{low_qp}_{high_qp}_{rpn_enlarge_ratio}_twosides_{rpn_box_source}_{prune_score}_{objfilter_iou} {size_obj}"
+                if threshold_ratio != 1.0:
+                    vname = f"{vname}_ratio_{threshold_ratio}"
         # if not os.path.exists(os.path.join(result_target, vname)):
-                os.system(f"python ./workspace/run_single.py dds {video} {vname} {low_qp} {high_qp} {low_res} {high_res} {rpn_enlarge_ratio} {rpn_box_source} {15} {prune_score} {objfilter_iou} {size_obj}")
+                if not os.path.exists(os.path.join(result_target, vname)):
+                    os.system(f"python ./workspace/run_single.py dds {video} {vname} {low_qp} {high_qp} {low_res} {high_res} {rpn_enlarge_ratio} {rpn_box_source} {15} {prune_score} {objfilter_iou} {size_obj}")
         # else:
             # print(f"Skipping {vname}")
 
