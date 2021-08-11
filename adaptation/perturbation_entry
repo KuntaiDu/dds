@@ -1,0 +1,12 @@
+{
+  "inputs": INPUTS,
+  "perturbation": {
+    "sceneImportance": 0.0,
+    "missionLength": 22,
+    "enforceEnergyLimit": false,
+    "availableCoreFrequency": 4000,
+    "availableCores": 8,
+      "missionIntent": "knobs       lowConfiguration   from [0, 1 reference]\n            highConfiguration  from [1 reference, 2, 3, 4]\n\nmeasures    bandwidth          : Double\n            dummy              : Double\n\nintent      dds max(dummy) such that bandwidth == CONSTRAINT\n\ntrainingSet []",
+    "missionIntentOnlyIntentSection": "max(dummy) such that bandwidth == CONSTRAINT"
+  }
+}
