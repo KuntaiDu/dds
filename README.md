@@ -1,5 +1,7 @@
 # DDS
 
+This is the implementation for the paper [Server-Driven Video Streaming for Deep Learning Inference](https://kuntaidu.github.io/assets/doc/DDS.pdf).
+
 ## 1. Related resources
 
 Please check [Kuntai Du's home page](https://kuntaidu.github.io/aboutme.html) for more DDS-related resources.
